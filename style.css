@@ -249,3 +249,23 @@ footer{padding:20px 16px 32px;color:var(--faint)}
 .program .cat-chips button[aria-pressed=true],.program .day-picker button[aria-pressed=true]{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
 
 .program [role=status]:empty,.program .status:empty{display:none}
+
+/* Historial en mapa de calor */
+.program table.heatmap{border-collapse:separate;border-spacing:3px;width:100%;min-width:340px;font-size:12.5px}
+.heatmap th,.heatmap td{border:0;padding:0;text-align:center}
+.heatmap thead th{font-size:11px;color:var(--faint);padding:0 0 4px;font-weight:600}
+.heatmap thead th.is-now{color:var(--accent)}
+.heatmap tbody th{text-align:left;font-size:12.5px;color:var(--text);font-weight:600;padding-right:6px;white-space:nowrap}
+.heatmap td.hm{height:30px;min-width:28px;border-radius:6px;background:var(--surface-2);color:var(--faint);font-variant-numeric:tabular-nums;font-size:11.5px}
+.heatmap td.hm.is-future{opacity:.35}
+.heatmap td.hm.is-now{box-shadow:inset 0 0 0 1.5px var(--accent)}
+.heatmap td.hm-total,.heatmap th.hm-total{text-align:right;padding-left:8px;white-space:nowrap}
+.heatmap td.hm-total strong{font-size:13px}.heatmap td.hm-total small{color:var(--faint);font-size:11px;margin-left:2px}
+.hm-bar{display:block;height:3px;background:var(--surface-3);border-radius:2px;margin-top:3px;overflow:hidden}.hm-bar i{display:block;height:100%;background:var(--accent)}
+.heatmap tr.hm-sep td{text-align:left;font-size:11px;color:var(--faint);padding:8px 0 2px;letter-spacing:.5px}
+
+.program table.heatmap{min-width:0;table-layout:fixed}
+.heatmap thead th:first-child,.heatmap tbody th{width:31%}
+.heatmap td.hm{min-width:0;height:34px;font-size:11px;letter-spacing:-.2px}
+.heatmap tbody th{white-space:normal;line-height:1.2;padding:3px 6px 3px 0}
+.hm-name{display:block}.hm-sum{display:block;font-size:11px;color:var(--faint);font-weight:400;margin-top:1px}.hm-sum strong{color:var(--text);font-weight:700}
