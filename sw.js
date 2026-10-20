@@ -1,4 +1,4 @@
-const CACHE = "fittrack-pages-v20261020r33-alimento-suelto";
+const CACHE = "fittrack-pages-v20261020r33b-sin-cache-vieja";
 const FILES = [
   "./",
   "./index.html",
@@ -55,7 +55,7 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(CACHE)
-      .then((cache) => Promise.allSettled(FILES.map((f) => cache.add(f))))
+      .then((cache) => Promise.allSettled(FILES.map((f) => cache.add(new Request(f, { cache: "reload" })))))
       .then(() => self.skipWaiting()),
   );
 });
@@ -87,7 +87,8 @@ self.addEventListener("fetch", (event) => {
     (async () => {
       const cache = await caches.open(CACHE);
       try {
-        const response = await fetch(event.request);
+        // "no-cache": revalida con el servidor para no servir archivos viejos de la caché HTTP.
+        const response = await fetch(event.request.url, { cache: "no-cache", credentials: "same-origin" });
         if (response.ok && response.type === "basic") await cache.put(event.request, response.clone());
         return response;
       } catch (error) {
