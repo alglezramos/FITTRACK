@@ -1,7 +1,7 @@
-const CACHE = 'fittrack-pages-v20261020r14-misiones-plan';
+const CACHE = 'fittrack-pages-v20261020r21-catalogo-compacto';
 const FILES = ["./", "./index.html", "./style.css", "./app.js", "./data.js", "./manifest.webmanifest", "./icon.svg", "./icon-180.png", "./icon-192.png", "./icon-512.png", "./calendar.js", "./coach.js", "./summary.js", "./wellbeing.js", "./challenges.js", "./food-data.js", "./core.js", "./nutrition.js", "./program.js", "./assets/0_0.jpg", "./assets/0_1.jpg", "./assets/0_2.jpg", "./assets/0_3.jpg", "./assets/0_4.jpg", "./assets/0_5.jpg", "./assets/1_0.jpg", "./assets/1_1.jpg", "./assets/1_2.jpg", "./assets/1_3.jpg", "./assets/1_4.jpg", "./assets/1_5.jpg", "./assets/2_0.jpg", "./assets/2_1.jpg", "./assets/2_2.jpg", "./assets/2_3.jpg", "./assets/2_4.jpg", "./assets/2_5.jpg", "./assets/3_0.jpg", "./assets/3_1.jpg", "./assets/3_2.jpg", "./assets/3_3.jpg", "./assets/4_0.jpg", "./assets/4_1.jpg", "./assets/4_2.jpg", "./assets/4_3.jpg", "./assets/4_4.jpg", "./assets/4_5.jpg"];
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting()));
+  event.waitUntil(caches.open(CACHE).then(cache => Promise.allSettled(FILES.map(f => cache.add(f)))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', event => {
   event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE && (key === 'fittrack-v20261019r2' || key.startsWith('fittrack-pages-'))).map(key => caches.delete(key)))).then(() => self.clients.claim()));

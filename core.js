@@ -41,7 +41,8 @@
   if(p.shopping!==undefined){if(!object(p.shopping))throw Error('Lista del súper inválida');for(const [week,rows] of Object.entries(p.shopping)){if(!/^[1-8]$/.test(week)||!object(rows))throw Error('Semana de compras inválida');for(const row of Object.values(rows))if(!object(row)||!number(row.qty,0,10000000)||typeof row.unit!=='string'||typeof row.name!=='string')throw Error('Producto de compras inválido');}}
   return p;
  }
- g.FitCore={validDate,datePlus,has,intake,balance,series,validate};
+ const GOAL_KG=10,NEEDED=Math.round(GOAL_KG*7700/56);
+ g.FitCore={validDate,datePlus,has,intake,balance,series,validate,GOAL_KG,NEEDED};
 })(typeof window!=='undefined'?window:globalThis);
 
 

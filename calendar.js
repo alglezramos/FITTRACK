@@ -8,7 +8,7 @@ window.FitCalendar={
  for(const l of p.challenge||[]){const d=p.challenges[l.week]??={goals:goals(),logs:[]};const goal=({abdominales:'abs',sentadillas:'squats',pushups:'pushups',pullups:'pullups'})[l.ex];const id='claude-'+l.id;if(goal&&!d.logs.some(x=>x.id===id))d.logs.push({id,goal,reps:Number(l.n),date:l.date});}
  if(p.mergeVersion!==2)for(const d of Object.values(p.challenges))d.goals=goals();
  for(const s of p.sessions||[])s.unit??='km';
- if(['strength','cardio','challenges'].includes(p.view)){p.trainingTab=p.view;p.view='training';}if(p.view==='meals')p.view='food';if(p.view==='plan')p.view='home';
+ if(['strength','cardio','challenges'].includes(p.view)){p.trainingTab=p.view;p.view='training';}if(p.view==='meals')p.view='food';if(p.view==='plan')p.view='home';if(['wellness','missions','tracking'].includes(p.view)){p.progressTab=p.view==='wellness'?'wellbeing':p.view==='missions'?'missions':'weight';p.view='progress';}
  delete p.meals;delete p.challenge;delete p.challengeDate;delete p.diaryDate;
  if(!p.cookedVersion){
  const raw=new Set(['res','cerdo','pastor']);
@@ -16,6 +16,7 @@ window.FitCalendar={
  for(const id of raw){const f=p.foodEdits?.[id];if(f){f.base*=.75;f.unit='g cocinados';f.name+=' · cocinada (estimación)';f.pending=true;}}
  p.cookedVersion=1;
  }
+ if(p.meatConfirmed!==1){for(const id of ['res','cerdo']){const f=p.foodEdits?.[id];if(f){f.pending=false;f.name=String(f.name).replace(' · cocinada (estimación)',' · cocinada');}}p.meatConfirmed=1;}
  p.recordDay=Number.isInteger(p.recordDay)&&p.recordDay>=0&&p.recordDay<7?p.recordDay:0;p.menuDay=p.recordDay;p.mergeVersion=2;return p;}
 };
 
