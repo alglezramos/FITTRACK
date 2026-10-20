@@ -693,14 +693,6 @@
       settings.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
-  document.getElementById("goBackup").onclick = () => {
-    settings.hidden = true;
-    program.view = "progress";
-    program.progressTab = "weight";
-    pendingJump = "sec-backup";
-    persist();
-    show();
-  };
   // Opciones: inicio y peso inicial, sin mezclar configuración con registros.
   document.getElementById("setupInitialWeight").addEventListener("change", (e) => {
     if (!e.target.checkValidity()) return;
@@ -744,7 +736,7 @@
     let write = false;
     if (e.type === "submit")
       write =
-        ["cardioForm", "weeklyDistanceForm", "dailyForm", "coachCheckin", "manualMealForm"].includes(
+        ["cardioForm", "weeklyDistanceForm", "dailyForm", "coachCheckin", "manualMealForm", "foodLogForm"].includes(
           e.target.id,
         ) || e.target.hasAttribute("data-challenge-log");
         else if (e.type === "click")

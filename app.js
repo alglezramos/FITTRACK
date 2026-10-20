@@ -193,49 +193,6 @@ function download(name, body, type) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-$("exportJSON").onclick = () =>
-  download(
-    "fittrack-copia.json",
-    JSON.stringify({ version: 1, exported: new Date().toISOString(), state }, null, 2),
-    "application/json",
-  );
-$("exportCSV").onclick = () => {
-  const rows = [["Día", "Ejercicio", "Semana", "Peso (kg)", "Completado"]];
-  EXERCISES.forEach((x) => {
-    for (let w = 1; w <= 8; w++) {
-      const k = x.id + "-w" + w;
-      rows.push([x.day, x.name, w, state.weights[k] ?? "", state.completed[k] ? "Sí" : "No"]);
-    }
-  });
-  download(
-    "fittrack-historial.csv",
-    "\ufeff" +
-      rows.map((r) => r.map((v) => '"' + String(v).replace(/"/g, '""') + '"').join(",")).join("\r\n"),
-    "text/csv;charset=utf-8",
-  );
-};
-$("importJSON").onchange = async (e) => {
-  const f = e.target.files[0];
-  if (!f) return;
-  try {
-    const o = JSON.parse(await f.text());
-    if (
-      o.version !== 1 ||
-      !o.state ||
-      typeof o.state.weights !== "object" ||
-      typeof o.state.completed !== "object"
-    )
-      throw Error("Formato no válido");
-    if (!confirm("¿Reemplazar los registros actuales con esta copia?")) return;
-    state = { day: 1, week: 1, ...o.state };
-    save();
-    render();
-    alert("Copia importada");
-  } catch (err) {
-    alert("No se pudo importar: " + err.message);
-  }
-  e.target.value = "";
-};
 if ("serviceWorker" in navigator && location.protocol.startsWith("http"))
   navigator.serviceWorker.register("./sw.js").catch(() => {});
 render();

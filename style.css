@@ -2073,3 +2073,12 @@ header {
 @media(max-width:760px){.mb-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.mb-overall{grid-column:1/-1}.mgrid{grid-template-columns:1fr}}
 @media(max-width:420px){.mission-board{padding:16px!important}.mb-stat{padding:10px;gap:10px}.mb-ic{flex-basis:36px;width:36px;height:36px}.mb-stat strong{font-size:20px}.mcard{padding:12px;gap:12px}.mcard-icon{flex-basis:44px;width:44px;height:44px}}
 @media(max-width:520px){.mb-stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.mb-stat:not(.mb-overall){flex-direction:column;align-items:flex-start;gap:8px;padding:10px}.mb-stat:not(.mb-overall) small{font-size:12px;line-height:1.25}.mb-overall{grid-column:1/-1}.mb-head h2{font-size:28px!important}}
+
+/* Registrar un alimento suelto */
+.program button.fr-log{padding:6px 10px;font-size:15px;font-weight:800;background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.food-rows li{grid-template-columns:minmax(0,1fr) auto auto auto}
+.food-log-panel{border-color:var(--accent)!important}
+.program .food-log-panel .card-head button{padding:6px 10px}
+.program .food-log-panel .quick-day select{width:100%;padding:9px 10px}
+.fl-total{grid-column:1/-1;margin:2px 0 0!important;font-size:13px;color:var(--muted)}.fl-total strong{font-size:18px;color:var(--accent)}
+#foodLogForm{grid-template-columns:minmax(0,1fr) minmax(0,1.4fr)}#foodLogForm>button{grid-column:1/-1}
