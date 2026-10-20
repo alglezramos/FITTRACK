@@ -1,10 +1,50 @@
-
-window.createFitWellbeing=function({getProgram,persist,date,today,escape,root,rerender}){
- const habits=[['water','Hidratación','Hacer una pausa para beber agua.'],['screen','Pausa de pantalla','Pasar unos minutos sin pantalla.'],['breathing','Momento de calma','Dedicar unos minutos a respirar con tranquilidad.'],['sleep','Preparar el descanso','Reservar un momento para desconectar antes de dormir.']];
- const current=()=>getProgram().wellbeing?.[date()]||{};
- function render(){const d=current(),n=habits.filter(([id])=>d[id]==='done').length,p=getProgram(),locked=date()>today();return `<article><div class="card-head"><div><div class="eyebrow">BIENESTAR · ${escape(date())}</div><h3>Pequeños hábitos</h3></div><span class="pill">${n}/${habits.length}</span></div><ul class="habit-list">${habits.map(([id,name,detail])=>`<li class="${d[id]==='done'?'is-done':d[id]==='skip'?'is-skip':''}"><div><strong>${name}</strong><small>${detail}</small></div><div class="habit-actions"><button data-wellbeing="${id}" data-wellbeing-value="done" aria-pressed="${d[id]==='done'}" aria-label="${name}: hecho" ${locked?'disabled':''}>✓</button><button data-wellbeing="${id}" data-wellbeing-value="skip" aria-pressed="${d[id]==='skip'}" aria-label="${name}: omitir hoy" ${locked?'disabled':''}>Omitir</button></div></li>`).join('')}</ul><p class="tiny subtle">Opcionales. Toca de nuevo para desmarcar; no añaden gasto calórico.</p><details><summary>Historial de bienestar · 8 semanas</summary>${FitCore.validDate(p.start)?`<div class="scroll"><table><thead><tr><th>Fecha</th>${habits.map(([,name])=>`<th>${name}</th>`).join('')}</tr></thead><tbody>${Array.from({length:56},(_,i)=>{const day=FitCore.datePlus(p.start,i),row=p.wellbeing?.[day]||{};return `<tr><td>${day}</td>${habits.map(([id])=>`<td>${row[id]==='done'?'✓':row[id]==='skip'?'Omitido':day>today()?'·':'—'}</td>`).join('')}</tr>`;}).join('')}</tbody></table></div>`:'<p>Define el inicio del programa en ⚙ Opciones.</p>'}</details><p id="wellbeingStatus" role="status" class="tiny subtle"></p></article>`;}
- root.addEventListener('click',e=>{const b=e.target.closest('button');if(!b?.dataset.wellbeing)return;const id=b.dataset.wellbeing,v=b.dataset.wellbeingValue;if(!habits.some(h=>h[0]===id)||!['done','skip'].includes(v)||!FitCore.validDate(date())||date()>today())return;const p=getProgram();p.wellbeing??={};p.wellbeing[date()]??={};if(p.wellbeing[date()][id]===v)delete p.wellbeing[date()][id];else p.wellbeing[date()][id]=v;persist();rerender();const status=document.getElementById('wellbeingStatus');if(status)status.textContent='Registro guardado para '+date()+'.';});
- return {render};
+window.createFitWellbeing = function ({ getProgram, persist, date, today, escape, root, rerender }) {
+  const habits = [
+    ["water", "Hidratación", "Hacer una pausa para beber agua."],
+    ["screen", "Pausa de pantalla", "Pasar unos minutos sin pantalla."],
+    ["breathing", "Momento de calma", "Dedicar unos minutos a respirar con tranquilidad."],
+    ["sleep", "Preparar el descanso", "Reservar un momento para desconectar antes de dormir."],
+  ];
+  const current = () => getProgram().wellbeing?.[date()] || {};
+  function render() {
+    const d = current(),
+      n = habits.filter(([id]) => d[id] === "done").length,
+      p = getProgram(),
+      locked = date() > today();
+    return `<article><div class="card-head"><div><div class="eyebrow">BIENESTAR · ${escape(date())}</div><h3>Pequeños hábitos</h3></div><span class="pill">${n}/${habits.length}</span></div><ul class="habit-list">${habits.map(([id, name, detail]) => `<li class="${d[id] === "done" ? "is-done" : d[id] === "skip" ? "is-skip" : ""}"><div><strong>${name}</strong><small>${detail}</small></div><div class="habit-actions"><button data-wellbeing="${id}" data-wellbeing-value="done" aria-pressed="${d[id] === "done"}" aria-label="${name}: hecho" ${locked ? "disabled" : ""}>✓</button><button data-wellbeing="${id}" data-wellbeing-value="skip" aria-pressed="${d[id] === "skip"}" aria-label="${name}: omitir hoy" ${locked ? "disabled" : ""}>Omitir</button></div></li>`).join("")}</ul><p class="tiny subtle">Opcionales. Toca de nuevo para desmarcar; no añaden gasto calórico.</p><details><summary>Historial de bienestar · 8 semanas</summary>${
+      FitCore.validDate(p.start)
+        ? `<div class="scroll"><table><thead><tr><th>Fecha</th>${habits.map(([, name]) => `<th>${name}</th>`).join("")}</tr></thead><tbody>${Array.from(
+            { length: 56 },
+            (_, i) => {
+              const day = FitCore.datePlus(p.start, i),
+                row = p.wellbeing?.[day] || {};
+              return `<tr><td>${day}</td>${habits.map(([id]) => `<td>${row[id] === "done" ? "✓" : row[id] === "skip" ? "Omitido" : day > today() ? "·" : "—"}</td>`).join("")}</tr>`;
+            },
+          ).join("")}</tbody></table></div>`
+        : "<p>Define el inicio del programa en ⚙ Opciones.</p>"
+    }</details><p id="wellbeingStatus" role="status" class="tiny subtle"></p></article>`;
+  }
+  root.addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b?.dataset.wellbeing) return;
+    const id = b.dataset.wellbeing,
+      v = b.dataset.wellbeingValue;
+    if (
+      !habits.some((h) => h[0] === id) ||
+      !["done", "skip"].includes(v) ||
+      !FitCore.validDate(date()) ||
+      date() > today()
+    )
+      return;
+    const p = getProgram();
+    p.wellbeing ??= {};
+    p.wellbeing[date()] ??= {};
+    if (p.wellbeing[date()][id] === v) delete p.wellbeing[date()][id];
+    else p.wellbeing[date()][id] = v;
+    persist();
+    rerender();
+    const status = document.getElementById("wellbeingStatus");
+    if (status) status.textContent = "Registro guardado para " + date() + ".";
+  });
+  return { render };
 };
-
-

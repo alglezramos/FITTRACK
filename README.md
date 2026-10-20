@@ -34,3 +34,11 @@ Huevo + Hashbrown; Burrito Carne Molida de Cerdo; Arroz con carne molida. Se inc
 - Plan: cada comida de los 7 días se puede cambiar.
 - Catálogo: +8 frutas, mostaza y salsa Lizano; alimentos y recetas propios incluidos; res y cerdo confirmados.
 - Corregido: la pestaña Recetas no se abría.
+
+## Versión r31 (20-oct-2026)
+- **Registro rápido en Hoy:** las 6 comidas del plan del día con «✓ Comí esto» (un toque) y «Deshacer», «+ Otra comida», y Whoop + pasos en la misma tarjeta.
+- **Misiones:** nuevo dashboard (semana actual, misiones totales/completadas/en progreso, progreso general y tarjetas por misión con icono y color).
+- **Día 4 · Hombro:** 6 ejercicios (desarrollo en silla y remo a una mano). El programa suma 30 ejercicios por semana.
+- **Almacenamiento único** (`store.js`, clave `fittrack.data.v2`). Al abrir esta versión se copian automáticamente los datos de las claves antiguas, que se conservan como respaldo.
+- Código legible (sin minificar), CSS consolidado en una sola hoja y código sin uso eliminado.
+- Corregido: errores al redibujar al guardar pesos en Fuerza.
