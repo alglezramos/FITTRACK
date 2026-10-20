@@ -425,44 +425,85 @@
   function chart() {
     const box = document.getElementById("weightChart");
     if (!box) return;
-    const rows = C.series(program),
-      width = Math.max(300, box.clientWidth || 650),
-      height = 250,
-      pad = 45;
+    const rows = C.series(program);
+    if (!rows.length) {
+      box.innerHTML = '<p class="subtle">Configura el inicio y el peso inicial para ver la gráfica.</p>';
+      return;
+    }
+    const width = Math.max(320, box.clientWidth || 650),
+      height = 280,
+      padL = 46,
+      padR = 18,
+      padT = 22,
+      padB = 34;
     const values = rows.flatMap((r) => [r.target, r.actual, r.projected]).filter((v) => v !== null),
-      min = Math.min(...values) - 1,
-      max = Math.max(...values) + 1;
-    const x = (i) => pad + (i * (width - pad * 2)) / 8,
-      y = (v) => height - pad - ((v - min) / (max - min)) * (height - pad * 2);
-    box.innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Peso objetivo, peso registrado y proyección por déficit"><title>Comparación de peso en 8 semanas</title>${[
-      3,
-    ]
-      .map((i) => {
-        const v = min + ((max - min) * i) / 3;
-        return `<line x1="${pad}" y1="${y(v)}" x2="${width - pad}" y2="${y(v)}" stroke="#41444b"/><text x="3" y="${y(v) + 4}" fill="#b8b8b8" font-size="11">${fmt(v)}</text>`;
-      })
-      .join(
-        "",
-      )}${[0, 2, 4, 6, 8].map((i) => `<text x="${x(i)}" y="${height - 12}" fill="#b8b8b8" text-anchor="middle" font-size="12">S${i}</text>`).join("")}${[
-      ["target", "#9399a5", "6 4"],
-      ["projected", "#7ac7bd", "3 4"],
-      ["actual", "#ffc33d", ""],
-    ]
-      .map(([k, color, dash]) => {
+      lo = Math.floor(Math.min(...values) - 0.5),
+      hi = Math.ceil(Math.max(...values) + 0.5),
+      step = hi - lo > 8 ? 2 : 1,
+      min = Math.floor(lo / step) * step,
+      max = Math.ceil(hi / step) * step;
+    const x = (i) => padL + (i * (width - padL - padR)) / 8,
+      y = (v) => padT + ((max - v) / (max - min)) * (height - padT - padB);
+    const ticks = [];
+    for (let v = min; v <= max + 1e-9; v += step) ticks.push(v);
+    const grid = ticks
+      .map(
+        (v) =>
+          `<line x1="${padL}" y1="${y(v)}" x2="${width - padR}" y2="${y(v)}" stroke="#34373d"/><text x="${padL - 8}" y="${y(v) + 4}" fill="#b8b8b8" font-size="11" text-anchor="end">${fmt(v)}</text>`,
+      )
+      .join("");
+    const xs = Array.from({ length: 9 }, (_, i) => i)
+      .map(
+        (i) =>
+          `<line x1="${x(i)}" y1="${padT}" x2="${x(i)}" y2="${height - padB}" stroke="#26282d"/><text x="${x(i)}" y="${height - 12}" fill="#b8b8b8" text-anchor="middle" font-size="11">S${i}</text>`,
+      )
+      .join("");
+    const series = [
+      ["target", "#9399a5", "6 4", "Objetivo"],
+      ["projected", "#7ac7bd", "3 4", "Proyección"],
+      ["actual", "#ffc33d", "", "Peso real"],
+    ];
+    const lines = series
+      .map(([k, color, dash, name]) => {
         const points = rows.filter((r) => r[k] !== null);
         return (
-          `<polyline fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="${dash}" points="${points.map((r) => `${x(r.week)},${y(r[k])}`).join(" ")}"/>` +
+          `<polyline fill="none" stroke="${color}" stroke-width="${k === "actual" ? 2.5 : 2}" stroke-dasharray="${dash}" points="${points.map((r) => `${x(r.week)},${y(r[k])}`).join(" ")}"/>` +
           points
             .map(
               (r) =>
-                `<circle cx="${x(r.week)}" cy="${y(r[k])}" r="3" fill="${color}"><title>Semana ${r.week}: ${fmt(r[k])} kg</title></circle>`,
+                `<circle cx="${x(r.week)}" cy="${y(r[k])}" r="${k === "actual" ? 4 : 3}" fill="${color}"><title>${name} · semana ${r.week}: ${fmt(r[k])} kg</title></circle>`,
             )
             .join("")
         );
       })
+      .join("");
+    const labels = rows
+      .filter((r) => r.actual !== null && r.week > 0)
+      .map(
+        (r) =>
+          `<text x="${x(r.week)}" y="${y(r.actual) - 9}" fill="#ffc33d" font-size="11" font-weight="700" text-anchor="middle">${fmt(r.actual)}</text>`,
+      )
+      .join("");
+    const last = rows[rows.length - 1],
+      ends = [
+        ["target", "#9399a5"],
+        ["projected", "#7ac7bd"],
+      ]
+        .filter(([k]) => last[k] !== null)
+        .map(
+          ([k, color]) =>
+            `<text x="${x(8) - 6}" y="${y(last[k]) + (k === "target" ? 16 : -8)}" fill="${color}" font-size="11" font-weight="700" text-anchor="end">${fmt(last[k])} kg</text>`,
+        )
+        .join("");
+    const start = `<text x="${x(0) + 4}" y="${y(rows[0].actual) + 18}" fill="#ffc33d" font-size="11" font-weight="700">${fmt(rows[0].actual)}</text>`;
+    box.innerHTML = `<div class="chart-legend">${series
+      .map(
+        ([, color, dash, name]) =>
+          `<span><svg width="22" height="8" aria-hidden="true"><line x1="0" y1="4" x2="22" y2="4" stroke="${color}" stroke-width="2.5" stroke-dasharray="${dash}"/></svg>${name}</span>`,
+      )
       .join(
         "",
-      )}<text x="${pad}" y="15" fill="#b8b8b8" font-size="12">kg</text></svg><p class="tiny">● Amarillo: peso real · Verde: proyección aproximada · Gris: objetivo</p>`;
+      )}</div><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Peso objetivo, peso registrado y proyección por déficit"><title>Comparación de peso en 8 semanas</title>${grid}${xs}<text x="4" y="12" fill="#b8b8b8" font-size="11">kg</text>${lines}${start}${labels}${ends}</svg><p class="tiny subtle">Eje vertical: peso en kg · Eje horizontal: semanas del programa (S0 = inicio). Peso real = promedio de las pesadas de la semana.</p>`;
   }
   function backup() {
     return `<article><h3>Copias de seguridad</h3><p>Los datos se guardan en este navegador. Exporta una copia para cambiarlos de dispositivo o protegerlos si borras el almacenamiento.</p><div class="btn-row"><button id="exportAll" class="primary">Exportar todo</button><label class="file-btn">Importar copia<input id="importAll" type="file" accept="application/json" hidden></label></div></article>`;
