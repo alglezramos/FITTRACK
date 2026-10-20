@@ -90,10 +90,11 @@ window.createFitNutrition = function ({
   function renderFood() {
     sync();
     const p = prog(),
-      tab = p.foodTab || "week",
+      tab = p.foodTab || "log",
       day = Number.isInteger(p.menuDay) ? p.menuDay : 0;
     return (
       `<nav class="subtabs" aria-label="Alimentación">${[
+        ["log", "Registro"],
         ["week", "Plan"],
         ["catalog", "Alimentos"],
         ["menus", "Recetas"],
@@ -104,7 +105,9 @@ window.createFitNutrition = function ({
             `<button data-food-tab="${v}" aria-pressed="${tab === v || (v === "menus" && tab === "create")}">${t}</button>`,
         )
         .join("")}</nav>` +
-      (tab === "shopping"
+      (tab === "log"
+        ? renderLog()
+        : tab === "shopping"
         ? renderShopping()
         : tab === "catalog"
           ? renderCatalog()
@@ -115,6 +118,22 @@ window.createFitNutrition = function ({
               : renderMenus()) +
       renderEditor()
     );
+  }
+  function renderLog() {
+    const d = daily(),
+      dt = selectedDate(),
+      meals = d.meals || [],
+      kcal = intake({ ...d, meals }),
+      order = [...kinds, ...new Set(meals.map((m) => m.kind).filter((k) => !kinds.includes(k)))];
+    const row = (m) =>
+      `<div class="food-log"><div><strong>${escape(m.name)}</strong><br><span class="subtle tiny">${fmt(m.kcal)} kcal</span>${m.items && m.items.length ? `<details><summary>Porciones</summary><p class="tiny">${m.items.map((i) => `${fmt(i.qty)} ${escape(i.unit)} ${escape(i.name)}`).join(" · ")}</p></details>` : ""}</div><button data-remove-meal="${escape(m.id)}">Eliminar</button></div>`;
+    const groups = order
+      .map((k) => {
+        const list = meals.filter((m) => m.kind === k);
+        return list.length ? `<h4 class="sub-title">${escape(k)}</h4>${list.map(row).join("")}` : "";
+      })
+      .join("");
+    return `<article><div class="card-head"><div><div class="eyebrow">REGISTRO DEL DÍA</div><h3>${escape(dt || "Selecciona el inicio")}</h3></div><span class="pill">${meals.length} · ${fmt(kcal)} kcal</span></div><p>${kcal <= 1800 ? "Restan " + fmt(1800 - kcal) + " de 1.800 kcal" : "Sobre 1.800 por " + fmt(kcal - 1800) + " kcal"}${d.closed ? " · ✓ Día completo" : ""}</p>${groups || '<p class="subtle">Aún no hay comidas registradas este día.</p>'}<div class="btn-row"><button class="primary" data-quick-food>+ Alimento</button><button data-food-tab="menus">+ Receta</button><button data-food-tab="week">Ver plan</button></div></article>`;
   }
   function renderMenus() {
     const selected = prog().menuFilter || "Todos",

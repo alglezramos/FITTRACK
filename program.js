@@ -488,7 +488,7 @@
     let content = "";
     if (view === "home") content = hoy();
     if (view === "food") {
-      if (!program.foodTab) program.foodTab = "week";
+      if (!program.foodTab) program.foodTab = "log";
       content = nutrition.renderFood();
     }
     if (view === "training") content = training();
@@ -508,6 +508,7 @@
     const b = e.target.closest("[data-view]");
     if (b) {
       program.view = b.dataset.view;
+      if (program.view === "food") program.foodTab = "log";
       persist();
       show();
     }
