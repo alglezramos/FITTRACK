@@ -46,3 +46,35 @@
 .program .fr-kcal input{width:68px;padding:6px;font-size:14px;text-align:right}
 .program button.fr-edit{padding:6px 10px;font-size:14px;background:transparent;border-color:#42444a}
 .food-compact .food-badge{font-size:10px;padding:1px 4px}
+
+.mode-chips{flex-wrap:wrap;margin:12px 0 4px}.program .mode-chips button{font-size:14px;padding:8px 13px}
+#cardioEntry .challenge-heading h3{margin:0}#cardioEntry label[hidden]{display:none}
+
+/* Retos compactos */
+.reps-compact .challenge-heading h3{margin:0}
+.rep-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 0;border-top:1px solid #2b2e33}
+.rep-row:first-of-type{border-top:0}
+.rep-top{display:flex;justify-content:space-between;gap:8px;font-size:14px}.rep-top span{color:#ffc33d;font-weight:700}
+.reps-compact .challenge-progress{margin:6px 0 4px;height:6px}
+.rep-info small{color:#9a9da3;font-size:12px}
+.rep-form{display:flex;gap:6px;align-items:center}
+.program .rep-form input{width:70px;padding:8px;font-size:15px;text-align:center}
+.program .rep-form button{padding:8px 14px;font-size:18px;font-weight:800;line-height:1}
+
+/* Pesadas */
+.weigh-card .challenge-heading h2{margin:0}
+.weigh-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:16px 0}
+.program label.weigh-tile{margin:0;display:grid;gap:6px;background:#25282e;border:1px solid #3b3e45;border-radius:12px;padding:10px}
+.weigh-tile.is-today{border-color:#ffc33d}.weigh-tile.has-value{background:#2b2a22}
+.weigh-tile>span{font-size:12px;color:#b8b8b8}.weigh-tile.is-today>span{color:#ffc33d;font-weight:700}
+.weigh-tile>div{display:flex;align-items:baseline;gap:4px}
+.program .weigh-tile input{width:100%;min-width:0;padding:6px 4px;font-size:20px;font-weight:700;background:transparent;border:0;border-bottom:1px solid #555960;border-radius:0}
+.program .weigh-tile input:focus{outline:none;border-bottom-color:#ffc33d}
+.weigh-tile em{font-style:normal;color:#9a9da3;font-size:13px}
+.weigh-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:4px 0 12px}
+.weigh-stats>div{background:#1a1c20;border:1px solid #33363b;border-radius:10px;padding:10px}
+.weigh-stats span{display:block;font-size:12px;color:#b8b8b8}.weigh-stats strong{display:block;font-size:20px;margin-top:4px}
+.weigh-stats small{display:block;font-size:11px;color:#9a9da3;margin-top:2px}
+.weigh-stats .good{color:#7ac7bd}.weigh-stats .bad{color:#ed9b76}
+.program tr.current-row td{background:#343027}
+@media(max-width:600px){.weigh-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.weigh-stats strong{font-size:17px}}
