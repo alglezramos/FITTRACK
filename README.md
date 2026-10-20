@@ -19,3 +19,18 @@ Huevo + Hashbrown; Burrito Carne Molida de Cerdo; Arroz con carne molida. Se inc
 ## Ajustes posteriores
 - El calendario muestra Fondo o hiking **fijo el sábado**, sin selector para moverlo. El domingo sigue disponible en el registro de actividades para cuando se realice allí.
 - La pestaña «Menús» ahora se llama «Recetas». «Crear receta» está al final del listado de recetas y ya no ocupa una pestaña independiente.
+
+## Versión r16 (20-oct-2026)
+- Paquete completo: código «Hoy · meta −10 kg» + iconos + las 28 fotos de ejercicios en `assets/`.
+- ⚙ Opciones vuelve a abrir el panel con **Inicio del programa** y **Peso inicial**; desde ahí, «Copia completa» lleva a exportar/importar.
+- Corregido: cambiar el peso inicial en Opciones daba error.
+- Corregido: las fotos se cargan desde `assets/` (antes apuntaban a la raíz).
+- El modo sin conexión ya no falla si algún archivo no está en el servidor.
+
+## Versión r25 (20-oct-2026) · diseño unificado
+- Encabezado compacto con semana y día; pestañas principales fijas arriba (Hoy · Comida · Entreno · Progreso).
+- Un solo estilo de sub-pestañas, títulos, botones (principal / secundario / discreto), campos, casillas de cifras y listas.
+- Compactados: Alimentos, Recetas (agrupadas por tipo), Súper, Cardio, Retos, Kilómetros, Hábitos, calendario semanal y balance.
+- Plan: cada comida de los 7 días se puede cambiar.
+- Catálogo: +8 frutas, mostaza y salsa Lizano; alimentos y recetas propios incluidos; res y cerdo confirmados.
+- Corregido: la pestaña Recetas no se abría.

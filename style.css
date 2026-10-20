@@ -78,3 +78,174 @@
 .weigh-stats .good{color:#7ac7bd}.weigh-stats .bad{color:#ed9b76}
 .program tr.current-row td{background:#343027}
 @media(max-width:600px){.weigh-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.weigh-stats strong{font-size:17px}}
+
+
+/* =====================================================================
+   SISTEMA VISUAL UNIFICADO (r25)
+   Una sola escala de superficies, texto, controles y espaciado.
+   ===================================================================== */
+:root{--bg:#101114;--surface:#1b1d21;--surface-2:#24272c;--surface-3:#2d3036;--line:#33363c;--line-strong:#4a4d55;--text:#f4f4f5;--muted:#a9acb3;--faint:#80838b;--accent:#ffc33d;--accent-ink:#121212;--accent-soft:#2c2614;--good:#7ac7bd;--bad:#ed9b76;--r-card:16px;--r-ctl:10px;--r-pill:999px}
+body{background:var(--bg);color:var(--text);font-size:15px;line-height:1.5;-webkit-text-size-adjust:100%}
+header{padding:14px 16px 10px}
+main{padding:0 16px 40px}
+footer{padding:20px 16px 32px;color:var(--faint)}
+
+/* Encabezado: fecha de registro */
+.hero{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);padding:12px 14px;margin:0 0 10px}
+.hero .weekbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:10px;margin:0}
+.hero .weekbar label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);margin:0}
+.hero select{width:100%;padding:9px 10px;font-size:16px;background:var(--surface-2);border-color:var(--line-strong)}
+#recordDate{margin:8px 0 0;font-size:12px;color:var(--muted)}
+
+/* Pestañas principales: fijas arriba */
+#appTabs{position:sticky;top:0;z-index:10;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin:0 0 12px;padding:4px;background:rgba(27,29,33,.94);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:14px}
+#appTabs button{border:0;background:transparent;color:var(--muted);padding:10px 2px;border-radius:10px;font-size:13.5px;font-weight:600;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#appTabs button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink)}
+@media(max-width:650px){#appTabs button{flex:initial}}
+
+/* Sub-pestañas: un solo estilo en las tres secciones */
+.subtabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:0 0 2px}
+.subtabs::-webkit-scrollbar{display:none}
+.program .subtabs button{flex:0 0 auto;background:transparent;border:1px solid var(--line-strong);color:var(--muted);border-radius:var(--r-pill);padding:8px 15px;font-size:14px}
+.program .subtabs button[aria-pressed=true]{background:var(--text);border-color:var(--text);color:var(--accent-ink)}
+
+/* Tarjetas */
+.program{gap:12px}
+.program article,#settings{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);padding:16px}
+#settings{margin:0 0 12px}
+.program h2,#settings h2{font-size:20px;line-height:1.25;margin:0 0 10px;color:var(--text)}
+.program h3,#settings h3{font-size:16px;line-height:1.3;margin:0 0 10px;color:var(--text);font-weight:700}
+.program h3.sub-title{margin:14px 0 4px}
+.eyebrow{color:var(--accent);font-size:11px;letter-spacing:1.5px;font-weight:800;margin:0 0 4px}
+.program p{margin:8px 0}.program p,.program li{line-height:1.5}
+.program .tiny{font-size:12.5px;line-height:1.5}.program .subtle{color:var(--muted)}
+.card-head,.program .challenge-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 12px}
+.card-head h2,.card-head h3,.program .challenge-heading h2,.program .challenge-heading h3{margin:0}
+.card-head>span,.program .challenge-heading>span{font-size:12.5px;color:var(--muted);text-align:right}
+.program .energy-row .challenge-heading{margin:0}
+.pill{display:inline-block;background:var(--surface-3);color:var(--text)!important;border-radius:var(--r-pill);padding:3px 10px;font-size:12.5px;font-weight:700}
+.quote{margin:0;padding:6px 0 6px 14px;border-left:3px solid var(--accent);color:var(--muted);font-size:15px;font-style:italic}
+
+/* Botones: primario, secundario y discreto */
+.program button,#settings button{background:var(--surface-2);color:var(--text);border:1px solid var(--line-strong);border-radius:var(--r-ctl);padding:10px 14px;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.program button.primary,#settings button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.program .food-tabs button[aria-pressed=true],.program .day-picker button[aria-pressed=true],.program .cat-chips button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.program button:is([data-remove-session],[data-delete-distance],[data-delete-challenge-log],[data-remove-meal],[data-reset-recipe],#closeRecipe,#closeFood){background:transparent;border-color:transparent;color:var(--muted);padding:6px 8px;font-size:13px}
+.program button:is([data-remove-session],[data-delete-distance],[data-delete-challenge-log],[data-remove-meal]){color:var(--bad)}
+.btn-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.program .file-btn{display:inline-flex;align-items:center;margin:0;padding:10px 14px;border:1px solid var(--line-strong);border-radius:var(--r-ctl);background:var(--surface-2);font-size:14px;font-weight:600;cursor:pointer}
+.quiet{background:var(--surface-2);border-color:var(--line-strong);font-size:14px}
+
+/* Campos: etiqueta encima, misma altura en todas las pantallas */
+.program input,.program select,#settings input{background:var(--surface-2);color:var(--text);border:1px solid var(--line-strong);border-radius:var(--r-ctl);padding:10px 12px;font-size:16px}
+.program input:focus,.program select:focus,.hero select:focus{outline:2px solid var(--accent);outline-offset:1px}
+.program .fields,#settings .fields{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin:8px 0}
+.program .fields>label:not(.weight-day),#settings .fields>label{display:flex;flex-direction:column;gap:6px;flex:1 1 130px;min-width:0;margin:0;font-size:13px;color:var(--muted)}
+.program .fields>label input,.program .fields>label select,#settings .fields input{width:100%}
+.program .fields>p{margin:0;font-size:13px;color:var(--muted)}
+.program .compact-field label{color:var(--muted);font-size:13px}
+
+/* Cifras: la misma casilla en Hoy, Pesadas, Kilómetros, Cierre y Misiones */
+.daily-numbers,.weigh-stats,.mission-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:12px 0}
+.daily-numbers.three,.weigh-stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+.daily-numbers>div,.weigh-stats>div,.mission-stats>div{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-width:0}
+.daily-numbers span,.weigh-stats span,.mission-stats span{display:block;font-size:12px;color:var(--muted)}
+.daily-numbers strong,.weigh-stats strong,.mission-stats strong{display:block;font-size:20px;line-height:1.25;margin-top:3px;color:var(--text);overflow-wrap:anywhere}
+.daily-numbers p,.weigh-stats small{margin:3px 0 0;font-size:12px;color:var(--faint);line-height:1.35}
+@media(max-width:420px){.daily-numbers strong,.weigh-stats strong,.mission-stats strong{font-size:17px}.daily-numbers.three>div,.weigh-stats>div{padding:9px}}
+
+/* Listas: filas compactas con acción discreta */
+.food-log,.shop-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.food-log:last-child,.shop-row:last-child{border-bottom:0}
+.food-log p{margin:2px 0 0;font-size:13px;color:var(--muted)}
+.food-log b,.food-log strong{font-size:14.5px}
+.shop-row label{display:flex;gap:12px;align-items:center;margin:0;width:100%;cursor:pointer}
+.shop-row strong{font-size:14.5px;font-weight:600}.shop-row label span{font-size:13px;color:var(--muted)}
+.shop-row.is-done strong{color:var(--muted);text-decoration:line-through}
+.program input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent);flex:0 0 auto;margin:0}
+.food-compact summary,.program details>summary{cursor:pointer}
+.program details>summary{color:var(--muted);font-size:14px;font-weight:600}
+.food-compact details>summary{color:var(--accent)}
+.program details.intro{margin:0 0 4px}
+.program details[open]>summary{margin-bottom:6px}
+
+/* Chips (días, categorías, actividades) */
+.cat-chips,.day-picker{display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.day-picker::-webkit-scrollbar{display:none}
+.program .cat-chips button,.program .day-picker button{flex:0 0 auto;border-radius:var(--r-pill);padding:7px 13px;font-size:13.5px;background:var(--surface-2)}
+.mode-chips{flex-wrap:wrap}
+
+/* Tablas */
+.program table{font-size:13.5px}
+.program th{font-size:12px;color:var(--muted);font-weight:600}
+.program th,.program td{padding:8px;border-bottom:1px solid var(--line)}
+
+/* Semana en tira */
+.strip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.strip-day{display:grid;justify-items:center;gap:2px;padding:8px 0;background:var(--surface-2);border:1px solid var(--line);border-radius:12px}
+.strip-day b{font-size:13px}.strip-day small{font-size:11px;color:var(--faint)}.strip-day span{font-size:16px;line-height:1.2}
+.strip-day.is-current{border-color:var(--accent);background:var(--accent-soft)}.strip-day.is-current b{color:var(--accent)}
+.strip-today{font-size:14px}
+
+/* Hábitos */
+.habit-list{list-style:none;margin:0;padding:0}
+.habit-list li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.habit-list li:last-child{border-bottom:0}
+.habit-list strong{display:block;font-size:14.5px}.habit-list small{display:block;font-size:12.5px;color:var(--muted)}
+.habit-list li.is-done strong{color:var(--good)}.habit-list li.is-skip strong{color:var(--faint)}
+.habit-actions{display:flex;gap:6px;flex:0 0 auto}
+.program .habit-actions button{padding:7px 11px;font-size:13px}
+.program .habit-actions button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+
+/* Misiones */
+.mission-grid{gap:8px}
+.program .mission-card{background:var(--surface-2);border-color:var(--line);padding:12px;gap:4px}
+.mission-detail{background:var(--surface-2)}
+.mission-stats strong{color:var(--text)}
+
+/* Estado del día y avisos */
+.coach-card{background:var(--surface-2)}
+.chip{background:var(--surface)}
+.nutrition-status{background:#203329;color:#dff3e6;border-radius:var(--r-ctl);padding:10px 12px;margin:0}
+
+/* Pesadas, catálogo y retos sobre la misma superficie */
+.program label.weigh-tile{background:var(--surface-2);border-color:var(--line)}
+.weigh-tile.has-value{background:var(--surface-3)}
+
+/* Fuerza (vista del gimnasio) */
+#days{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 0 4px}
+#days::-webkit-scrollbar{display:none}
+.day{flex:0 0 auto;min-width:0;background:var(--surface);border:1px solid var(--line-strong);border-radius:12px;padding:8px 12px}
+.day b{font-size:11px;letter-spacing:1px}.day span{font-size:12.5px;margin-top:2px}
+.day.active{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.sectionHead{margin:16px 0 10px}.sectionHead h2{font-size:18px}
+.exercise{background:var(--surface);border-color:var(--line);border-radius:var(--r-card)}
+.exTop h3{font-size:15.5px}
+.controls input{padding:8px;font-size:16px;background:var(--surface-2);border-color:var(--line-strong)}
+.controls button.detailBtn{background:transparent;color:var(--accent);border:0;padding:8px 4px;font-weight:600}
+.controls button{border-radius:var(--r-ctl)}
+.history{background:var(--surface);border-color:var(--line)}
+.step{background:var(--surface-2)}
+@media(max-width:700px){#days{display:flex}.day{min-width:0}}
+
+/* Teclado en móvil: evitar zoom de iOS en campos compactos */
+.program .fr-kcal input,.program .rep-form input,.program select.plan-select{font-size:16px}
+
+/* Recetas compactas */
+.recipe-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
+.rr-main{min-width:0}.rr-main strong{display:block;font-size:14.5px;font-weight:600;line-height:1.3}
+.rr-main small{font-size:12.5px;color:var(--faint)}.rr-kcal{color:var(--accent);font-weight:700}
+.rr-actions{display:flex;gap:6px;flex:0 0 auto}
+.program .rr-actions button{padding:7px 10px;font-size:13px}
+.program .card-head>button{flex:0 0 auto;padding:8px 12px;font-size:13px}
+/* Balance más bajo */
+.program .energy-row{margin:8px 0}.energy-track{height:14px}.energy-bar{top:2px;height:10px}.energy-neutral{top:3px}
+.energy-row .challenge-heading strong{font-size:13.5px}.energy-row .challenge-heading span{font-size:12.5px}
+.program .energy-row p{display:none}
+/* Camino a la meta */
+.weight-progress-labels{font-size:13px;color:var(--muted)}
+
+/* Filtros (tercer nivel): resaltado suave para distinguirlos de pestañas */
+.program .cat-chips button[aria-pressed=true],.program .day-picker button[aria-pressed=true]{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+
+.program [role=status]:empty,.program .status:empty{display:none}
