@@ -28,7 +28,7 @@ window.FitSummaryModel = function (p, today) {
   for (const r of rows) {
     if ((r.week - 1) * 7 >= elapsed) continue;
     const w = p.weeks?.[r.week] || {},
-      v = ["weight1", "weight2", "weight3"]
+      v = ["weight1", "weight4", "weight2", "weight5", "weight3"]
         .map((k) => w[k])
         .filter((x) => C.has(x) && Number(x) > 0)
         .map(Number);

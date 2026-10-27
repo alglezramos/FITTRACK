@@ -230,7 +230,7 @@
     return raw.charAt(0).toUpperCase() + raw.slice(1);
   }
   const weighKey = (d) =>
-    ({ 1: "weight1", 3: "weight2", 5: "weight3" })[new Date(d + "T12:00:00Z").getUTCDay()] || null;
+    ({ 1: "weight1", 2: "weight4", 3: "weight2", 4: "weight5", 5: "weight3" })[new Date(d + "T12:00:00Z").getUTCDay()] || null;
   function route(upTo) {
     /* déficit acumulado (días con Whoop) frente a la ruta de 10 kg */ let n = 0,
       def = 0;
@@ -257,7 +257,7 @@
     const gapTxt = r.n
       ? `${r.gap >= 0 ? "Vas " : "Vas "}<strong>${fmt(Math.abs(r.gap))} kcal ${r.gap >= 0 ? "por delante de" : "por detrás de"} la ruta</strong> de −${C.GOAL_KG} kg (${r.n} día${r.n > 1 ? "s" : ""} con Whoop).`
       : "Cuando cargues el Whoop del día verás aquí si vas en ruta.";
-    return `<article id="sec-day"><div class="eyebrow">HOY · SEMANA ${week()} DE 8 · META −${C.GOAL_KG} KG</div><h2>${escape(niceDate(dt) || "Selecciona el inicio")}</h2>${dt && dt !== today() ? "<p><button data-go-today>↩ Volver a hoy</button></p>" : ""}<div class="daily-numbers"><div><span>Consumidas</span><strong>${fmt(kcal)} kcal</strong><p class="tiny subtle">${kcal <= 1800 ? "Restan " + fmt(1800 - kcal) + " de 1.800" : "Sobre 1.800 por " + fmt(kcal - 1800)}</p></div><div><span>Déficit hoy</span><strong>${b === null ? "—" : fmt(b) + " kcal"}</strong><p class="tiny subtle">Necesario: ≈${fmt(C.NEEDED)} kcal/día${b === null ? " · falta Whoop" : ""}</p></div><div><span>Whoop · Pasos</span><strong>${C.has(d.whoop) ? fmt(d.whoop) : "—"} · ${C.has(d.steps) ? fmt(d.steps) : "—"}</strong></div></div><p>${gapTxt}</p>${wk ? `<div class="fields"><label class="weight-day">Peso de hoy <input data-weight-metric="${wk}" type="number" min="20" max="400" step="0.1" value="${escape(wv ?? "")}"><span>kg</span></label></div>` : '<p class="tiny subtle">Pesadas: lunes, miércoles y viernes.</p>'}<h3>Actividades de hoy</h3>${sessions.map((s) => `<p>${escape(s.mode)} · ${s.minutes} min · esfuerzo ${s.effort}/10</p>`).join("") || '<p class="subtle">Sin actividades registradas.</p>'}<div class="fields"><button data-home-go="training">Registrar entrenamiento</button><button data-home-go="food">Recetas</button></div></article>${nutrition.renderQuick()}<div class="sec" id="sec-checkin">${coach.render()}</div><div class="sec" id="sec-log">${nutrition.renderDiary()}</div>`;
+    return `<article id="sec-day"><div class="eyebrow">HOY · SEMANA ${week()} DE 8 · META −${C.GOAL_KG} KG</div><h2>${escape(niceDate(dt) || "Selecciona el inicio")}</h2>${dt && dt !== today() ? "<p><button data-go-today>↩ Volver a hoy</button></p>" : ""}<div class="daily-numbers"><div><span>Consumidas</span><strong>${fmt(kcal)} kcal</strong><p class="tiny subtle">${kcal <= 1800 ? "Restan " + fmt(1800 - kcal) + " de 1.800" : "Sobre 1.800 por " + fmt(kcal - 1800)}</p></div><div><span>Déficit hoy</span><strong>${b === null ? "—" : fmt(b) + " kcal"}</strong><p class="tiny subtle">Necesario: ≈${fmt(C.NEEDED)} kcal/día${b === null ? " · falta Whoop" : ""}</p></div><div><span>Whoop · Pasos</span><strong>${C.has(d.whoop) ? fmt(d.whoop) : "—"} · ${C.has(d.steps) ? fmt(d.steps) : "—"}</strong></div></div><p>${gapTxt}</p>${wk ? `<div class="fields"><label class="weight-day">Peso de hoy <input data-weight-metric="${wk}" type="number" min="20" max="400" step="0.1" value="${escape(wv ?? "")}"><span>kg</span></label></div>` : '<p class="tiny subtle">Pesadas: de lunes a viernes.</p>'}<h3>Actividades de hoy</h3>${sessions.map((s) => `<p>${escape(s.mode)} · ${s.minutes} min · esfuerzo ${s.effort}/10</p>`).join("") || '<p class="subtle">Sin actividades registradas.</p>'}<div class="fields"><button data-home-go="training">Registrar entrenamiento</button><button data-home-go="food">Recetas</button></div></article>${nutrition.renderQuick()}<div class="sec" id="sec-checkin">${coach.render()}</div><div class="sec" id="sec-log">${nutrition.renderDiary()}</div>`;
   }
   function weekReview(w) {
     const initial = Number(program.initialWeight) || 85;
@@ -287,7 +287,7 @@
       tone = "";
     const left = 56 - 7 * w;
     if (cur.actual === null) {
-      reco = "Pésate lunes, miércoles y viernes para evaluar esta semana.";
+      reco = "Pésate de lunes a viernes para evaluar esta semana.";
       tone = "info";
     } else {
       const over = cur.actual - expected;
@@ -394,7 +394,9 @@
         : "";
     const tiles = [
       ["weight1", "Lunes", 1],
+      ["weight4", "Martes", 2],
       ["weight2", "Miércoles", 3],
+      ["weight5", "Jueves", 4],
       ["weight3", "Viernes", 5],
     ]
       .map(([k, l, wd]) => {
@@ -420,7 +422,7 @@
         gap = cur.actual !== null ? cur.actual - cur.target : null;
       stats = `<div class="weigh-stats"><div><span>Media semana ${w}</span><strong>${cur.actual === null ? "—" : fmt(cur.actual) + " kg"}</strong></div><div><span>vs ${prevLabel}</span><strong class="${diff === null ? "" : diff <= 0 ? "good" : "bad"}">${diff === null ? "—" : (diff > 0 ? "+" : "") + fmt(diff) + " kg"}</strong></div><div><span>Ruta semana ${w}</span><strong>${fmt(cur.target)} kg</strong><small>${gap === null ? "pésate para comparar" : Math.abs(gap) < 0.05 ? "en ruta" : gap > 0 ? fmt(gap) + " kg por encima" : fmt(-gap) + " kg por debajo"}</small></div></div>`;
     }
-    return `<article class="weigh-card"><div class="challenge-heading"><h2>Pesadas · semana ${w}</h2><span>Lun · Mié · Vie</span></div>${ok ? "" : '<p class="subtle">Configura inicio y peso inicial en ⚙ Opciones para ver fechas y comparaciones.</p>'}<div class="weigh-grid">${tiles}${waist}</div>${stats}<p class="tiny subtle">Pésate en ayunas, después de ir al baño. La media de las pesadas de la semana es tu peso semanal; las semanas sin datos quedan vacías.</p></article>${ok ? `<article><h3>Trayectoria de 8 semanas</h3><div id="weightChart"></div><details><summary>Ver tabla por semana</summary><div class="scroll"><table><thead><tr><th>Sem.</th><th>Ruta</th><th>Real</th><th>Proyección</th><th>Días Whoop</th></tr></thead><tbody>${rows.map((r) => `<tr${r.week === w ? ' class="current-row"' : ""}><td>${r.week}</td><td>${fmt(r.target)}</td><td>${r.actual === null ? "—" : fmt(r.actual)}</td><td>${r.projected === null ? "—" : fmt(r.projected)}</td><td>${r.count}</td></tr>`).join("")}</tbody></table></div></details></article>` : ""}<article><details><summary>Inicio y peso inicial</summary><div class="fields"><p>Inicio del programa: <strong>${escape(program.start || "pendiente")}</strong></p><label class="weight-day">Peso inicial <input id="initialWeight" type="number" min="20" max="400" step="0.1" inputmode="decimal" value="${escape(program.initialWeight)}"><span>kg</span></label></div><p class="tiny subtle">La fecha de inicio se cambia en ⚙ Opciones.</p></details></article>`;
+    return `<article class="weigh-card"><div class="challenge-heading"><h2>Pesadas · semana ${w}</h2><span>Lun a Vie</span></div>${ok ? "" : '<p class="subtle">Configura inicio y peso inicial en ⚙ Opciones para ver fechas y comparaciones.</p>'}<div class="weigh-grid">${tiles}${waist}</div>${stats}<p class="tiny subtle">Pésate en ayunas, después de ir al baño. La media de las pesadas de la semana es tu peso semanal; las semanas sin datos quedan vacías.</p></article>${ok ? `<article><h3>Trayectoria de 8 semanas</h3><div id="weightChart"></div><details><summary>Ver tabla por semana</summary><div class="scroll"><table><thead><tr><th>Sem.</th><th>Ruta</th><th>Real</th><th>Proyección</th><th>Días Whoop</th></tr></thead><tbody>${rows.map((r) => `<tr${r.week === w ? ' class="current-row"' : ""}><td>${r.week}</td><td>${fmt(r.target)}</td><td>${r.actual === null ? "—" : fmt(r.actual)}</td><td>${r.projected === null ? "—" : fmt(r.projected)}</td><td>${r.count}</td></tr>`).join("")}</tbody></table></div></details></article>` : ""}<article><details><summary>Inicio y peso inicial</summary><div class="fields"><p>Inicio del programa: <strong>${escape(program.start || "pendiente")}</strong></p><label class="weight-day">Peso inicial <input id="initialWeight" type="number" min="20" max="400" step="0.1" inputmode="decimal" value="${escape(program.initialWeight)}"><span>kg</span></label></div><p class="tiny subtle">La fecha de inicio se cambia en ⚙ Opciones.</p></details></article>`;
   }
   function chart() {
     const box = document.getElementById("weightChart");

@@ -35,7 +35,7 @@
         }
       }
       const a = p.weeks[w] || {};
-      const values = ["weight1", "weight2", "weight3"]
+      const values = ["weight1", "weight4", "weight2", "weight5", "weight3"]
         .map((k) => a[k])
         .filter((v) => has(v) && Number(v) > 0)
         .map(Number);
