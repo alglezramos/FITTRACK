@@ -261,7 +261,7 @@ window.createFitNutrition = function ({
       `<article class="catalog-head"><div class="challenge-heading"><h3>${foods.length} alimentos</h3><button id="newFood" class="primary">+ Agregar</button></div><input id="foodSearch" type="search" placeholder="Buscar: pollo, tortilla, yogurt…" aria-label="Buscar alimento"><div class="cat-chips">${["Todas", ...cats].map((c) => `<button data-cat-filter="${escape(c)}" aria-pressed="${c === cat}">${escape(c)}</button>`).join("")}</div></article><article class="food-compact">${shown
         .map((c) => {
           const list = foods.filter((f) => f.category === c);
-          return `<details open data-food-cat><summary><span>${escape(c)}</span><small>${list.length}</small></summary><ul class="food-rows">${list.map((f) => `<li data-food-row="${escape(f.name.toLowerCase())}"><div class="fr-main"><strong>${escape(f.name)}</strong><small>${fmt(f.base)} ${escape(f.unit)}${f.pending ? ' · <span class="food-badge">Por confirmar</span>' : ""}</small></div><label class="fr-kcal"><input data-food-kcal="${f.id}" type="number" min="0" max="5000" step="0.1" value="${unitKcal(f)}" aria-label="Kcal de ${escape(f.name)}"><span>kcal</span></label><button class="fr-log" data-log-food="${f.id}" aria-label="Registrar ${escape(f.name)}" title="Registrar en el día">＋</button><button class="fr-edit" data-edit-food="${f.id}" aria-label="Editar ${escape(f.name)}">✎</button></li>`).join("")}</ul></details>`;
+          return `<details open data-food-cat><summary><span>${escape(c)}</span><small>${list.length}</small></summary><ul class="food-rows">${list.map((f) => `<li data-food-row="${escape(f.name.toLowerCase())}"><div class="fr-main"><strong>${escape(f.name)}</strong><small>${fmt(f.base)} ${escape(f.unit)}${f.pending ? ' · <span class="food-badge">Por confirmar</span>' : ""}</small><span class="fr-photos" data-food-photos="${escape(f.id)}" hidden></span></div><label class="fr-kcal"><input data-food-kcal="${f.id}" type="number" min="0" max="5000" step="0.1" value="${unitKcal(f)}" aria-label="Kcal de ${escape(f.name)}"><span>kcal</span></label><button class="fr-log" data-log-food="${f.id}" aria-label="Registrar ${escape(f.name)}" title="Registrar en el día">＋</button><button class="fr-edit" data-edit-food="${f.id}" aria-label="Editar ${escape(f.name)}">✎</button></li>`).join("")}</ul></details>`;
         })
         .join(
           "",
@@ -342,7 +342,7 @@ window.createFitNutrition = function ({
     const id = prog().editingFood;
     if (!id) return "";
     const f = fById(id) || { name: "", base: 100, unit: "g", kcal: 0, category: "Proteínas" };
-    return `<article><h3>${id === "new" ? "Agregar" : "Editar"} alimento</h3><form id="foodEditorForm"><div class="fields"><label>Nombre <input name="name" value="${escape(f.name)}" maxlength="120" required></label><label>Porción base <input name="base" type="number" min="0.01" max="100000" step="any" value="${f.base}" required></label><label>Unidad <input name="unit" maxlength="30" value="${escape(f.unit)}" required></label><label>Kcal de la porción <input name="kcal" type="number" min="0" max="5000" step="any" value="${unitKcal(f) || 0}" required></label><label>Categoría <select name="category">${[...new Set(window.FIT_FOODS.map((f) => f.category))].map((c) => `<option ${c === f.category ? "selected" : ""}>${c}</option>`).join("")}</select></label></div><button class="primary">Guardar alimento</button> <button type="button" id="closeFood">Cancelar</button></form></article>`;
+    return `<article><h3>${id === "new" ? "Agregar" : "Editar"} alimento</h3><form id="foodEditorForm"><div class="fields"><label>Nombre <input name="name" value="${escape(f.name)}" maxlength="120" required></label><label>Porción base <input name="base" type="number" min="0.01" max="100000" step="any" value="${f.base}" required></label><label>Unidad <input name="unit" maxlength="30" value="${escape(f.unit)}" required></label><label>Kcal de la porción <input name="kcal" type="number" min="0" max="5000" step="any" value="${unitKcal(f) || 0}" required></label><label>Categoría <select name="category">${[...new Set(window.FIT_FOODS.map((f) => f.category))].map((c) => `<option ${c === f.category ? "selected" : ""}>${c}</option>`).join("")}</select></label></div><div class="food-photos" data-photo-editor="${escape(id)}"></div><button class="primary">Guardar alimento</button> <button type="button" id="closeFood">Cancelar</button></form></article>`;
   }
   function renderCreate() {
     const draft = prog().recipeDraft || { items: [] };
@@ -394,6 +394,7 @@ window.createFitNutrition = function ({
       if (p.editingFood === "new") p.customFoods.push(f);
       else p.foodEdits[id] = f;
       p.foodKcal[id] = f.kcal;
+      window.FitPhotos?.commit(p.editingFood, id);
       delete p.editingFood;
     }
     if (form.id === "recipeBuilder") {

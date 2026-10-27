@@ -1,4 +1,4 @@
-const CACHE = "fittrack-pages-v20261020r38-grafica-ejes";
+const CACHE = "fittrack-pages-v20261026r39-fotos-alimentos";
 const FILES = [
   "./",
   "./index.html",
@@ -18,6 +18,7 @@ const FILES = [
   "./challenges.js",
   "./food-data.js",
   "./core.js",
+  "./food-photos.js",
   "./nutrition.js",
   "./program.js",
   "./assets/0_0.jpg",
