@@ -51,15 +51,33 @@ function renderNow() {
   const ex = EXERCISES.filter((x) => x.day === state.day);
   const done = ex.filter((x) => state.completed[weightKey(x.id)]).length;
   const total = EXERCISES.filter((x) => state.completed[weightKey(x.id)]).length;
-  $("progress").textContent = total + "/" + EXERCISES.length + " completados";
+  const pct = (n, of) => (of ? (n / of) * 100 : 0);
+  const pctText = (n, of) => pct(n, of).toFixed(1).replace(".", ",") + "%";
+  const weekPct = pct(total, EXERCISES.length);
+  $("progress").textContent = total + "/" + EXERCISES.length + " completados · " + pctText(total, EXERCISES.length);
   $("summary").innerHTML =
+    '<div class="week-strength" style="margin:12px 0 4px"><div class="weight-progress-labels" style="margin-bottom:8px"><span>Semana ' +
+    state.week +
+    " · ejercicios de fuerza</span><strong>" +
+    total +
+    "/" +
+    EXERCISES.length +
+    " · " +
+    pctText(total, EXERCISES.length) +
+    '</strong></div><div class="weight-progress-track" role="progressbar" aria-label="Avance semanal de fuerza" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' +
+    weekPct.toFixed(1) +
+    '"><div class="weight-progress-fill" style="width:' +
+    Math.min(100, weekPct).toFixed(1) +
+    '%"></div></div></div>' +
     '<div class="sectionHead"><h2>' +
     DAYS[state.day - 1] +
     "</h2><span>" +
     done +
     "/" +
     ex.length +
-    " completados</span></div>";
+    " completados · " +
+    pctText(done, ex.length) +
+    "</span></div>";
   $("exerciseList").innerHTML =
     '<div class="grid">' +
     ex
