@@ -55,7 +55,7 @@ window.createFitChallenges = function ({ getProgram, persist, week, date, escape
       const g = plan.find((r) => r.name === name) || { completed: 0, target: 0 },
         pct = g.target ? Math.min(100, (g.completed / g.target) * 100) : 0,
         open = kmOpen === mode;
-      const row = `<div class="rep-row km-row"><span class="km-icon">${icon(ic)}</span><div class="rep-info"><div class="rep-top"><strong>${escape(name)}</strong><span>${fmt(r2(g.completed))} / ${fmt(g.target)} km${g.completed >= g.target ? " ✓" : ""}</span></div><progress class="challenge-progress" value="${Math.min(g.completed, g.target)}" max="${g.target}" aria-label="${escape(name)}: ${fmt(r2(g.completed))} de ${fmt(g.target)} km"></progress><small>${Math.round(pct)}% · faltan ${fmt(r2(Math.max(0, g.target - g.completed)))} km</small></div><form data-km-open="${mode}" class="rep-form"><input name="km" type="number" min="0.01" max="1000" step="0.01" placeholder="km" inputmode="decimal" aria-label="Kilómetros de ${escape(name)}"><button class="primary" aria-expanded="${open}" aria-label="Registrar ${escape(name)}">+</button></form></div>`;
+      const row = `<div class="rep-row km-row"><span class="km-icon">${icon(ic)}</span><div class="rep-info"><div class="rep-top"><strong>${escape(name)}</strong><span>${fmt(r2(g.completed))} / ${fmt(g.target)} km${g.completed >= g.target ? " ✓" : ""}</span></div><progress class="challenge-progress" value="${Math.min(g.completed, g.target)}" max="${g.target}" aria-label="${escape(name)}: ${fmt(r2(g.completed))} de ${fmt(g.target)} km"></progress><small>${Math.round(pct)}% · faltan ${fmt(r2(Math.max(0, g.target - g.completed)))} km</small></div><form data-km-open="${mode}" class="rep-form"><button class="primary" aria-expanded="${open}" aria-label="Registrar ${escape(name)}">+</button></form></div>`;
       const mini = open
         ? `<form id="weeklyDistanceForm" class="km-mini"><div class="km-mini-head">${emoji} Registrar ${escape(name)}</div>${mode === "Hiking" ? '<label>Actividad<select name="mode"><option value="Hiking">Hiking</option><option value="Rucking">Rucking</option></select></label>' : `<input type="hidden" name="mode" value="${mode}">`}<div class="km-mini-grid"><label>Distancia (km)<input type="number" name="km" min="0.01" max="1000" step="0.01" inputmode="decimal" placeholder="5.5" value="${escape(kmDraft)}" required></label><label>Duración (min)<input type="number" name="minutes" min="1" max="600" step="1" inputmode="numeric" placeholder="35" required></label></div><input type="hidden" name="effort" value="3"><div class="km-mini-actions"><button type="button" data-km-cancel>Cancelar</button><button class="primary">✓ Guardar</button></div></form>`
         : "";
@@ -67,10 +67,10 @@ window.createFitChallenges = function ({ getProgram, persist, week, date, escape
     const form = e.target;
     if (!form.dataset.kmOpen) return;
     e.preventDefault();
-    kmOpen = form.dataset.kmOpen;
-    kmDraft = form.elements.km.value || "";
+    kmOpen = kmOpen === form.dataset.kmOpen ? null : form.dataset.kmOpen;
+    kmDraft = "";
     rerender();
-    const next = document.querySelector('#weeklyDistanceForm input[name="' + (kmDraft ? "minutes" : "km") + '"]');
+    const next = kmOpen && document.querySelector('#weeklyDistanceForm input[name="km"]');
     if (next) next.focus();
   });
   root.addEventListener("click", (e) => {
