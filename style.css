@@ -2189,3 +2189,15 @@ header {
 .km-note {
   margin-top: 10px;
 }
+
+.footLink {
+  margin-top: 10px;
+  background: none;
+  border: 0;
+  color: var(--faint);
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 6px;
+}
