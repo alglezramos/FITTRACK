@@ -1,4 +1,4 @@
-const DAYS = ["Pecho y tríceps", "Espalda y bíceps", "Pierna completa", "Hombro aislado", "Bíceps y tríceps"];
+const DAYS = ["Piernas y glúteos", "Pecho y tríceps", "Espalda y bíceps", "Hombros y estabilidad", "Brazos y core"];
 let state = { day: 1, week: 1, weights: {}, completed: {} };
 try {
   const s = FitStore.get("strength");
@@ -86,17 +86,17 @@ function renderNow() {
           w = state.weights[key] ?? "",
           ok = !!state.completed[key];
         return (
-          '<article class="exercise"><div class="exTop"><img loading="lazy" src="' +
-          x.image +
-          '" alt="Referencia visual de ' +
-          esc(x.name) +
-          '"><div><div class="exNum">EJERCICIO ' +
+          '<article class="exercise"><div class="exTop">' +
+          (x.image
+            ? '<img loading="lazy" src="' + x.image + '" alt="Referencia visual de ' + esc(x.name) + '">'
+            : '<div aria-hidden="true" style="width:95px;height:102px;flex:0 0 auto;display:grid;place-items:center;background:#e9e9e9;border-radius:10px;font-size:34px">🏋️</div>') +
+          '<div><div class="exNum">EJERCICIO ' +
           (i + 1) +
           "</div><h3>" +
           esc(x.name) +
-          '</h3><p>3 series × 10–12 repeticiones</p></div></div><div class="controls"><label for="w' +
+          '</h3><p>' + esc(x.sets || "3 series × 10 repeticiones") + '</p></div></div><div class="controls"><label for="w' +
           x.id +
-          '">kg</label><input id="w' +
+          '">' + esc(x.unit || "kg") + '</label><input id="w' +
           x.id +
           '" data-weight="' +
           x.id +
