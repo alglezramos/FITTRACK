@@ -30,7 +30,15 @@ window.createFitChallenges = function ({ getProgram, persist, week, date, escape
         (s) => s.week === w && (s.mode === mode || (mode === "Hiking" && s.mode === "Rucking")),
       )
       .reduce((n, s) => n + distance(s), 0);
+  const KM_ROWS = [
+    ["Correr", "Running", "run", "🏃"],
+    ["Nadar", "Natación", "swim", "🏊"],
+    ["Hiking", "Hiking / Rucking", "hike", "🥾"],
+  ];
+  let kmOpen = null,
+    kmDraft = "";
   function distances() {
+    const plan = planProgress();
     const sessions = getProgram().sessions.filter(
       (s) => s.week === week() && ["Correr", "Nadar", "Hiking", "Rucking"].includes(s.mode),
     );
@@ -42,9 +50,38 @@ window.createFitChallenges = function ({ getProgram, persist, week, date, escape
           : m === "Rucking"
             ? "🎒 Rucking"
             : "🥾 Hiking";
-    return `<article><div class="card-head"><h3>Kilómetros · semana ${week()}</h3><span>${date() || "pendiente"}</span></div><div class="daily-numbers three"><div><span>🏃 Running</span><strong>${fmt(kms(week(), "Correr"))} km</strong></div><div><span>🏊 Natación</span><strong>${fmt(kms(week(), "Nadar"))} km</strong></div><div><span>🥾 Hiking</span><strong>${fmt(kms(week(), "Hiking"))} km</strong></div></div><form id="weeklyDistanceForm" class="fields"><label>Actividad<select name="mode"><option value="Correr">Running</option><option value="Nadar">Natación</option><option value="Hiking">Hiking</option><option value="Rucking">Rucking</option></select></label><label>Km<input type="number" name="km" min="0.01" max="1000" step="0.01" inputmode="decimal" placeholder="5.5" required></label><label>Minutos<input type="number" name="minutes" min="1" max="600" inputmode="numeric" required></label><label>Esfuerzo 1–10<input type="number" name="effort" min="1" max="10" value="3" inputmode="numeric" required></label><button class="primary">Guardar salida</button></form><p class="tiny subtle">Natación: 1.000 m = 1 km. Incluye lo registrado en Cardio; cada salida cuenta una sola vez.</p>${sessions.length ? `<div class="row-list">${sessions.map((s) => `<div class="food-log"><div><b>${label(s.mode)}</b><p>${fmt(distance(s))} km · ${s.minutes} min · ${escape(s.date)}</p></div><button data-delete-distance="${escape(s.id)}">Eliminar</button></div>`).join("")}</div>` : '<p class="subtle">Sin salidas registradas esta semana.</p>'}</article>`;
+    const r2 = (n) => Math.round(n * 100) / 100;
+    const rows = KM_ROWS.map(([mode, name, ic, emoji]) => {
+      const g = plan.find((r) => r.name === name) || { completed: 0, target: 0 },
+        pct = g.target ? Math.min(100, (g.completed / g.target) * 100) : 0,
+        open = kmOpen === mode;
+      const row = `<div class="rep-row km-row"><span class="km-icon">${icon(ic)}</span><div class="rep-info"><div class="rep-top"><strong>${escape(name)}</strong><span>${fmt(r2(g.completed))} / ${fmt(g.target)} km${g.completed >= g.target ? " ✓" : ""}</span></div><progress class="challenge-progress" value="${Math.min(g.completed, g.target)}" max="${g.target}" aria-label="${escape(name)}: ${fmt(r2(g.completed))} de ${fmt(g.target)} km"></progress><small>${Math.round(pct)}% · faltan ${fmt(r2(Math.max(0, g.target - g.completed)))} km</small></div><form data-km-open="${mode}" class="rep-form"><input name="km" type="number" min="0.01" max="1000" step="0.01" placeholder="km" inputmode="decimal" aria-label="Kilómetros de ${escape(name)}"><button class="primary" aria-expanded="${open}" aria-label="Registrar ${escape(name)}">+</button></form></div>`;
+      const mini = open
+        ? `<form id="weeklyDistanceForm" class="km-mini"><div class="km-mini-head">${emoji} Registrar ${escape(name)}</div>${mode === "Hiking" ? '<label>Actividad<select name="mode"><option value="Hiking">Hiking</option><option value="Rucking">Rucking</option></select></label>' : `<input type="hidden" name="mode" value="${mode}">`}<div class="km-mini-grid"><label>Distancia (km)<input type="number" name="km" min="0.01" max="1000" step="0.01" inputmode="decimal" placeholder="5.5" value="${escape(kmDraft)}" required></label><label>Duración (min)<input type="number" name="minutes" min="1" max="600" step="1" inputmode="numeric" placeholder="35" required></label></div><input type="hidden" name="effort" value="3"><div class="km-mini-actions"><button type="button" data-km-cancel>Cancelar</button><button class="primary">✓ Guardar</button></div></form>`
+        : "";
+      return row + mini;
+    }).join("");
+    return `<article class="reps-compact km-compact"><div class="challenge-heading"><h3>Retos de kilómetros</h3><span>Meta final · 8 semanas · <b>Semana ${week()}</b></span></div>${rows}<p class="tiny subtle km-note">Natación: 1.000 m = 1 km. Incluye lo registrado en Cardio; cada salida cuenta una sola vez.</p>${sessions.length ? `<div class="row-list">${sessions.map((s) => `<div class="food-log"><div><b>${label(s.mode)}</b><p>${fmt(distance(s))} km · ${s.minutes} min · ${escape(s.date)}</p></div><button data-delete-distance="${escape(s.id)}">Eliminar</button></div>`).join("")}</div>` : ""}</article>`;
   }
   root.addEventListener("submit", (e) => {
+    const form = e.target;
+    if (!form.dataset.kmOpen) return;
+    e.preventDefault();
+    kmOpen = form.dataset.kmOpen;
+    kmDraft = form.elements.km.value || "";
+    rerender();
+    const next = document.querySelector('#weeklyDistanceForm input[name="' + (kmDraft ? "minutes" : "km") + '"]');
+    if (next) next.focus();
+  });
+  root.addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b || !("kmCancel" in b.dataset)) return;
+    kmOpen = null;
+    kmDraft = "";
+    rerender();
+  });
+  
+root.addEventListener("submit", (e) => {
     if (e.target.id !== "weeklyDistanceForm") return;
     e.preventDefault();
     const form = e.target;
@@ -92,6 +129,8 @@ window.createFitChallenges = function ({ getProgram, persist, week, date, escape
       load: "",
       calories: "",
     });
+    kmOpen = null;
+    kmDraft = "";
     persist();
     rerender();
     status("Salida guardada.");
