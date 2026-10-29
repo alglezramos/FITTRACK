@@ -1,4 +1,4 @@
-const CACHE = "fittrack-pages-v20261029r46-patada";
+const CACHE = "fittrack-pages-v20261029r47-pressmith";
 const FILES = [
   "./",
   "./index.html",
