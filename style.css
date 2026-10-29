@@ -2132,3 +2132,60 @@ header {
   align-items: center;
   gap: 6px;
 }
+
+/* Retos de kilómetros: filas con icono y formulario rápido */
+.km-row {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+.km-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #1f2125;
+  border: 1px solid var(--line);
+  color: var(--accent);
+}
+.km-icon svg {
+  width: 22px;
+  height: 22px;
+}
+.km-mini {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 10px;
+  padding: 14px;
+  border-radius: 14px;
+  background: #1b1d21;
+  border: 1px solid var(--line);
+}
+.km-mini-head {
+  font-weight: 700;
+  font-size: 15px;
+}
+.km-mini-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.program .km-mini label {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.program .km-mini input,
+.program .km-mini select {
+  width: 100%;
+  font-size: 16px;
+}
+.km-mini-actions {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+}
+.km-note {
+  margin-top: 10px;
+}
