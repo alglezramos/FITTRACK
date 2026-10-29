@@ -203,6 +203,25 @@ $("backupBtn").onclick = () => {
   $("settings").hidden = !$("settings").hidden;
   if (!$("settings").hidden) $("settings").scrollIntoView({ behavior: "smooth" });
 };
+// Guardar: descarga una copia (JSON) con todos los registros de FitTrack.
+$("saveBtn").onclick = () => {
+  const data = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k || !k.startsWith("fittrack")) continue;
+    const raw = localStorage.getItem(k);
+    try {
+      data[k] = JSON.parse(raw);
+    } catch {
+      data[k] = raw;
+    }
+  }
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
+  const body = JSON.stringify({ app: "FitTrack", exportedAt: now.toISOString(), data }, null, 2);
+  download(`fittrack-respaldo-${stamp}.json`, body, "application/json");
+};
 function download(name, body, type) {
   const a = document.createElement("a");
   const url = URL.createObjectURL(new Blob([body], { type }));
