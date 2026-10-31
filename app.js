@@ -15,6 +15,31 @@ const save = () => {
   }
 };
 const weightKey = (id) => id + "-w" + state.week;
+// Pesos de fuerza: siempre se guardan en libras. Se pueden registrar en kg o lb.
+const KG_TO_LB = 2.20462;
+const round1 = (n) => Math.round(n * 10) / 10;
+const fmtW = (n) => String(round1(Number(n))).replace(".", ",");
+// Ejercicios con carga: los que no tienen otra unidad (min, rep).
+const isLoad = (id) => {
+  const x = EXERCISES.find((e) => e.id === id);
+  return !!x && !x.unit;
+};
+// Convierte una sola vez los pesos antiguos (guardados en kg) a libras.
+function normalizeStrengthUnits(st) {
+  st.weights ??= {};
+  if (st.weightUnit !== "lb") {
+    for (const [k, v] of Object.entries(st.weights)) {
+      if (isLoad(k.replace(/-w\d+$/, "")) && Number.isFinite(Number(v))) st.weights[k] = round1(Number(v) * KG_TO_LB);
+    }
+    st.weightUnit = "lb";
+  }
+  if (!["lb", "kg"].includes(st.inputUnit)) st.inputUnit = "lb";
+  return st;
+}
+if (state.weightUnit !== "lb" || !state.inputUnit) {
+  normalizeStrengthUnits(state);
+  save();
+}
 const esc = (s) =>
   String(s).replace(
     /[&<>"']/g,
@@ -77,13 +102,21 @@ function renderNow() {
     ex.length +
     " completados · " +
     pctText(done, ex.length) +
-    "</span></div>";
+    "</span></div>" +
+    '<div class="unit-toggle" role="group" aria-label="Unidad para registrar pesos"><span>Registrar en</span>' +
+    ["lb", "kg"]
+      .map((u) => '<button type="button" data-unit="' + u + '" aria-pressed="' + (state.inputUnit === u) + '">' + u + "</button>")
+      .join("") +
+    "<small>Todo se guarda en libras</small></div>";
   $("exerciseList").innerHTML =
     '<div class="grid">' +
     ex
       .map((x, i) => {
         const key = weightKey(x.id),
-          w = state.weights[key] ?? "",
+          load = !x.unit,
+          stored = state.weights[key],
+          inKg = load && state.inputUnit === "kg",
+          w = stored == null ? "" : inKg ? round1(stored / KG_TO_LB) : stored,
           ok = !!state.completed[key];
         return (
           '<article class="exercise"><div class="exTop">' +
@@ -96,13 +129,15 @@ function renderNow() {
           esc(x.name) +
           '</h3><p>' + esc(x.sets || "3 series × 10 repeticiones") + '</p></div></div><div class="controls"><label for="w' +
           x.id +
-          '">' + esc(x.unit || "kg") + '</label><input id="w' +
+          '">' + esc(load ? state.inputUnit : x.unit) + '</label><input id="w' +
           x.id +
           '" data-weight="' +
           x.id +
-          '" type="number" min="0" step="0.5" inputmode="decimal" placeholder="0" value="' +
+          '" type="number" min="0" step="0.1" inputmode="decimal" placeholder="0" value="' +
           esc(w) +
-          '"><button class="' +
+          '">' +
+          (inKg && stored != null ? '<span class="unit-hint">= ' + fmtW(stored) + " lb</span>" : "") +
+          '<button class="' +
           (ok ? "done" : "") +
           '" data-done="' +
           x.id +
@@ -126,7 +161,7 @@ function renderNow() {
       .join("") +
     "</div>";
   $("history").innerHTML =
-    '<div class="sectionHead"><h2>Historial de pesos</h2><span>kg · 8 semanas</span></div><div class="history"><table><thead><tr><th>Ejercicio</th>' +
+    '<div class="sectionHead"><h2>Historial de pesos</h2><span>lb · 8 semanas</span></div><div class="history"><table><thead><tr><th>Ejercicio</th>' +
     Array.from({ length: 8 }, (_, i) => "<th>S" + (i + 1) + "</th>").join("") +
     "</tr></thead><tbody>" +
     ex
@@ -141,7 +176,7 @@ function renderNow() {
               '<td class="' +
               (state.week === i + 1 ? "current" : "") +
               '">' +
-              esc(state.weights[x.id + "-w" + (i + 1)] ?? "—") +
+              esc(state.weights[x.id + "-w" + (i + 1)] == null ? "—" : fmtW(state.weights[x.id + "-w" + (i + 1)])) +
               "</td>",
           ).join("") +
           "</tr>",
@@ -157,6 +192,13 @@ document.addEventListener("click", (e) => {
     render();
     return;
   }
+  const u = e.target.closest("#strengthView [data-unit]");
+  if (u) {
+    state.inputUnit = u.dataset.unit === "kg" ? "kg" : "lb";
+    save();
+    render();
+    return;
+  }
   const t = e.target.closest("[data-detail]");
   if (t) {
     const el = $("detail-" + t.dataset.detail);
@@ -167,7 +209,7 @@ document.addEventListener("click", (e) => {
   if (c) {
     const key = weightKey(c.dataset.done);
     if (!state.completed[key] && !(Number(state.weights[key]) > 0)) {
-      alert("Introduce primero el peso utilizado (kg).");
+      alert("Introduce primero el peso utilizado.");
       return;
     }
     state.completed[key] = !state.completed[key];
@@ -194,6 +236,8 @@ document.addEventListener("change", (e) => {
       return;
     }
     if (val === "") delete state.weights[key];
+    else if (isLoad(e.target.dataset.weight) && state.inputUnit === "kg")
+      state.weights[key] = round1(Number(val) * KG_TO_LB);
     else state.weights[key] = Number(val);
     save();
     render();
