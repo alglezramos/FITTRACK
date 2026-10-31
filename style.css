@@ -2201,3 +2201,37 @@ header {
   cursor: pointer;
   padding: 6px;
 }
+/* Selector de unidad para los pesos de fuerza (se guardan en libras). */
+.unit-toggle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 12px;
+  font-size: 13px;
+  color: var(--muted, #a9acb3);
+}
+.unit-toggle button {
+  background: 0 0;
+  border: 1px solid var(--line-strong, #4a4d55);
+  color: var(--muted, #a9acb3);
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.unit-toggle button[aria-pressed="true"] {
+  background: var(--text, #f4f4f5);
+  border-color: var(--text, #f4f4f5);
+  color: var(--accent-ink, #121212);
+}
+.unit-toggle small {
+  flex-basis: 100%;
+  font-size: 12px;
+}
+.unit-hint {
+  font-size: 12px;
+  color: var(--muted, #a9acb3);
+  white-space: nowrap;
+}
