@@ -687,7 +687,8 @@
           view: "progress",
           progressTab: "weight",
         };
-        state = { ...s };
+        // Las copias antiguas guardaban los pesos en kg: se pasan a libras.
+        state = normalizeStrengthUnits({ ...s });
         save();
         persist();
         render();
