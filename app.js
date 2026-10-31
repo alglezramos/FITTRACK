@@ -1,4 +1,6 @@
 const DAYS = ["Piernas y glúteos", "Pecho y tríceps", "Espalda y bíceps", "Hombros y estabilidad", "Brazos y core"];
+// Cardio de cada día de la rutina general (fuerza + cardio).
+const DAY_CARDIO = ["🥋 Judo", "🏊 Natación", "🥋 Judo", "🏊 Natación", "🥋 Judo"];
 let state = { day: 1, week: 1, weights: {}, completed: {} };
 try {
   const s = FitStore.get("strength");
@@ -71,8 +73,36 @@ function renderNow() {
       (i + 1) +
       "</b><span>" +
       d +
-      "</span></button>",
+      "</span><small>+ " +
+      DAY_CARDIO[i] +
+      "</small></button>",
   ).join("");
+  // Encabezado de la hoja del día: fecha del registro y día de rutina elegido.
+  const head = $("sheetHead");
+  if (head) {
+    // La fecha activa la da program.js (window.fitSheetDate); si aún no cargó, se usa la guardada.
+    const p = FitStore.get("program") || {};
+    const dt = window.fitSheetDate
+      ? window.fitSheetDate()
+      : window.FitCalendar && p.start
+        ? FitCalendar.date(p.start, state.week, p.recordDay || 0)
+        : "";
+    const nice = dt
+      ? new Date(dt + "T12:00:00Z").toLocaleDateString("es-CR", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" })
+      : "Elige el inicio del programa en ⚙ Opciones";
+    head.innerHTML =
+      '<div class="eyebrow">HOJA DEL DÍA · SEMANA ' +
+      state.week +
+      "</div><h2>" +
+      esc(nice.charAt(0).toUpperCase() + nice.slice(1)) +
+      "</h2><p>Rutina: <strong>Día " +
+      state.day +
+      " · " +
+      DAYS[state.day - 1] +
+      " + " +
+      DAY_CARDIO[state.day - 1] +
+      "</strong>. Toca otro día abajo si hiciste una rutina distinta.</p>";
+  }
   const ex = EXERCISES.filter((x) => x.day === state.day);
   const done = ex.filter((x) => state.completed[weightKey(x.id)]).length;
   const total = EXERCISES.filter((x) => state.completed[weightKey(x.id)]).length;
@@ -81,6 +111,7 @@ function renderNow() {
   const weekPct = pct(total, EXERCISES.length);
   $("progress").textContent = total + "/" + EXERCISES.length + " completados · " + pctText(total, EXERCISES.length);
   $("summary").innerHTML =
+    '<h3 class="sheet-label">💪 Fuerza</h3>' +
     '<div class="week-strength" style="margin:12px 0 4px"><div class="weight-progress-labels" style="margin-bottom:8px"><span>Semana ' +
     state.week +
     " · ejercicios de fuerza</span><strong>" +
