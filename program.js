@@ -615,15 +615,10 @@
     if (b.dataset.removeSession)
       program.sessions = program.sessions.filter((s) => s.id !== b.dataset.removeSession);
     if (b.id === "exportAll") {
-      download(
-        "fittrack-copia-completa.json",
-        JSON.stringify(
-          { version: "fittrack-complete-2", exported: new Date().toISOString(), program, strength: state },
-          null,
-          2,
-        ),
-        "application/json",
-      );
+      // Mismo archivo que «💾 Guardar»: primero guarda lo que está en pantalla.
+      persist();
+      save();
+      FitStore.exportBackup();
       return;
     }
     if (
@@ -661,11 +656,17 @@
         const file = t.files[0];
         if (!file) return;
         if (file.size > 5000000) throw Error("La copia supera 5 MB");
-        const o = JSON.parse(await file.text());
-        if (!["fittrack-complete-1", "fittrack-complete-2"].includes(o.version))
-          throw Error("Versión no válida");
-        const incoming = C.validate(FitCalendar.migrate(o.program));
-        const s = o.strength;
+        let o;
+        try {
+          o = JSON.parse(await file.text());
+        } catch {
+          throw Error("El archivo no es un JSON válido");
+        }
+        // Acepta el formato actual y los respaldos antiguos de «💾 Guardar».
+        const backup = FitStore.readBackup(o);
+        if (!backup.program) throw Error("La copia no contiene el programa");
+        const incoming = C.validate(FitCalendar.migrate(backup.program));
+        const s = backup.strength;
         if (
           !s ||
           !s.weights ||
@@ -695,6 +696,9 @@
         alert("Copia importada");
       } catch (err) {
         alert("No se pudo importar: " + err.message);
+      } finally {
+        // Permite volver a elegir el mismo archivo.
+        t.value = "";
       }
       return;
     }
