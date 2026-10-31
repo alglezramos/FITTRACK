@@ -58,6 +58,7 @@
   const fmt = (n) => Number(n).toLocaleString("es-CR", { maximumFractionDigits: 1 });
   const week = () => Number(document.getElementById("week").value) || 1;
   const date = () => FitCalendar.date(program.start, week(), program.recordDay);
+  window.fitSheetDate = date;
   const dayLabel = (i) => {
     const d = FitCalendar.date(program.start, week(), i);
     return d
@@ -359,18 +360,23 @@
       `<article><h3>Camino hacia ${fmt(target)} kg</h3><div class="weight-progress-labels"><span>${fmt(initial)} kg · inicio</span><strong>${fmt(current)} kg · ${recent ? "promedio semana " + recent.week : "punto de partida"}</strong><span>${fmt(target)} kg · meta</span></div><div class="weight-progress-track" role="progressbar" aria-label="Progreso hacia la meta de peso" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}"><div class="weight-progress-fill" style="width:${pct.toFixed(2)}%"></div></div></article>${reviewCard()}<div class="sec" id="sec-weight">${weight()}</div><div class="sec" id="sec-summary">${dashboard.render()}</div><div class="sec" id="sec-backup">${backup()}</div>`
     );
   }
+  // Hoja única del día: la fuerza (strengthView) va arriba; aquí van cardio y retos.
   function training() {
-    const sub = program.trainingTab || "strength";
     return (
-      `<nav class="subtabs" aria-label="Entrenamiento"><button data-training-tab="strength" aria-pressed="${sub === "strength"}">Fuerza</button><button data-training-tab="cardio" aria-pressed="${sub === "cardio"}">Cardio</button><button data-training-tab="challenges" aria-pressed="${sub === "challenges"}">Retos</button></nav>` +
-      calendar() +
-      (sub === "challenges" ? challenges.render() : sub === "cardio" ? cardio() : "")
+      `<h3 class="sheet-label">🏃 Cardio</h3>` +
+      cardio() +
+      `<h3 class="sheet-label">🔥 Retos</h3>` +
+      challenges.render() +
+      calendar()
     );
   }
   function cardio() {
     const selected = program.cardioMode || "Judo";
-    const sessions = program.sessions.filter((s) => s.week === week());
-    return `<article id="cardioEntry"><div class="challenge-heading"><h3>Registrar actividad</h3><span>Semana ${week()} · ${date() || "pendiente"}</span></div><div class="cat-chips mode-chips" role="group" aria-label="Actividad">${modes.map((m) => `<button type="button" data-cardio-mode="${m}" aria-pressed="${m === selected}">${modeIcons[m]} ${m}</button>`).join("")}</div><p class="tiny subtle" id="cardioDesc">${modeDescriptions[selected]}</p><form id="cardioForm"><input type="hidden" name="mode" id="cardioModeValue" value="${selected}"><div class="fields"><label>Minutos <input name="minutes" type="number" min="1" max="600" required></label><label>Esfuerzo 1–10 <input name="effort" type="number" min="1" max="10" value="3" required></label><label>Distancia (opcional) <input name="distance" type="number" min="0" max="100000" step="any"></label><label>Unidad <select name="unit"><option value="km" ${selected !== "Nadar" ? "selected" : ""}>km</option><option value="m" ${selected === "Nadar" ? "selected" : ""}>m</option></select></label><label id="cardioLoad" ${["Rucking", "Hiking"].includes(selected) ? "" : "hidden"}>Mochila kg (opcional) <input name="load" type="number" min="0" max="50" step="0.1"></label><label>Kcal de actividad (opcional) <input name="calories" type="number" min="0" max="10000" step="1"></label></div><button class="primary">Guardar actividad</button></form><p class="tiny subtle">Las kcal de actividad son informativas. El balance usa únicamente Whoop total, sin sumar actividades ni pasos de nuevo.</p></article><article><h3>Historial · semana ${week()}</h3><p>${sessions.reduce((n, s) => n + s.minutes, 0)} min en ${sessions.length} sesiones</p>${sessions.map((s) => `<div class="food-log"><div><b>${escape(s.mode)}</b> · ${escape(s.date)}<p>${s.minutes} min · esfuerzo ${s.effort}/10${s.distance ? " · " + escape(s.distance) + " " + escape(s.unit || "km") : ""}${s.load ? " · " + escape(s.load) + " kg de mochila" : ""}${C.has(s.calories) ? " · " + escape(s.calories) + " kcal" : ""}</p></div><button data-remove-session="${escape(s.id)}">Eliminar</button></div>`).join("") || '<p class="subtle">Aún no hay sesiones.</p>'}</article>`;
+    const dt = date();
+    const sessions = program.sessions.filter((s) => s.date === dt);
+    const weekSessions = program.sessions.filter((s) => s.week === week());
+    const planned = typeof DAY_CARDIO !== "undefined" ? DAY_CARDIO[(state.day || 1) - 1] : "";
+    return `<article id="cardioEntry"><div class="challenge-heading"><h3>Registrar actividad</h3><span>${dt || "pendiente"}</span></div>${planned ? `<p class="tiny subtle">Plan del Día ${state.day}: <strong>${escape(planned)}</strong>. Puedes registrar cualquier otra actividad.</p>` : ""}<div class="cat-chips mode-chips" role="group" aria-label="Actividad">${modes.map((m) => `<button type="button" data-cardio-mode="${m}" aria-pressed="${m === selected}">${modeIcons[m]} ${m}</button>`).join("")}</div><p class="tiny subtle" id="cardioDesc">${modeDescriptions[selected]}</p><form id="cardioForm"><input type="hidden" name="mode" id="cardioModeValue" value="${selected}"><div class="fields"><label>Minutos <input name="minutes" type="number" min="1" max="600" required></label><label>Esfuerzo 1–10 <input name="effort" type="number" min="1" max="10" value="3" required></label><label>Distancia (opcional) <input name="distance" type="number" min="0" max="100000" step="any"></label><label>Unidad <select name="unit"><option value="km" ${selected !== "Nadar" ? "selected" : ""}>km</option><option value="m" ${selected === "Nadar" ? "selected" : ""}>m</option></select></label><label id="cardioLoad" ${["Rucking", "Hiking"].includes(selected) ? "" : "hidden"}>Mochila kg (opcional) <input name="load" type="number" min="0" max="50" step="0.1"></label><label>Kcal de actividad (opcional) <input name="calories" type="number" min="0" max="10000" step="1"></label></div><button class="primary">Guardar actividad</button></form><p class="tiny subtle">Las kcal de actividad son informativas. El balance usa únicamente Whoop total, sin sumar actividades ni pasos de nuevo.</p></article><article><h3>Actividades de este día</h3><p>${sessions.reduce((n, s) => n + s.minutes, 0)} min en ${sessions.length} sesiones · semana ${week()}: ${weekSessions.reduce((n, s) => n + s.minutes, 0)} min en ${weekSessions.length}</p>${sessions.map((s) => `<div class="food-log"><div><b>${escape(s.mode)}</b> · ${escape(s.date)}<p>${s.minutes} min · esfuerzo ${s.effort}/10${s.distance ? " · " + escape(s.distance) + " " + escape(s.unit || "km") : ""}${s.load ? " · " + escape(s.load) + " kg de mochila" : ""}${C.has(s.calories) ? " · " + escape(s.calories) + " kcal" : ""}</p></div><button data-remove-session="${escape(s.id)}">Eliminar</button></div>`).join("") || '<p class="subtle">Aún no hay actividades este día.</p>'}</article>`;
   }
   function weight() {
     const w = week(),
@@ -538,7 +544,10 @@
     if (view === "progress") content = progress();
     root.hidden = false;
     root.innerHTML = '<div class="program">' + content + "</div>";
-    strength.hidden = !(view === "training" && (program.trainingTab || "strength") === "strength");
+    // Entreno = hoja única: fuerza arriba (strengthView), cardio y retos debajo.
+    strength.hidden = view !== "training";
+    document.body.classList.toggle("sheet-mode", view === "training");
+    if (view === "training") render();
     chart();
     if (pendingJump) {
       const el = document.getElementById(pendingJump);
@@ -557,6 +566,10 @@
     }
   });
   document.getElementById("week").addEventListener("change", () => setTimeout(show, 0));
+  // Al elegir otro día de rutina (1–5), actualiza el cardio planeado de la hoja.
+  document.getElementById("days").addEventListener("click", (e) => {
+    if (e.target.closest("[data-day]") && program.view === "training") setTimeout(show, 0);
+  });
   root.addEventListener("click", (e) => {
     const b = e.target.closest("button");
     if (!b) return;
