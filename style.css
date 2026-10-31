@@ -2235,3 +2235,42 @@ header {
   color: var(--muted, #a9acb3);
   white-space: nowrap;
 }
+/* Hoja única por día en Entreno: fuerza arriba, cardio y retos debajo. */
+body.sheet-mode main {
+  display: flex;
+  flex-direction: column;
+}
+body.sheet-mode #strengthView {
+  order: 1;
+}
+body.sheet-mode #programView {
+  order: 2;
+}
+.sheet-head {
+  background: var(--surface, #1c1d21);
+  border: 1px solid var(--line, #2c2e33);
+  border-radius: 18px;
+  padding: 14px 16px;
+  margin: 12px 0;
+}
+.sheet-head:empty {
+  display: none;
+}
+.sheet-head h2 {
+  margin: 4px 0 6px;
+}
+.sheet-head p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted, #a9acb3);
+}
+.sheet-label {
+  margin: 22px 0 8px;
+  font-size: 18px;
+}
+.day small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  opacity: 0.75;
+}
