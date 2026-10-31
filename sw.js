@@ -1,4 +1,4 @@
-const CACHE = "fittrack-pages-v20261031r52-respaldo-unico";
+const CACHE = "fittrack-pages-v20261031r53-curl-scott";
 const FILES = [
   "./",
   "./index.html",
