@@ -33,6 +33,8 @@ function normalizeStrengthUnits(st) {
     for (const [k, v] of Object.entries(st.weights)) {
       if (isLoad(k.replace(/-w\d+$/, "")) && Number.isFinite(Number(v))) st.weights[k] = round1(Number(v) * KG_TO_LB);
     }
+    for (const sets of Object.values(st.sets || {}))
+      for (const z of sets || []) if (z && z.w > 0) z.w = round1(z.w * KG_TO_LB);
     st.weightUnit = "lb";
   }
   if (!["lb", "kg"].includes(st.inputUnit)) st.inputUnit = "lb";
@@ -41,6 +43,177 @@ function normalizeStrengthUnits(st) {
 if (state.weightUnit !== "lb" || !state.inputUnit) {
   normalizeStrengthUnits(state);
   save();
+}
+// ── Series ───────────────────────────────────────────────────────────────
+// Objetivo de series × repeticiones a partir del texto del ejercicio ("3 series × 10 …").
+const target = (x) => {
+  const m = /(\d+)\s*series\s*[×x]\s*(\d+)/i.exec((x && x.sets) || "3 series × 10 repeticiones");
+  return { n: m ? Number(m[1]) : 3, reps: m ? Number(m[2]) : 10 };
+};
+const exById = (id) => EXERCISES.find((e) => e.id === id);
+const toShow = (lb) => (state.inputUnit === "kg" ? round1(lb / KG_TO_LB) : round1(lb));
+const toLb = (v) => (state.inputUnit === "kg" ? round1(v * KG_TO_LB) : round1(v));
+const recordDate = () => {
+  const p = FitStore.get("program") || {};
+  return window.fitSheetDate ? window.fitSheetDate() : p.start ? FitCalendar.date(p.start, state.week, p.recordDay || 0) : "";
+};
+// Series de un ejercicio en una semana. Si solo hay peso del formato antiguo, se infieren.
+function setsOf(id, w) {
+  const k = id + "-w" + w;
+  state.sets ??= {};
+  if (Array.isArray(state.sets[k])) return state.sets[k];
+  if (state.weights[k] != null) {
+    const t = target(exById(id));
+    return Array.from({ length: t.n }, () => ({ w: Number(state.weights[k]), r: t.reps, done: !!state.completed[k] }));
+  }
+  return null;
+}
+const hasData = (sets) => !!sets && sets.some((z) => z.done || z.w > 0);
+function prevSession(id) {
+  for (let w = state.week - 1; w >= 1; w--) {
+    const s = setsOf(id, w);
+    if (hasData(s)) return { week: w, sets: s };
+  }
+  return null;
+}
+const topOf = (sets) => (sets || []).filter((z) => z.done && z.w > 0).reduce((m, z) => Math.max(m, z.w), 0);
+// Mejor peso completado en cualquier semana distinta de la indicada (récord previo).
+function bestOf(id, exceptWeek) {
+  let best = 0;
+  for (let w = 1; w <= 8; w++) if (w !== exceptWeek) best = Math.max(best, topOf(setsOf(id, w)));
+  return best;
+}
+// Crea las series de la semana actual (si no existen) a partir de lo que muestra la tarjeta.
+function ensureSets(id) {
+  const k = weightKey(id);
+  state.sets ??= {};
+  if (Array.isArray(state.sets[k])) return state.sets[k];
+  const inferred = setsOf(id, state.week);
+  if (inferred) return (state.sets[k] = inferred.map((z) => ({ ...z })));
+  const t = target(exById(id)),
+    prev = prevSession(id),
+    w = prev ? [...prev.sets].reverse().find((z) => z.w > 0)?.w ?? null : null;
+  return (state.sets[k] = Array.from({ length: t.n }, () => ({ w, r: t.reps, done: false })));
+}
+// Recalcula peso de la semana (mejor serie), completado y fecha.
+function syncExercise(id) {
+  const k = weightKey(id),
+    sets = state.sets[k] || [];
+  const top = topOf(sets),
+    anyW = sets.reduce((m, z) => Math.max(m, z.w || 0), 0);
+  if (top > 0) state.weights[k] = top;
+  else if (anyW > 0) state.weights[k] = anyW;
+  else delete state.weights[k];
+  const all = sets.length > 0 && sets.every((z) => z.done);
+  state.completedDates ??= {};
+  if (all && !state.completed[k]) state.completedDates[k] = recordDate();
+  if (!all) delete state.completedDates[k];
+  state.completed[k] = all;
+}
+const sparkline = (vals) => {
+  const pts = vals.map((v, i) => [i, v]).filter(([, v]) => v > 0);
+  if (pts.length < 2) return "";
+  const max = Math.max(...pts.map((p) => p[1])),
+    min = Math.min(...pts.map((p) => p[1])),
+    span = max - min || 1,
+    x = (i) => 6 + (i * 148) / 7,
+    y = (v) => 34 - ((v - min) / span) * 26;
+  return (
+    '<svg class="spark" viewBox="0 0 160 40" role="img" aria-label="Evolución del mejor peso por semana"><polyline fill="none" stroke="#ffc33d" stroke-width="2" points="' +
+    pts.map(([i, v]) => x(i) + "," + y(v)).join(" ") +
+    '"/>' +
+    pts.map(([i, v]) => '<circle cx="' + x(i) + '" cy="' + y(v) + '" r="2.5" fill="#ffc33d"/>').join("") +
+    "</svg>"
+  );
+};
+function historyHtml(x) {
+  const unit = state.inputUnit,
+    rows = [],
+    tops = [];
+  for (let w = 1; w <= 8; w++) {
+    const s = setsOf(x.id, w),
+      k = x.id + "-w" + w;
+    tops.push(topOf(s));
+    if (!hasData(s)) continue;
+    const date = (state.completedDates || {})[k] || s.find((z) => z.d)?.d || "";
+    rows.push(
+      "<li><b>S" +
+        w +
+        "</b>" +
+        (date ? " · " + esc(date.slice(8) + "/" + date.slice(5, 7)) : "") +
+        " · " +
+        s.filter((z) => z.w > 0).map((z) => fmtW(toShow(z.w)) + "×" + z.r + (z.done ? "" : "?")).join(" · ") +
+        "</li>",
+    );
+  }
+  if (!rows.length) return '<div class="exhist"><strong>Historial</strong><p class="subtle">Aún no hay sesiones.</p></div>';
+  return '<div class="exhist"><strong>Historial · ' + unit + "</strong>" + sparkline(tops) + "<ul>" + rows.reverse().join("") + "</ul></div>";
+}
+function setsHtml(x) {
+  const k = weightKey(x.id),
+    t = target(x),
+    unit = state.inputUnit,
+    cur = setsOf(x.id, state.week),
+    prev = prevSession(x.id),
+    best = bestOf(x.id, state.week),
+    prefW = prev ? [...prev.sets].reverse().find((z) => z.w > 0)?.w ?? null : null,
+    n = Math.max(t.n, cur ? cur.length : 0),
+    doneN = cur ? cur.filter((z) => z.done).length : 0,
+    top = topOf(cur);
+  const meta =
+    '<div class="setmeta"><span>Anterior' +
+    (prev ? " (S" + prev.week + "): " + prev.sets.filter((z) => z.w > 0).map((z) => fmtW(toShow(z.w)) + "×" + z.r).join(" · ") : ": sin registro") +
+    "</span>" +
+    (top > 0 && best > 0 && top > best
+      ? '<span class="pr new">🏆 ¡Nuevo récord!</span>'
+      : best > 0
+        ? '<span class="pr">🏆 ' + fmtW(toShow(best)) + " " + unit + "</span>"
+        : "") +
+    "</div>";
+  const rows = Array.from({ length: n }, (_, i) => {
+    const s = (cur && cur[i]) || { w: prefW, r: t.reps, done: false };
+    return (
+      '<div class="setrow' +
+      (s.done ? " done" : "") +
+      '"><span class="setn">' +
+      (i + 1) +
+      '</span><input data-set-w="' +
+      x.id +
+      '" data-i="' +
+      i +
+      '" type="number" min="0" step="0.1" inputmode="decimal" placeholder="—" value="' +
+      (s.w > 0 ? toShow(s.w) : "") +
+      '" aria-label="Peso de la serie ' +
+      (i + 1) +
+      '"><span class="setu">' +
+      unit +
+      '</span><span class="setx">×</span><input data-set-r="' +
+      x.id +
+      '" data-i="' +
+      i +
+      '" type="number" min="0" max="999" step="1" inputmode="numeric" value="' +
+      (s.r ?? t.reps) +
+      '" aria-label="Repeticiones de la serie ' +
+      (i + 1) +
+      '"><button type="button" class="setok" data-set-done="' +
+      x.id +
+      '" data-i="' +
+      i +
+      '" aria-pressed="' +
+      !!s.done +
+      '" aria-label="Serie ' +
+      (i + 1) +
+      (s.done ? " completada" : " pendiente") +
+      '">✓</button></div>'
+    );
+  }).join("");
+  return { html: meta + '<div class="setlist">' + rows + "</div>", doneN, n, ok: !!state.completed[k] };
+}
+// Lee de la tarjeta el peso y las repeticiones de una serie.
+function readRow(id, i) {
+  const w = document.querySelector('[data-set-w="' + id + '"][data-i="' + i + '"]'),
+    r = document.querySelector('[data-set-r="' + id + '"][data-i="' + i + '"]');
+  return { w: w && w.value !== "" ? Number(w.value) : null, r: r && r.value !== "" ? Number(r.value) : null };
 }
 const esc = (s) =>
   String(s).replace(
@@ -105,6 +278,16 @@ function renderNow() {
   }
   const ex = EXERCISES.filter((x) => x.day === state.day);
   const done = ex.filter((x) => state.completed[weightKey(x.id)]).length;
+  // Avance de series del día (solo ejercicios con carga) y estado de la sesión.
+  let setsDone = 0,
+    setsTotal = 0;
+  for (const x of ex.filter((e) => !e.unit)) {
+    const s = setsOf(x.id, state.week);
+    setsTotal += Math.max(target(x).n, s ? s.length : 0);
+    setsDone += s ? s.filter((z) => z.done).length : 0;
+  }
+  const sessionTag =
+    setsDone === 0 ? "" : setsDone >= setsTotal ? '<span class="sess done">✓ Sesión completa</span>' : '<span class="sess">⏸ En curso · continúa cuando quieras</span>';
   const total = EXERCISES.filter((x) => state.completed[weightKey(x.id)]).length;
   const pct = (n, of) => (of ? (n / of) * 100 : 0);
   const pctText = (n, of) => pct(n, of).toFixed(1).replace(".", ",") + "%";
@@ -134,6 +317,21 @@ function renderNow() {
     " completados · " +
     pctText(done, ex.length) +
     "</span></div>" +
+    (setsTotal
+      ? '<div class="day-sets"><div class="weight-progress-labels"><span>Series de hoy</span><strong>' +
+        setsDone +
+        "/" +
+        setsTotal +
+        "</strong></div><div class=\"weight-progress-track\" role=\"progressbar\" aria-label=\"Series completadas del día\" aria-valuemin=\"0\" aria-valuemax=\"" +
+        setsTotal +
+        "\" aria-valuenow=\"" +
+        setsDone +
+        "\"><div class=\"weight-progress-fill\" style=\"width:" +
+        ((setsDone / setsTotal) * 100).toFixed(1) +
+        '%"></div></div>' +
+        sessionTag +
+        "</div>"
+      : "") +
     '<div class="unit-toggle" role="group" aria-label="Unidad para registrar pesos"><span>Registrar en</span>' +
     ["lb", "kg"]
       .map((u) => '<button type="button" data-unit="' + u + '" aria-pressed="' + (state.inputUnit === u) + '">' + u + "</button>")
@@ -148,7 +346,8 @@ function renderNow() {
           stored = state.weights[key],
           inKg = load && state.inputUnit === "kg",
           w = stored == null ? "" : inKg ? round1(stored / KG_TO_LB) : stored,
-          ok = !!state.completed[key];
+          ok = !!state.completed[key],
+          sets = load ? setsHtml(x) : null;
         return (
           '<article class="exercise"><div class="exTop">' +
           (x.image
@@ -158,7 +357,23 @@ function renderNow() {
           (i + 1) +
           "</div><h3>" +
           esc(x.name) +
-          '</h3><p>' + esc(x.sets || "3 series × 10 repeticiones") + '</p></div></div><div class="controls"><label for="w' +
+          '</h3><p>' + esc(x.sets || "3 series × 10 repeticiones") + '</p></div></div>' +
+          (load
+            ? sets.html +
+              '<div class="controls"><span class="setprog">' +
+              sets.doneN +
+              "/" +
+              sets.n +
+              ' series</span><button class="' +
+              (ok ? "done" : "") +
+              '" data-done="' +
+              x.id +
+              '">' +
+              (ok ? "✓ Hecho" : "Completar todo") +
+              '</button><button class="detailBtn" data-detail="' +
+              x.id +
+              '">Guía ↓</button></div>'
+            : '<div class="controls"><label for="w' +
           x.id +
           '">' + esc(load ? state.inputUnit : x.unit) + '</label><input id="w' +
           x.id +
@@ -176,7 +391,8 @@ function renderNow() {
           (ok ? "✓ Hecho" : "Completar") +
           '</button><button class="detailBtn" data-detail="' +
           x.id +
-          '">Guía ↓</button></div><div class="details" id="detail-' +
+          '">Guía ↓</button></div>') +
+          '<div class="details" id="detail-' +
           x.id +
           '" hidden><div class="steps"><div class="step"><strong>01 · PREPARACIÓN</strong><p>' +
           esc(x.start) +
@@ -186,7 +402,9 @@ function renderNow() {
           esc(x.muscles) +
           '</p><p>Regresa lentamente a la posición inicial.</p></div></div><div class="warning"><b>Evita:</b> ' +
           esc(x.avoid) +
-          "</div></div></article>"
+          "</div>" +
+          (load ? historyHtml(x) : "") +
+          "</div></article>"
         );
       })
       .join("") +
@@ -236,7 +454,54 @@ document.addEventListener("click", (e) => {
     el.hidden = !el.hidden;
     return;
   }
+  const sd = e.target.closest("[data-set-done]");
+  if (sd) {
+    const id = sd.dataset.setDone,
+      i = Number(sd.dataset.i),
+      row = readRow(id, i),
+      wasDone = sd.getAttribute("aria-pressed") === "true";
+    if (!wasDone && !(row.w > 0)) {
+      alert("Introduce el peso de la serie " + (i + 1) + ".");
+      return;
+    }
+    const sets = ensureSets(id);
+    const s = (sets[i] ??= { w: null, r: target(exById(id)).reps, done: false });
+    if (!s.done) {
+      s.w = toLb(row.w);
+      s.r = row.r > 0 ? row.r : s.r;
+      s.done = true;
+      s.d = recordDate();
+    } else s.done = false;
+    syncExercise(id);
+    save();
+    render();
+    return;
+  }
   const c = e.target.closest("[data-done]");
+  if (c && isLoad(c.dataset.done)) {
+    // Completar todo: marca todas las series con los valores que muestra la tarjeta.
+    const id = c.dataset.done,
+      k = weightKey(id),
+      sets = ensureSets(id);
+    if (state.completed[k]) sets.forEach((z) => (z.done = false));
+    else {
+      for (let i = 0; i < sets.length; i++) {
+        const row = readRow(id, i);
+        if (!(row.w > 0)) {
+          alert("Introduce el peso de la serie " + (i + 1) + ".");
+          return;
+        }
+        sets[i].w = toLb(row.w);
+        if (row.r > 0) sets[i].r = row.r;
+        sets[i].done = true;
+        sets[i].d ??= recordDate();
+      }
+    }
+    syncExercise(id);
+    save();
+    render();
+    return;
+  }
   if (c) {
     const key = weightKey(c.dataset.done);
     if (!state.completed[key] && !(Number(state.weights[key]) > 0)) {
@@ -258,6 +523,24 @@ document.addEventListener("change", (e) => {
     state.week = Number(e.target.value);
     save();
     render();
+  }
+  if (e.target.dataset.setW || e.target.dataset.setR) {
+    const id = e.target.dataset.setW || e.target.dataset.setR,
+      i = Number(e.target.dataset.i),
+      v = e.target.value === "" ? null : Number(e.target.value);
+    if (v !== null && (!Number.isFinite(v) || v < 0)) {
+      alert("Introduce un valor válido.");
+      render();
+      return;
+    }
+    const sets = ensureSets(id),
+      s = (sets[i] ??= { w: null, r: target(exById(id)).reps, done: false });
+    if (e.target.dataset.setW) s.w = v === null ? null : toLb(v);
+    else s.r = v;
+    syncExercise(id);
+    save();
+    render();
+    return;
   }
   if (e.target.dataset.weight) {
     const key = weightKey(e.target.dataset.weight);
