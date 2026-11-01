@@ -48,7 +48,7 @@
           : program.progressTab || "weight";
     program.view = "progress";
   }
-  if (!["home", "food", "training", "progress"].includes(program.view)) program.view = "home";
+  if (!["home", "food", "training", "progress", "history"].includes(program.view)) program.view = "home";
   if (program.trainingTab === "calendar") program.trainingTab = "strength";
   const escape = (v) =>
     String(v ?? "").replace(
@@ -265,15 +265,6 @@
     const v = Number((program.weeks[pos.week] || {})[k]);
     return v > 0 ? v : null;
   }
-  function lastWeight(upTo) {
-    for (let i = 0; i < 70; i++) {
-      const day = C.datePlus(upTo, -i);
-      if (day < program.start) break;
-      const v = weightOn(day);
-      if (v) return { day, v };
-    }
-    return null;
-  }
   // Día con actividad: cardio, fuerza (serie o ejercicio completado) o reto.
   function activeOn(day) {
     if (program.sessions.some((x) => x.date === day)) return true;
@@ -314,19 +305,92 @@
       todayEx = Object.values(state.completedDates || {}).filter((x) => x === dt).length;
     const actCard = `<article class="dash-card"><div class="dash-head"><span>🏋️ Actividad</span><strong>${plan.label}</strong></div><div class="dash-row"><div><span>Ejercicios</span><strong>${todayEx || "—"}</strong></div><div><span>Series</span><strong>${todaySets || "—"}</strong></div><div><span>Pasos</span><strong>${C.has(d.steps) ? fmt(d.steps) : "—"}</strong></div></div>${sessions.length ? `<ul class="dash-list">${sessions.map((s) => `<li>${escape(s.mode)} · ${s.minutes} min${s.distance ? " · " + escape(s.distance) + " " + escape(s.unit || "km") : ""}</li>`).join("")}</ul>` : '<p class="tiny subtle">Sin actividades de cardio registradas.</p>'}</article>`;
     // Progreso: peso, variación 7 días y racha
-    const last = lastWeight(dt),
-      prev = last ? lastWeight(C.datePlus(last.day, -7)) : null,
-      diff = last && prev ? last.v - prev.v : null,
+    // Peso: promedio de las pesadas de la semana frente a la semana anterior con datos.
+    const rows = C.series(program),
+      wN = week(),
+      avg = rows[wN] && rows[wN].actual !== null ? rows[wN].actual : null;
+    let prevAvg = null,
+      prevLabel = "";
+    for (let k = wN - 1; k >= 0; k--)
+      if (rows[k] && rows[k].actual !== null) {
+        prevAvg = rows[k].actual;
+        prevLabel = k ? "vs S" + k : "vs inicio";
+        break;
+      }
+    const nWeigh = ["weight1", "weight4", "weight2", "weight5", "weight3"].filter((k) => Number((program.weeks[wN] || {})[k]) > 0).length,
+      diff = avg !== null && prevAvg !== null ? avg - prevAvg : null,
       initial = Number(program.initialWeight) || null,
       target = initial ? initial - C.GOAL_KG : null,
-      lost = last && initial ? initial - last.v : 0,
+      lost = avg !== null && initial ? initial - avg : 0,
       st = streak(dt);
-    const progCard = `<article class="dash-card" id="dashWeight"><div class="dash-head"><span>📉 Progreso</span><strong>🔥 Racha: ${st} día${st === 1 ? "" : "s"}</strong></div><div class="dash-row"><div><span>Último peso</span><strong>${last ? fmt(last.v) + " kg" : "—"}</strong><small>${last ? last.day.slice(8) + "/" + last.day.slice(5, 7) : ""}</small></div><div><span>7 días</span><strong class="${diff === null ? "" : diff <= 0 ? "good" : "bad"}">${diff === null ? "—" : (diff > 0 ? "+" : "") + fmt(diff) + " kg"}</strong></div><div><span>Meta</span><strong>${target ? fmt(target) + " kg" : "—"}</strong></div></div>${target ? bar(Math.max(0, lost), C.GOAL_KG) + `<p class="tiny subtle">${fmt(Math.max(0, lost))} de ${C.GOAL_KG} kg bajados</p>` : ""}${wk ? `<label class="weight-day dash-weigh">Peso de hoy <input data-weight-metric="${wk}" type="number" min="20" max="400" step="0.1" inputmode="decimal" value="${escape(wv ?? "")}"><span>kg</span></label>` : '<p class="tiny subtle">Pesadas: de lunes a viernes.</p>'}</article>`;
+    const progCard = `<article class="dash-card" id="dashWeight"><div class="dash-head"><span>📉 Progreso</span><strong>🔥 Racha: ${st} día${st === 1 ? "" : "s"}</strong></div><div class="dash-row"><div><span>Promedio S${wN}</span><strong>${avg !== null ? fmt(avg) + " kg" : "—"}</strong><small>${nWeigh} pesada${nWeigh === 1 ? "" : "s"}</small></div><div><span>${prevLabel || "Semana anterior"}</span><strong class="${diff === null ? "" : diff <= 0 ? "good" : "bad"}">${diff === null ? "—" : (diff > 0 ? "+" : "") + fmt(diff) + " kg"}</strong></div><div><span>Meta</span><strong>${target ? fmt(target) + " kg" : "—"}</strong></div></div>${target ? bar(Math.max(0, lost), C.GOAL_KG) + `<p class="tiny subtle">${fmt(Math.max(0, lost))} de ${C.GOAL_KG} kg bajados</p>` : ""}${wk ? `<label class="weight-day dash-weigh">Peso de hoy <input data-weight-metric="${wk}" type="number" min="20" max="400" step="0.1" inputmode="decimal" value="${escape(wv ?? "")}"><span>kg</span></label>` : '<p class="tiny subtle">Pesadas: de lunes a viernes.</p>'}</article>`;
     // Retos principales
     const goals = challenges.planProgress().slice(0, 4);
-    const retoCard = `<article class="dash-card"><div class="dash-head"><span>🎯 Retos</span><button type="button" class="dash-link" data-home-go="training" data-jump-after="sec-retos">Ver todos →</button></div>${goals.map((g) => `<div class="dash-goal"><div><span>${escape(g.name)}</span><small>${fmt(Math.round(g.completed * 10) / 10)} / ${fmt(g.target)} ${escape(g.unit)}</small></div>${bar(g.completed, g.target)}</div>`).join("")}</article>`;
+    const retoCard = `<article class="dash-card"><div class="dash-head"><span>🎯 Retos</span><button type="button" class="dash-link" data-home-go="training" data-jump-after="sec-retos">Ver todos →</button></div>${goals.map((g) => `<div class="dash-goal"><div><span>${escape(g.name)} ${challenges.badge(g)}</span><small>${fmt(Math.round(g.completed * 10) / 10)} / ${fmt(g.target)} ${escape(g.unit)}</small></div>${bar(g.completed, g.target)}</div>`).join("")}</article>`;
     const quick = `<nav class="dash-quick" aria-label="Accesos rápidos"><button type="button" data-quick-food>🍽<span>Comida</span></button><button type="button" data-jump="dashWeight">⚖️<span>Peso</span></button><button type="button" data-home-go="training">🏋️<span>Entrenar</span></button><button type="button" data-home-go="training" data-jump-after="cardioEntry">🏃<span>Actividad</span></button></nav>`;
     return `<article id="sec-day" class="dash-top"><div class="eyebrow">HOY · SEMANA ${week()} DE 8 · META −${C.GOAL_KG} KG</div><h2>${escape(niceDate(dt))}</h2>${dt !== today() ? "<p><button data-go-today>↩ Volver a hoy</button></p>" : ""}${quick}</article><div class="dash-grid">${kcalCard}${actCard}${progCard}${retoCard}</div>${nutrition.renderQuick()}<div class="sec" id="sec-checkin">${coach.render()}</div><div class="sec" id="sec-log">${nutrition.renderDiary()}</div>`;
+  }
+  // ── Historial: todos los registros, día por día ──────────────────────────
+  const HIST_FILTERS = [
+    ["all", "Todo"],
+    ["food", "Comida"],
+    ["train", "Entreno"],
+    ["body", "Peso y Whoop"],
+    ["goals", "Retos"],
+  ];
+  function historyView() {
+    const f = program.historyFilter || "all",
+      show_ = (k) => f === "all" || f === k,
+      lb = (v) => fmt(Math.round(v * 10) / 10);
+    const exName = (id) => (EXERCISES.find((x) => x.id === id) || {}).name || id;
+    const goalName = { pushups: "Push-ups", abs: "Abdominales", pullups: "Pull-ups", squats: "Sentadillas" };
+    // Fechas con algún registro.
+    const days = new Set(Object.keys(program.diary || {}));
+    program.sessions.forEach((s) => s.date && days.add(s.date));
+    Object.values(state.completedDates || {}).forEach((d) => d && days.add(d));
+    Object.values(state.sets || {}).forEach((sets) => (sets || []).forEach((z) => z && z.d && days.add(z.d)));
+    Object.values(program.challenges || {}).forEach((c) => (c.logs || []).forEach((l) => l.date && days.add(l.date)));
+    Object.keys(program.meds || {}).forEach((d) => program.meds[d] && days.add(d));
+    if (C.validDate(program.start)) for (let i = 0; i < 56; i++) { const d = C.datePlus(program.start, i); if (weightOn(d)) days.add(d); }
+    const list = [...days].filter((d) => C.validDate(d) && d <= today()).sort().reverse();
+    const cards = list
+      .map((day, idx) => {
+        const d = program.diary[day] || {},
+          meals = d.meals || [],
+          kcal = C.intake(d),
+          bal = C.balance(d),
+          pos = C.validDate(program.start) ? FitCalendar.position(program.start, day) : null,
+          w = weightOn(day),
+          sess = program.sessions.filter((s) => s.date === day),
+          logs = Object.values(program.challenges || {}).flatMap((c) => (c.logs || []).filter((l) => l.date === day)),
+          coachD = (program.coachDays || {})[day];
+        // Fuerza: series hechas ese día o ejercicios completados ese día.
+        const strengthRows = [];
+        for (const [k, sets] of Object.entries(state.sets || {})) {
+          const done = (sets || []).filter((z) => z && z.done && z.d === day);
+          if (done.length) strengthRows.push(`<li>${escape(exName(k.replace(/-w\d+$/, "")))} · ${done.map((z) => lb(z.w) + "×" + z.r).join(" · ")} lb</li>`);
+        }
+        for (const [k, dd] of Object.entries(state.completedDates || {})) {
+          if (dd !== day || (state.sets || {})[k]) continue;
+          const v = state.weights[k];
+          strengthRows.push(`<li>${escape(exName(k.replace(/-w\d+$/, "")))}${v ? " · " + lb(v) + " lb" : ""} ✓</li>`);
+        }
+        const parts = [];
+        if (show_("body") && (C.has(d.whoop) || C.has(d.steps) || w))
+          parts.push(`<div class="hist-sec"><h4>⚖️ Peso y Whoop</h4><p>${w ? `Peso <b>${fmt(w)} kg</b> · ` : ""}Whoop <b>${C.has(d.whoop) ? fmt(d.whoop) : "—"}</b> kcal · Pasos <b>${C.has(d.steps) ? fmt(d.steps) : "—"}</b>${bal !== null ? ` · ${bal >= 0 ? "Déficit" : "Superávit"} <b>${fmt(Math.abs(bal))}</b>` : ""}</p></div>`);
+        if (show_("food") && meals.length)
+          parts.push(`<div class="hist-sec"><h4>🍽 Comida · ${fmt(kcal)} kcal</h4><ul>${meals.map((m) => `<li><span class="subtle">${escape(m.kind || "")}</span> ${escape(m.name)} · ${fmt(Math.round(Number(m.kcal)))} kcal</li>`).join("")}</ul></div>`);
+        if (show_("train") && (sess.length || strengthRows.length))
+          parts.push(`<div class="hist-sec"><h4>🏋️ Entreno</h4><ul>${sess.map((s) => `<li>${escape(s.mode)} · ${s.minutes} min${s.distance ? " · " + escape(s.distance) + " " + escape(s.unit || "km") : ""} · esfuerzo ${s.effort}/10</li>`).join("")}${strengthRows.join("")}</ul></div>`);
+        if (show_("goals") && logs.length)
+          parts.push(`<div class="hist-sec"><h4>🔥 Retos</h4><p>${logs.map((l) => `${escape(goalName[l.goal] || l.goal)} ${l.reps}`).join(" · ")}</p></div>`);
+        if (f === "all" && (program.meds[day] || (coachD && coachD.checkin)))
+          parts.push(`<div class="hist-sec"><h4>📝 Otros</h4><p>${program.meds[day] ? "Suplemento ✓" : ""}${program.meds[day] && coachD && coachD.checkin ? " · " : ""}${coachD && coachD.checkin ? `Check-in: energía ${coachD.energy}/5${coachD.pain && coachD.pain !== "none" ? " · molestia: " + escape(coachD.pain === "shoulder" ? "hombro" : coachD.pain) : ""}` : ""}</p></div>`);
+        if (!parts.length) return "";
+        return `<details class="hist-day" ${idx < 7 ? "open" : ""}><summary><span><b>${escape(niceDate(day))}</b>${pos ? ` <small>· Semana ${pos.week}</small>` : ""}</span><span class="hist-tags">${d.closed ? '<em class="ok">✓ Cerrado</em>' : meals.length || C.has(d.whoop) ? "<em>Provisional</em>" : ""}${meals.length ? `<em>${fmt(kcal)} kcal</em>` : ""}</span></summary>${parts.join("")}</details>`;
+      })
+      .filter(Boolean);
+    return `<article class="hist-head"><div class="eyebrow">HISTORIAL</div><h2>Todos tus registros</h2><p class="tiny subtle">${cards.length} día${cards.length === 1 ? "" : "s"} con registros · los 7 más recientes abiertos.</p><nav class="subtabs" aria-label="Filtrar historial">${HIST_FILTERS.map(([k, l]) => `<button data-history-filter="${k}" aria-pressed="${f === k}">${l}</button>`).join("")}</nav></article>${cards.join("") || '<article><p class="subtle">No hay registros para este filtro.</p></article>'}`;
   }
   function weekReview(w) {
     const initial = Number(program.initialWeight) || 85;
@@ -610,6 +674,7 @@
     }
     if (view === "training") content = training();
     if (view === "progress") content = progress();
+    if (view === "history") content = historyView();
     root.hidden = false;
     root.innerHTML = '<div class="program">' + content + "</div>";
     // Entreno = hoja única: fuerza arriba (strengthView), cardio y retos debajo.
@@ -641,6 +706,12 @@
   root.addEventListener("click", (e) => {
     const b = e.target.closest("button");
     if (!b) return;
+    if (b.dataset.historyFilter) {
+      program.historyFilter = b.dataset.historyFilter;
+      persist();
+      show();
+      return;
+    }
     if (b.dataset.jump) {
       const el = document.getElementById(b.dataset.jump);
       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
