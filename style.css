@@ -2379,3 +2379,133 @@ body.sheet-mode #programView {
   height: 40px;
   margin-top: 6px;
 }
+/* Dashboard «Hoy»: tarjetas compactas, barras y accesos rápidos. */
+.dash-quick {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+.dash-quick button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 4px;
+  border-radius: 14px;
+  border: 1px solid var(--line-strong, #4a4d55);
+  background: var(--surface-2, #24272c);
+  color: inherit;
+  font-size: 20px;
+  cursor: pointer;
+}
+.dash-quick button span {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted, #a9acb3);
+}
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 700px) {
+  .dash-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.dash-card {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+.dash-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.dash-head > span {
+  font-weight: 800;
+}
+.dash-head strong {
+  font-size: 13px;
+  color: var(--muted, #a9acb3);
+}
+.dash-head strong.good,
+.dash-row strong.good {
+  color: #4ade80;
+}
+.dash-head strong.bad,
+.dash-row strong.bad {
+  color: #f87171;
+}
+.dash-head strong.warn {
+  color: #ffc33d;
+}
+.dash-big {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.dash-big strong {
+  font-size: 28px;
+  line-height: 1;
+}
+.dash-big span {
+  font-size: 13px;
+  color: var(--muted, #a9acb3);
+}
+.dash-bar.is-over .weight-progress-fill {
+  background: #f87171;
+}
+.dash-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.dash-row > div {
+  display: grid;
+  gap: 2px;
+}
+.dash-row span,
+.dash-row small,
+.dash-goal small {
+  font-size: 12px;
+  color: var(--muted, #a9acb3);
+}
+.dash-row strong {
+  font-size: 16px;
+}
+.dash-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 14px;
+}
+.dash-goal {
+  display: grid;
+  gap: 4px;
+}
+.dash-goal > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 14px;
+}
+.dash-link {
+  background: none;
+  border: 0;
+  color: #ffc33d;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+.dash-weigh {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dash-weigh input {
+  width: 90px;
+}
