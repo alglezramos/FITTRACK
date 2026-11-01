@@ -246,6 +246,52 @@
     }
     return { n, def, gap: def - n * C.NEEDED };
   }
+  // ── Dashboard «Hoy»: centro de control diario ─────────────────────────────
+  const KCAL_TARGET = 1800;
+  // Plan del día según el día de la semana (igual que «Tu semana»).
+  function planFor(dt) {
+    const i = (new Date(dt + "T12:00:00Z").getUTCDay() + 6) % 7;
+    return i < 5
+      ? { label: "Pesas · Día " + (i + 1) + " + " + ([0, 2, 4].includes(i) ? "Judo" : "Natación"), day: i + 1 }
+      : i === 5
+        ? { label: "Fondo o hiking", day: 0 }
+        : { label: "Recuperación", day: 0 };
+  }
+  // Pesada de una fecha (lunes a viernes), en kg.
+  function weightOn(day) {
+    const pos = FitCalendar.position(program.start, day),
+      k = weighKey(day);
+    if (!pos || !k) return null;
+    const v = Number((program.weeks[pos.week] || {})[k]);
+    return v > 0 ? v : null;
+  }
+  function lastWeight(upTo) {
+    for (let i = 0; i < 70; i++) {
+      const day = C.datePlus(upTo, -i);
+      if (day < program.start) break;
+      const v = weightOn(day);
+      if (v) return { day, v };
+    }
+    return null;
+  }
+  // Día con actividad: cardio, fuerza (serie o ejercicio completado) o reto.
+  function activeOn(day) {
+    if (program.sessions.some((x) => x.date === day)) return true;
+    if (Object.values(state.completedDates || {}).includes(day)) return true;
+    if (Object.values(state.sets || {}).some((sets) => (sets || []).some((z) => z && z.done && z.d === day))) return true;
+    return Object.values(program.challenges || {}).some((c) => (c.logs || []).some((l) => l.date === day));
+  }
+  function streak(dt) {
+    let n = 0,
+      day = activeOn(dt) ? dt : C.datePlus(dt, -1);
+    while (day >= program.start && activeOn(day) && n < 400) {
+      n++;
+      day = C.datePlus(day, -1);
+    }
+    return n;
+  }
+  const bar = (v, max, cls = "") =>
+    `<div class="weight-progress-track dash-bar ${cls}" role="progressbar" aria-valuemin="0" aria-valuemax="${max}" aria-valuenow="${Math.round(v)}"><div class="weight-progress-fill" style="width:${max ? Math.min(100, (v / max) * 100).toFixed(1) : 0}%"></div></div>`;
   function hoy() {
     const dt = date(),
       d = program.diary[dt] || { meals: [] },
@@ -255,10 +301,32 @@
       wv = (program.weeks[week()] || {})[wk];
     const r = C.validDate(program.start) ? route(dt) : { n: 0, def: 0, gap: 0 };
     const sessions = program.sessions.filter((s) => s.date === dt);
-    const gapTxt = r.n
-      ? `${r.gap >= 0 ? "Vas " : "Vas "}<strong>${fmt(Math.abs(r.gap))} kcal ${r.gap >= 0 ? "por delante de" : "por detrás de"} la ruta</strong> de −${C.GOAL_KG} kg (${r.n} día${r.n > 1 ? "s" : ""} con Whoop).`
-      : "Cuando cargues el Whoop del día verás aquí si vas en ruta.";
-    return `<article id="sec-day"><div class="eyebrow">HOY · SEMANA ${week()} DE 8 · META −${C.GOAL_KG} KG</div><h2>${escape(niceDate(dt) || "Selecciona el inicio")}</h2>${dt && dt !== today() ? "<p><button data-go-today>↩ Volver a hoy</button></p>" : ""}<div class="daily-numbers"><div><span>Consumidas</span><strong>${fmt(kcal)} kcal</strong><p class="tiny subtle">${kcal <= 1800 ? "Restan " + fmt(1800 - kcal) + " de 1.800" : "Sobre 1.800 por " + fmt(kcal - 1800)}</p></div><div><span>Déficit hoy</span><strong>${b === null ? "—" : fmt(b) + " kcal"}</strong><p class="tiny subtle">Necesario: ≈${fmt(C.NEEDED)} kcal/día${b === null ? " · falta Whoop" : ""}</p></div><div><span>Whoop · Pasos</span><strong>${C.has(d.whoop) ? fmt(d.whoop) : "—"} · ${C.has(d.steps) ? fmt(d.steps) : "—"}</strong></div></div><p>${gapTxt}</p>${wk ? `<div class="fields"><label class="weight-day">Peso de hoy <input data-weight-metric="${wk}" type="number" min="20" max="400" step="0.1" value="${escape(wv ?? "")}"><span>kg</span></label></div>` : '<p class="tiny subtle">Pesadas: de lunes a viernes.</p>'}<h3>Actividades de hoy</h3>${sessions.map((s) => `<p>${escape(s.mode)} · ${s.minutes} min · esfuerzo ${s.effort}/10</p>`).join("") || '<p class="subtle">Sin actividades registradas.</p>'}<div class="fields"><button data-home-go="training">Registrar entrenamiento</button><button data-home-go="food">Recetas</button></div></article>${nutrition.renderQuick()}<div class="sec" id="sec-checkin">${coach.render()}</div><div class="sec" id="sec-log">${nutrition.renderDiary()}</div>`;
+    if (!C.validDate(dt))
+      return `<article id="sec-day"><h2>Selecciona el inicio</h2><p>Configura el inicio del programa en ⚙ Opciones.</p></article>`;
+    // Calorías
+    const over = kcal > KCAL_TARGET,
+      ok = !over && b !== null && b >= C.NEEDED,
+      status = b === null ? ["", "Carga el Whoop para ver el balance"] : ok ? ["good", "✓ Día en objetivo"] : over ? ["bad", "Sobre el objetivo de consumo"] : ["warn", "Déficit por debajo de lo necesario"];
+    const kcalCard = `<article class="dash-card"><div class="dash-head"><span>🔥 Calorías</span><strong class="${status[0]}">${status[1]}</strong></div><div class="dash-big"><strong>${fmt(kcal)}</strong><span>/ ${fmt(KCAL_TARGET)} kcal consumidas</span></div>${bar(kcal, KCAL_TARGET, over ? "is-over" : "")}<div class="dash-row"><div><span>Gastadas</span><strong>${C.has(d.whoop) ? fmt(d.whoop) : "—"}</strong></div><div><span>Balance</span><strong>${b === null ? "—" : (b >= 0 ? "−" : "+") + fmt(Math.abs(b))}</strong></div><div><span>Necesario</span><strong>−${fmt(C.NEEDED)}</strong></div></div><p class="tiny subtle">${r.n ? `Ruta −${C.GOAL_KG} kg: vas <b>${fmt(Math.abs(r.gap))} kcal ${r.gap >= 0 ? "por delante" : "por detrás"}</b> (${r.n} días con Whoop).` : "Cuando cargues el Whoop verás si vas en ruta."}</p></article>`;
+    // Actividad
+    const plan = planFor(dt),
+      todaySets = Object.values(state.sets || {}).reduce((n, sets) => n + (sets || []).filter((z) => z && z.done && z.d === dt).length, 0),
+      todayEx = Object.values(state.completedDates || {}).filter((x) => x === dt).length;
+    const actCard = `<article class="dash-card"><div class="dash-head"><span>🏋️ Actividad</span><strong>${plan.label}</strong></div><div class="dash-row"><div><span>Ejercicios</span><strong>${todayEx || "—"}</strong></div><div><span>Series</span><strong>${todaySets || "—"}</strong></div><div><span>Pasos</span><strong>${C.has(d.steps) ? fmt(d.steps) : "—"}</strong></div></div>${sessions.length ? `<ul class="dash-list">${sessions.map((s) => `<li>${escape(s.mode)} · ${s.minutes} min${s.distance ? " · " + escape(s.distance) + " " + escape(s.unit || "km") : ""}</li>`).join("")}</ul>` : '<p class="tiny subtle">Sin actividades de cardio registradas.</p>'}</article>`;
+    // Progreso: peso, variación 7 días y racha
+    const last = lastWeight(dt),
+      prev = last ? lastWeight(C.datePlus(last.day, -7)) : null,
+      diff = last && prev ? last.v - prev.v : null,
+      initial = Number(program.initialWeight) || null,
+      target = initial ? initial - C.GOAL_KG : null,
+      lost = last && initial ? initial - last.v : 0,
+      st = streak(dt);
+    const progCard = `<article class="dash-card" id="dashWeight"><div class="dash-head"><span>📉 Progreso</span><strong>🔥 Racha: ${st} día${st === 1 ? "" : "s"}</strong></div><div class="dash-row"><div><span>Último peso</span><strong>${last ? fmt(last.v) + " kg" : "—"}</strong><small>${last ? last.day.slice(8) + "/" + last.day.slice(5, 7) : ""}</small></div><div><span>7 días</span><strong class="${diff === null ? "" : diff <= 0 ? "good" : "bad"}">${diff === null ? "—" : (diff > 0 ? "+" : "") + fmt(diff) + " kg"}</strong></div><div><span>Meta</span><strong>${target ? fmt(target) + " kg" : "—"}</strong></div></div>${target ? bar(Math.max(0, lost), C.GOAL_KG) + `<p class="tiny subtle">${fmt(Math.max(0, lost))} de ${C.GOAL_KG} kg bajados</p>` : ""}${wk ? `<label class="weight-day dash-weigh">Peso de hoy <input data-weight-metric="${wk}" type="number" min="20" max="400" step="0.1" inputmode="decimal" value="${escape(wv ?? "")}"><span>kg</span></label>` : '<p class="tiny subtle">Pesadas: de lunes a viernes.</p>'}</article>`;
+    // Retos principales
+    const goals = challenges.planProgress().slice(0, 4);
+    const retoCard = `<article class="dash-card"><div class="dash-head"><span>🎯 Retos</span><button type="button" class="dash-link" data-home-go="training" data-jump-after="sec-retos">Ver todos →</button></div>${goals.map((g) => `<div class="dash-goal"><div><span>${escape(g.name)}</span><small>${fmt(Math.round(g.completed * 10) / 10)} / ${fmt(g.target)} ${escape(g.unit)}</small></div>${bar(g.completed, g.target)}</div>`).join("")}</article>`;
+    const quick = `<nav class="dash-quick" aria-label="Accesos rápidos"><button type="button" data-quick-food>🍽<span>Comida</span></button><button type="button" data-jump="dashWeight">⚖️<span>Peso</span></button><button type="button" data-home-go="training">🏋️<span>Entrenar</span></button><button type="button" data-home-go="training" data-jump-after="cardioEntry">🏃<span>Actividad</span></button></nav>`;
+    return `<article id="sec-day" class="dash-top"><div class="eyebrow">HOY · SEMANA ${week()} DE 8 · META −${C.GOAL_KG} KG</div><h2>${escape(niceDate(dt))}</h2>${dt !== today() ? "<p><button data-go-today>↩ Volver a hoy</button></p>" : ""}${quick}</article><div class="dash-grid">${kcalCard}${actCard}${progCard}${retoCard}</div>${nutrition.renderQuick()}<div class="sec" id="sec-checkin">${coach.render()}</div><div class="sec" id="sec-log">${nutrition.renderDiary()}</div>`;
   }
   function weekReview(w) {
     const initial = Number(program.initialWeight) || 85;
@@ -365,7 +433,7 @@
     return (
       `<h3 class="sheet-label">🏃 Cardio</h3>` +
       cardio() +
-      `<h3 class="sheet-label">🔥 Retos</h3>` +
+      `<h3 class="sheet-label" id="sec-retos">🔥 Retos</h3>` +
       challenges.render() +
       calendar()
     );
@@ -598,6 +666,7 @@
     }
     if (b.dataset.homeGo) {
       program.view = b.dataset.homeGo;
+      if (b.dataset.jumpAfter) pendingJump = b.dataset.jumpAfter;
     }
     if (b.dataset.trainingTab) program.trainingTab = b.dataset.trainingTab;
     if (b.dataset.cardioMode) {
