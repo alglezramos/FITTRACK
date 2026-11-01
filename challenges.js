@@ -218,6 +218,58 @@ root.addEventListener("submit", (e) => {
     "Pull-ups": ["pullups", "#3b82f6"],
     Sentadillas: ["squats", "#f43f5e"],
   };
+  // ── Proyección de cumplimiento: ritmo actual frente al necesario ──────────
+  const STATUS = {
+    done: ["✓ Completado", "done"],
+    ahead: ["Adelantado", "ahead"],
+    ontrack: ["En ritmo", "ontrack"],
+    behind: ["Atrasado", "behind"],
+  };
+  function projectionOf(r) {
+    const p = getProgram();
+    if (!p.start) return null;
+    const total = 56,
+      end = FitCore.datePlus(p.start, 55),
+      t = today(),
+      elapsed = t < p.start ? 0 : t > end ? total : Math.round((Date.parse(t) - Date.parse(p.start)) / 864e5) + 1,
+      left = total - elapsed,
+      remaining = Math.max(0, r.target - r.completed),
+      rate = elapsed ? r.completed / elapsed : 0,
+      need = left > 0 ? remaining / left : remaining,
+      expected = (r.target * elapsed) / total;
+    // Estado según lo esperado a la fecha (±5 %): adelantado, en ritmo o atrasado.
+    const status = r.completed >= r.target ? "done" : r.completed >= expected * 1.05 ? "ahead" : r.completed >= expected * 0.95 ? "ontrack" : "behind";
+    return { elapsed, left, remaining, rate, need, expected, status };
+  }
+  const badge = (r) => {
+    const pr = projectionOf(r);
+    return pr ? `<em class="proj-badge st-${STATUS[pr.status][1]}">${STATUS[pr.status][0]}</em>` : "";
+  };
+  function projection() {
+    const rows = planProgress(),
+      first = rows.length ? projectionOf(rows[0]) : null;
+    if (!first) return "";
+    const unitDay = (r) => (r.unit === "km" ? "km/día" : r.unit === "pasos" ? "pasos/día" : "reps/día"),
+      num = (r, v) => fmt(r.unit === "km" ? Math.round(v * 10) / 10 : Math.round(v));
+    const items = rows
+      .map((r) => {
+        const pr = projectionOf(r),
+          pct = Math.min(100, (r.completed / r.target) * 100),
+          exp = Math.min(100, (pr.expected / r.target) * 100),
+          [ic, color] = MISSION_STYLE[r.name] || ["target", "#ffc33d"],
+          msg =
+            pr.status === "done"
+              ? "¡Meta cumplida!"
+              : pr.status === "ahead"
+                ? "Vas por delante. Mantén el ritmo."
+                : pr.status === "ontrack"
+                  ? "Justo en ritmo."
+                  : `Sube a ${num(r, pr.need)} ${unitDay(r)} para llegar.`;
+        return `<div class="proj-row" style="--mc:${color}"><span class="km-icon">${icon(ic)}</span><div class="proj-body"><div class="proj-top"><strong>${escape(r.name)}</strong>${badge(r)}</div><div class="proj-track" role="progressbar" aria-label="${escape(r.name)}" aria-valuemin="0" aria-valuemax="${r.target}" aria-valuenow="${Math.round(r.completed)}"><i style="width:${pct.toFixed(1)}%"></i><b style="left:${exp.toFixed(1)}%" title="Lo esperado a hoy"></b></div><div class="proj-nums"><span>${num(r, r.completed)} / ${fmt(r.target)} ${escape(r.unit)} · ${Math.round(pct)}% · restan ${num(r, pr.remaining)}</span><span>Ritmo ${num(r, pr.rate)} ${unitDay(r)} · necesitas ${num(r, pr.need)}</span></div><small class="proj-msg">${msg}</small></div></div>`;
+      })
+      .join("");
+    return `<article class="proj-card"><div class="challenge-heading"><h3>Proyección de retos</h3><span>Día ${first.elapsed} de 56 · quedan ${first.left} días</span></div><p class="tiny subtle">La línea marca lo esperado a hoy. Adelantado o atrasado: ±5 % respecto a ese punto.</p>${items}</article>`;
+  }
   function missions() {
     const rows = planProgress(),
       p = getProgram(),
@@ -277,7 +329,7 @@ root.addEventListener("submit", (e) => {
     const d = data(),
       progress = planProgress(),
       challengeRows = progress.filter((r) => r.unit === "reps");
-    return `<p id="challengeStatus" role="status" class="status"></p><article class="reps-compact"><div class="challenge-heading"><h3>Retos de fuerza</h3><span>Meta final · 8 semanas</span></div>${challengeRows
+    return `<p id="challengeStatus" role="status" class="status"></p>${projection()}<article class="reps-compact"><div class="challenge-heading"><h3>Retos de fuerza</h3><span>Meta final · 8 semanas</span></div>${challengeRows
       .map((g) => {
         const id =
             g.name === "Push-ups"
@@ -362,5 +414,5 @@ root.addEventListener("submit", (e) => {
     rerender();
     status("Guardado en la semana " + week() + ".");
   });
-  return { render, missions, planProgress };
+  return { render, missions, planProgress, projectionOf, badge };
 };
