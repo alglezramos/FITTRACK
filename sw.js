@@ -1,4 +1,4 @@
-const CACHE = "fittrack-pages-v20261031r58-kettlebell";
+const CACHE = "fittrack-pages-v20261031r59-face-pull";
 const FILES = [
   "./",
   "./index.html",
@@ -53,6 +53,7 @@ const FILES = [
   "./assets/4_5.jpg",
   "./assets/curl_femoral.jpg",
   "./assets/kettlebell_swing.jpg",
+  "./assets/face_pull.jpg",
 ];
 self.addEventListener("install", (event) => {
   event.waitUntil(
