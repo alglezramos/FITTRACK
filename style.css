@@ -2274,3 +2274,108 @@ body.sheet-mode #programView {
   font-size: 11px;
   opacity: 0.75;
 }
+/* Series por ejercicio: peso × repeticiones con un toque para completar. */
+.setmeta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 0 12px 6px;
+  font-size: 12px;
+  color: var(--muted, #a9acb3);
+}
+.setmeta .pr {
+  color: #ffc33d;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.setmeta .pr.new {
+  color: #121212;
+  background: #ffc33d;
+  border-radius: 999px;
+  padding: 0 8px;
+}
+.setlist {
+  display: grid;
+  gap: 6px;
+  padding: 0 12px 10px;
+}
+.setrow {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto auto minmax(0, 0.8fr) 44px;
+  align-items: center;
+  gap: 6px;
+}
+.setrow .setn {
+  font-weight: 800;
+  color: var(--muted, #a9acb3);
+  text-align: center;
+}
+.setrow input {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 6px;
+  text-align: center;
+  font-size: 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line-strong, #4a4d55);
+  background: var(--surface-2, #24272c);
+  color: inherit;
+}
+.setrow .setu,
+.setrow .setx {
+  font-size: 12px;
+  color: var(--muted, #a9acb3);
+}
+.setrow .setok {
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--line-strong, #4a4d55);
+  background: transparent;
+  color: var(--muted, #a9acb3);
+  font-size: 18px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.setrow.done .setok {
+  background: #276f52;
+  border-color: #276f52;
+  color: #fff;
+}
+.setrow.done input {
+  border-color: #276f52;
+}
+.controls .setprog {
+  font-size: 12px;
+  color: var(--muted, #a9acb3);
+  white-space: nowrap;
+}
+.day-sets {
+  margin: 8px 0 10px;
+}
+.day-sets .sess {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #ffc33d;
+}
+.day-sets .sess.done {
+  color: #4ade80;
+}
+.exhist {
+  margin-top: 10px;
+  font-size: 13px;
+}
+.exhist ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+.exhist li {
+  margin: 2px 0;
+}
+.exhist .spark {
+  display: block;
+  width: 160px;
+  height: 40px;
+  margin-top: 6px;
+}
