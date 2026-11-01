@@ -106,7 +106,7 @@ window.createFitNutrition = function ({
         )
         .join("")}</nav>` +
       (tab === "log"
-        ? renderLog()
+        ? renderLog() + renderDiary()
         : tab === "shopping"
         ? renderShopping()
         : tab === "catalog"
@@ -306,7 +306,7 @@ window.createFitNutrition = function ({
     const done = meals.filter((m) => m.slot).length;
     return `<article id="sec-quick" class="quick-log"><form id="dailyForm" class="quick-day"><label>Whoop kcal<input name="whoop" type="number" min="0" max="20000" step="1" inputmode="numeric" placeholder="2500" value="${escape(d.whoop)}"></label><label>Pasos<input name="steps" type="number" min="0" max="200000" step="1" inputmode="numeric" placeholder="8000" value="${escape(d.steps)}"></label><button class="primary" type="submit">Guardar</button><label class="check"><input name="closed" type="checkbox" ${d.closed ? "checked" : ""}> Día completo: toda la comida y el Whoop final</label></form></article>`;
   }
-  // En Hoy solo queda el formulario rápido: las comidas del día están en Comida (con Eliminar) y el historial en la pestaña Historial.
+  // Formulario para una comida libre (nombre + calorías); vive en Comida → Registro del día.
   function renderDiary() {
     return `<article><h3>Registrar otra comida</h3><form id="manualMealForm"><div class="fields"><label>Comida<input name="name" required maxlength="120"></label><label>Tipo<select name="kind">${kinds.map((k) => `<option>${k}</option>`).join("")}</select></label><label>Calorías<input name="kcal" type="number" min="0" max="20000" step="0.1" required></label></div><button class="primary">Guardar comida</button></form></article>`;
   }
