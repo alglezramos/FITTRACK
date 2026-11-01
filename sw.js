@@ -1,4 +1,4 @@
-const CACHE = "fittrack-pages-v20261031r56-pasos";
+const CACHE = "fittrack-pages-v20261031r57-curl-femoral";
 const FILES = [
   "./",
   "./index.html",
@@ -51,6 +51,7 @@ const FILES = [
   "./assets/4_3.jpg",
   "./assets/4_4.jpg",
   "./assets/4_5.jpg",
+  "./assets/curl_femoral.jpg",
 ];
 self.addEventListener("install", (event) => {
   event.waitUntil(
