@@ -306,25 +306,9 @@ window.createFitNutrition = function ({
     const done = meals.filter((m) => m.slot).length;
     return `<article id="sec-quick" class="quick-log"><form id="dailyForm" class="quick-day"><label>Whoop kcal<input name="whoop" type="number" min="0" max="20000" step="1" inputmode="numeric" placeholder="2500" value="${escape(d.whoop)}"></label><label>Pasos<input name="steps" type="number" min="0" max="200000" step="1" inputmode="numeric" placeholder="8000" value="${escape(d.steps)}"></label><button class="primary" type="submit">Guardar</button><label class="check"><input name="closed" type="checkbox" ${d.closed ? "checked" : ""}> Día completo: toda la comida y el Whoop final</label></form></article>`;
   }
+  // En Hoy solo queda el formulario rápido: las comidas del día están en Comida (con Eliminar) y el historial en la pestaña Historial.
   function renderDiary() {
-    const d = daily(),
-      meals = d.meals || [],
-      dates = Object.keys(prog().diary).sort().reverse();
-    return `<article><h3>Registrar otra comida</h3><form id="manualMealForm"><div class="fields"><label>Comida<input name="name" required maxlength="120"></label><label>Tipo<select name="kind">${kinds.map((k) => `<option>${k}</option>`).join("")}</select></label><label>Calorías<input name="kcal" type="number" min="0" max="20000" step="0.1" required></label></div><button class="primary">Guardar comida</button></form></article><article><h3>Comidas registradas · ${meals.length}</h3>${meals.length ? meals.map((m) => `<div class="food-log"><div><strong>${escape(m.name)}</strong><br><span class="subtle tiny">${escape(m.kind)} · ${fmt(m.kcal)} kcal</span><details><summary>Porciones guardadas</summary><p class="tiny">${m.items.map((i) => `${fmt(i.qty)} ${escape(i.unit)} ${escape(i.name)}${has(i.kcal) ? " · " + fmt(i.kcal) + " kcal" : ""}`).join("<br>")}</p></details></div><button data-remove-meal="${escape(m.id)}">Eliminar</button></div>`).join("") : '<p class="subtle">Registra las comidas desde Alimentación. El menú propuesto no se cuenta como consumido.</p>'}<button data-go-food="true">Elegir comida</button></article><article><h3>Historial diario</h3>${
-      dates.length
-        ? `<div class="scroll"><table><thead><tr><th>Fecha</th><th>Consumo</th><th>Whoop</th><th>Pasos</th><th>Balance</th></tr></thead><tbody>${dates
-            .map((date) => {
-              const v = prog().diary[date],
-                delta = balance(v),
-                label =
-                  delta === null
-                    ? "Pendiente"
-                    : `${delta >= 0 ? "Déficit" : "Superávit"} ${v.closed ? "final" : "provisional"} ${fmt(Math.abs(delta))}`;
-              return `<tr><td><button data-diary-date="${date}">${date}</button></td><td>${fmt(intake(v))}</td><td>${has(v.whoop) ? fmt(v.whoop) : "—"}</td><td>${has(v.steps) ? fmt(v.steps) : "—"}</td><td>${label}</td></tr>`;
-            })
-            .join("")}</tbody></table></div>`
-        : '<p class="subtle">El historial aparecerá al guardar tu primer día.</p>'
-    }</article>`;
+    return `<article><h3>Registrar otra comida</h3><form id="manualMealForm"><div class="fields"><label>Comida<input name="name" required maxlength="120"></label><label>Tipo<select name="kind">${kinds.map((k) => `<option>${k}</option>`).join("")}</select></label><label>Calorías<input name="kcal" type="number" min="0" max="20000" step="0.1" required></label></div><button class="primary">Guardar comida</button></form></article>`;
   }
   function notify(message) {
     let box = document.getElementById("nutritionStatus");
