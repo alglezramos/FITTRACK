@@ -387,7 +387,7 @@
         if (f === "all" && (program.meds[day] || (coachD && coachD.checkin)))
           parts.push(`<div class="hist-sec"><h4>📝 Otros</h4><p>${program.meds[day] ? "Suplemento ✓" : ""}${program.meds[day] && coachD && coachD.checkin ? " · " : ""}${coachD && coachD.checkin ? `Check-in: energía ${coachD.energy}/5${coachD.pain && coachD.pain !== "none" ? " · molestia: " + escape(coachD.pain === "shoulder" ? "hombro" : coachD.pain) : ""}` : ""}</p></div>`);
         if (!parts.length) return "";
-        return `<details class="hist-day" ${idx < 7 ? "open" : ""}><summary><span><b>${escape(niceDate(day))}</b>${pos ? ` <small>· Semana ${pos.week}</small>` : ""}</span><span class="hist-tags">${d.closed ? '<em class="ok">✓ Cerrado</em>' : meals.length || C.has(d.whoop) ? "<em>Provisional</em>" : ""}${meals.length ? `<em>${fmt(kcal)} kcal</em>` : ""}</span></summary>${parts.join("")}</details>`;
+        return `<details class="hist-day" ${idx < 7 ? "open" : ""}><summary><span><b>${escape(niceDate(day))}</b>${pos ? ` <small>· Semana ${pos.week}</small>` : ""}</span><span class="hist-tags">${d.closed ? '<em class="ok">✓ Cerrado</em>' : meals.length || C.has(d.whoop) ? "<em>Provisional</em>" : ""}${meals.length ? `<em>${fmt(kcal)} kcal</em>` : ""}</span></summary>${parts.join("")}<p class="hist-open"><button type="button" data-hist-open="${day}">Abrir este día en Hoy →</button></p></details>`;
       })
       .filter(Boolean);
     return `<article class="hist-head"><div class="eyebrow">HISTORIAL</div><h2>Todos tus registros</h2><p class="tiny subtle">${cards.length} día${cards.length === 1 ? "" : "s"} con registros · los 7 más recientes abiertos.</p><nav class="subtabs" aria-label="Filtrar historial">${HIST_FILTERS.map(([k, l]) => `<button data-history-filter="${k}" aria-pressed="${f === k}">${l}</button>`).join("")}</nav></article>${cards.join("") || '<article><p class="subtle">No hay registros para este filtro.</p></article>'}`;
@@ -706,6 +706,11 @@
   root.addEventListener("click", (e) => {
     const b = e.target.closest("button");
     if (!b) return;
+    if (b.dataset.histOpen) {
+      program.view = "home";
+      goDate(b.dataset.histOpen);
+      return;
+    }
     if (b.dataset.historyFilter) {
       program.historyFilter = b.dataset.historyFilter;
       persist();
