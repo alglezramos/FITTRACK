@@ -30,6 +30,17 @@ window.createFitChallenges = function ({ getProgram, persist, week, date, escape
         (s) => s.week === w && (s.mode === mode || (mode === "Hiking" && s.mode === "Rucking")),
       )
       .reduce((n, s) => n + distance(s), 0);
+  // Pasos de una semana del programa: suma de los pasos diarios (Whoop) de sus 7 fechas.
+  const stepsWeek = (w) => {
+    const p = getProgram();
+    if (!p.start) return 0;
+    let n = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = (p.diary || {})[FitCalendar.date(p.start, w, i)];
+      if (d && FitCore.has(d.steps)) n += Number(d.steps);
+    }
+    return n;
+  };
   const KM_ROWS = [
     ["Correr", "Running", "run", "🏃"],
     ["Nadar", "Natación", "swim", "🏊"],
@@ -61,7 +72,10 @@ window.createFitChallenges = function ({ getProgram, persist, week, date, escape
         : "";
       return row + mini;
     }).join("");
-    return `<article class="reps-compact km-compact"><div class="challenge-heading"><h3>Retos de kilómetros</h3><span>Meta final · 8 semanas · <b>Semana ${week()}</b></span></div>${rows}<p class="tiny subtle km-note">Natación: 1.000 m = 1 km. Incluye lo registrado en Cardio; cada salida cuenta una sola vez.</p>${sessions.length ? `<div class="row-list">${sessions.map((s) => `<div class="food-log"><div><b>${label(s.mode)}</b><p>${fmt(distance(s))} km · ${s.minutes} min · ${escape(s.date)}</p></div><button data-delete-distance="${escape(s.id)}">Eliminar</button></div>`).join("")}</div>` : ""}</article>`;
+    const st = plan.find((r) => r.name === "Pasos") || { completed: 0, target: 0 },
+      stPct = st.target ? Math.min(100, (st.completed / st.target) * 100) : 0;
+    const stepsRow = `<div class="rep-row km-row"><span class="km-icon">${icon("steps")}</span><div class="rep-info"><div class="rep-top"><strong>Pasos</strong><span>${fmt(st.completed)} / ${fmt(st.target)}${st.completed >= st.target ? " ✓" : ""}</span></div><progress class="challenge-progress" value="${Math.min(st.completed, st.target)}" max="${st.target}" aria-label="Pasos: ${fmt(st.completed)} de ${fmt(st.target)}"></progress><small>${Math.round(stPct)}% · semana ${week()}: ${fmt(stepsWeek(week()))} pasos · se cargan con el Whoop del día</small></div></div>`;
+    return `<article class="reps-compact km-compact"><div class="challenge-heading"><h3>Retos de kilómetros y pasos</h3><span>Meta final · 8 semanas · <b>Semana ${week()}</b></span></div>${rows}${stepsRow}<p class="tiny subtle km-note">Natación: 1.000 m = 1 km. Incluye lo registrado en Cardio; cada salida cuenta una sola vez.</p>${sessions.length ? `<div class="row-list">${sessions.map((s) => `<div class="food-log"><div><b>${label(s.mode)}</b><p>${fmt(distance(s))} km · ${s.minutes} min · ${escape(s.date)}</p></div><button data-delete-distance="${escape(s.id)}">Eliminar</button></div>`).join("")}</div>` : ""}</article>`;
   }
   root.addEventListener("submit", (e) => {
     const form = e.target;
@@ -234,9 +248,10 @@ root.addEventListener("submit", (e) => {
       ["Running", "Correr", "km"],
       ["Hiking", "Hiking", "km"],
       ["Natación", "Nadar", "km"],
+      ["Pasos", "steps", "pasos"],
     ].map(([name, key, unit]) => {
       const vals = Array.from({ length: 8 }, (_, i) =>
-        unit === "reps" ? total(data(i + 1), key) : kms(i + 1, key),
+        unit === "reps" ? total(data(i + 1), key) : unit === "pasos" ? stepsWeek(i + 1) : kms(i + 1, key),
       );
       const plan = planProgress().find(
         (r) => r.name === name || (name === "Hiking" && r.name.startsWith("Hiking")),
@@ -252,11 +267,11 @@ root.addEventListener("submit", (e) => {
       .map((r, ri) => {
         const max = Math.max(...r.vals, 1);
         const pct = r.target ? Math.min(100, (r.sum / r.target) * 100) : 0;
-        return `${ri === 4 ? '<tr class="hm-sep"><td colspan="9">Distancia · km</td></tr>' : ""}<tr><th scope="row"><span class="hm-name">${r.name}</span><span class="hm-sum"><strong>${fmt(Math.round(r.sum * 10) / 10)}</strong>${r.target ? ` / ${fmt(r.target)}` : ""}</span>${r.target ? `<span class="hm-bar"><i style="width:${pct.toFixed(1)}%"></i></span>` : ""}</th>${r.vals.map((v, i) => cell(v, max, i + 1)).join("")}</tr>`;
+        return `${ri === 4 ? '<tr class="hm-sep"><td colspan="9">Distancia · km</td></tr>' : ri === 7 ? '<tr class="hm-sep"><td colspan="9">Pasos · Whoop</td></tr>' : ""}<tr><th scope="row"><span class="hm-name">${r.name}</span><span class="hm-sum"><strong>${fmt(Math.round(r.sum * 10) / 10)}</strong>${r.target ? ` / ${fmt(r.target)}` : ""}</span>${r.target ? `<span class="hm-bar"><i style="width:${pct.toFixed(1)}%"></i></span>` : ""}</th>${r.vals.map((v, i) => cell(v, max, i + 1)).join("")}</tr>`;
       })
       .join(
         "",
-      )}</tbody></table></div><p class="tiny subtle">Repeticiones y km por semana; todo suma a la meta final del programa. Más intenso = más volumen esa semana. Los retos no añaden calorías al balance: ya están en el total de Whoop.</p></article>`;
+      )}</tbody></table></div><p class="tiny subtle">Repeticiones, km y pasos por semana; todo suma a la meta final del programa. Más intenso = más volumen esa semana. Los retos no añaden calorías al balance: ya están en el total de Whoop.</p></article>`;
   }
   function render() {
     const d = data(),
