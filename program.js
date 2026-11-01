@@ -816,7 +816,7 @@
   strength.addEventListener(
     "click",
     (e) => {
-      if (e.target.closest("[data-done]") && (!C.validDate(date()) || date() > today())) {
+      if (e.target.closest("[data-done],[data-set-done]") && (!C.validDate(date()) || date() > today())) {
         e.preventDefault();
         e.stopImmediatePropagation();
         alert("Selecciona el inicio y un día de hoy o anterior para registrar el entrenamiento.");
@@ -827,7 +827,7 @@
   strength.addEventListener(
     "change",
     (e) => {
-      if (e.target.dataset.weight && (!C.validDate(date()) || date() > today())) {
+      if ((e.target.dataset.weight || e.target.dataset.setW || e.target.dataset.setR) && (!C.validDate(date()) || date() > today())) {
         e.preventDefault();
         e.stopImmediatePropagation();
         alert("Selecciona el inicio y un día de hoy o anterior para registrar el peso.");
