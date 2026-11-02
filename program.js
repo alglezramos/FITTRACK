@@ -49,6 +49,10 @@
     program.view = "progress";
   }
   if (!["home", "food", "training", "progress", "history"].includes(program.view)) program.view = "home";
+  if (!program.panelIntro) {
+    program.panelIntro = true;
+    program.progressTab = "panel";
+  }
   if (program.trainingTab === "calendar") program.trainingTab = "strength";
   const escape = (v) =>
     String(v ?? "").replace(
@@ -466,6 +470,242 @@
     if (!r) return "";
     return `<article id="sec-review"><div class="eyebrow">CIERRE SEMANAL · SEMANA ${w}</div><h3>¿Vas en ruta a −${C.GOAL_KG} kg?</h3><div class="daily-numbers"><div><span>Déficit semanal</span><strong>${r.n ? fmt(r.defSum) + " kcal" : "—"}</strong><p class="tiny subtle">Ruta: ${fmt(C.NEEDED * 7)} · ${r.n} de 7 días con Whoop</p></div><div><span>Cintura · Fuerza</span><strong>${C.has(r.waist) ? fmt(r.waist) + " cm" : "—"} · ${r.strengthDone}/${EXERCISES.length}</strong></div></div><p class="coach-reco ${r.tone}">${escape(r.reco)}</p><details><summary>Cómo se calcula</summary><p class="tiny subtle">Estimación con 7.700 kcal/kg: tiende a sobreestimar la pérdida real y las primeras semanas incluyen agua. Úsala como guía, no como promesa. El peso real y la ruta de la semana están en Pesadas.</p></details></article>`;
   }
+  // ── Panel de Progreso: análisis con filtros de 7/30/90 días ────────────────
+  const RANGES = [7, 30, 90];
+  const DOW = ["L", "M", "X", "J", "V", "S", "D"];
+  const note = (t) => `<p class="tiny subtle panel-empty">${t}</p>`;
+  const stat = (label, value, sub = "") =>
+    `<div class="panel-stat"><span>${label}</span><strong>${value}</strong>${sub ? `<small>${sub}</small>` : ""}</div>`;
+  const signed = (n, unit = "") => (n > 0 ? "+" : n < 0 ? "−" : "±") + fmt(Math.abs(n)) + unit;
+  function rangeDays(n) {
+    const end = today(),
+      first = C.datePlus(end, -(n - 1)),
+      from = C.validDate(program.start) && program.start > first ? program.start : first,
+      out = [];
+    for (let d = from; d <= end && out.length < 400; d = C.datePlus(d, 1)) out.push(d);
+    return out;
+  }
+  const weekOf = (d) => (C.validDate(program.start) ? (FitCalendar.position(program.start, d) || {}).week || null : null);
+  const isWeekday = (d) => new Date(d + "T12:00:00Z").getUTCDay() % 6 !== 0;
+  function strengthDates() {
+    const s = new Set(Object.values(state.completedDates || {}).filter((d) => C.validDate(d)));
+    Object.values(state.sets || {}).forEach((sets) => (sets || []).forEach((z) => z && z.done && C.validDate(z.d) && s.add(z.d)));
+    return s;
+  }
+  // Gráfico de línea SVG (escala propia; null = sin dato).
+  function lineChart(days, lines, ref) {
+    const W = 320,
+      H = 130,
+      P = { l: 34, r: 8, t: 10, b: 20 };
+    const vals = lines.flatMap((l) => l.values.filter((v) => v != null));
+    let lo = Math.min(...vals),
+      hi = Math.max(...vals);
+    if (hi - lo < 1) (lo -= 0.5), (hi += 0.5);
+    const pad = (hi - lo) * 0.08;
+    (lo -= pad), (hi += pad);
+    const x = (i) => P.l + (days.length < 2 ? (W - P.l - P.r) / 2 : (i / (days.length - 1)) * (W - P.l - P.r));
+    const y = (v) => P.t + (1 - (v - lo) / (hi - lo)) * (H - P.t - P.b);
+    const path = (vs) => {
+      let d = "",
+        pen = false;
+      vs.forEach((v, i) => {
+        if (v == null) return;
+        d += (pen ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1);
+        pen = true;
+      });
+      return d;
+    };
+    const grid = [hi - pad, (hi + lo) / 2, lo + pad]
+      .map((v) => `<line x1="${P.l}" x2="${W - P.r}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" class="pc-grid"/><text x="${P.l - 4}" y="${(y(v) + 3).toFixed(1)}" text-anchor="end" class="pc-axis">${fmt(v)}</text>`)
+      .join("");
+    const refLine =
+      ref != null && ref >= lo && ref <= hi
+        ? `<line x1="${P.l}" x2="${W - P.r}" y1="${y(ref).toFixed(1)}" y2="${y(ref).toFixed(1)}" class="pc-ref"/><text x="${W - P.r}" y="${(y(ref) - 4).toFixed(1)}" text-anchor="end" class="pc-axis pc-ref-t">meta ${fmt(ref)}</text>`
+        : "";
+    const body = lines
+      .map((l) =>
+        l.dots
+          ? l.values.map((v, i) => (v == null ? "" : `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3" class="${l.cls}"/>`)).join("")
+          : `<path d="${path(l.values)}" class="${l.cls}"/>`,
+      )
+      .join("");
+    const lab = (i) => `<text x="${x(i).toFixed(1)}" y="${H - 5}" text-anchor="${i === 0 ? "start" : "end"}" class="pc-axis">${days[i].slice(8)}/${days[i].slice(5, 7)}</text>`;
+    return `<svg class="panel-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Gráfico">${grid}${refLine}${body}${lab(0)}${days.length > 1 ? lab(days.length - 1) : ""}</svg>`;
+  }
+  // Barras horizontales simples (etiqueta · barra · valor).
+  function bars(rows, unit = "", max) {
+    const m = max || Math.max(1, ...rows.map((r) => Math.abs(r.value)));
+    return `<div class="panel-bars">${rows
+      .map(
+        (r) =>
+          `<div class="panel-bar"><span>${r.label}</span><div class="panel-bar-track"><i class="${r.cls || ""}" style="width:${Math.min(100, (Math.abs(r.value) / m) * 100).toFixed(1)}%"></i></div><b>${r.text ?? fmt(r.value) + unit}</b></div>`,
+      )
+      .join("")}</div>`;
+  }
+  function panelWeight(days) {
+    const initial = Number(program.initialWeight) || 85,
+      target = initial - C.GOAL_KG;
+    const rows = C.series(program),
+      wk = week(),
+      cur = rows[wk] && rows[wk].actual != null ? rows[wk] : rows.filter((r) => r.week > 0 && r.actual != null).at(-1),
+      prev = cur ? rows.slice(0, cur.week).filter((r) => r.actual != null).at(-1) : null;
+    const current = cur ? cur.actual : initial,
+      pct = Math.max(0, Math.min(100, ((initial - current) / (initial - target)) * 100));
+    const daily = days.map((d) => weightOn(d));
+    const ma = days.map((d, i) => {
+      const v = [];
+      for (let k = 0; k < 7; k++) {
+        const w = weightOn(C.datePlus(d, -k));
+        if (w) v.push(w);
+      }
+      return v.length && daily.slice(0, i + 1).some((x) => x) ? v.reduce((a, b) => a + b, 0) / v.length : null;
+    });
+    const n = daily.filter((v) => v).length;
+    const chart =
+      n >= 2
+        ? lineChart(days, [{ values: ma, cls: "pc-line" }, { values: daily, cls: "pc-dot", dots: true }], target) +
+          `<p class="panel-legend"><span class="lg-dot"></span>Pesada diaria <span class="lg-line"></span>Promedio móvil 7 días${daily.some((v) => v && v - target < 4) ? ' <span class="lg-ref"></span>Meta' : ""}</p>`
+        : note(n ? "Solo hay una pesada en este periodo. Con dos o más verás la curva y el promedio móvil." : "No hay pesadas en este periodo. Regístralas de lunes a viernes en Hoy → Registrar peso.");
+    const weeks = rows.filter((r) => r.week > 0 && r.actual != null && days.some((d) => weekOf(d) === r.week));
+    const weekly = weeks.length
+      ? bars(
+          weeks.map((r, i) => {
+            const before = i ? weeks[i - 1].actual : initial;
+            return { label: "S" + r.week, value: Math.max(0, initial - r.actual), text: `${fmt(r.actual)} kg <em class="${r.actual <= before ? "good" : "bad"}">${signed(r.actual - before)}</em>` };
+          }),
+          "",
+          initial - target,
+        )
+      : "";
+    return `<article class="panel-card"><div class="dash-head"><span>⚖️ Peso corporal</span><strong>${cur ? "Promedio S" + cur.week : "Inicio"}</strong></div>
+      <div class="panel-stats">${stat("Inicial", fmt(initial) + " kg")}${stat("Actual", fmt(current) + " kg", cur ? "promedio semanal" : "")}${stat("Meta", fmt(target) + " kg")}${stat(
+        "vs. semana anterior",
+        cur && prev ? signed(cur.actual - prev.actual, " kg") : "—",
+        cur && prev ? (prev.week ? "S" + prev.week : "peso inicial") : "",
+      )}</div>
+      <div class="dash-row"><span>Progreso hacia la meta</span><b>${Math.round(pct)} %</b></div>${bar(pct, 100)}
+      <h4 class="panel-sub">Evolución diaria</h4>${chart}${weekly ? `<h4 class="panel-sub">Promedio semanal</h4>${weekly}<p class="tiny subtle">La barra muestra lo perdido respecto al inicio, sobre los ${fmt(C.GOAL_KG)} kg de la meta.</p>` : ""}</article>`;
+  }
+  function panelTraining(days) {
+    const set = new Set(days),
+      sDates = [...strengthDates()].filter((d) => set.has(d)),
+      sess = program.sessions.filter((s) => set.has(s.date));
+    const weeks = [...new Set(days.map(weekOf).filter(Boolean))];
+    const perWeek = weeks.map((w) => {
+      const st = sDates.filter((d) => weekOf(d) === w).length,
+        ca = sess.filter((s) => s.week === w || weekOf(s.date) === w).length;
+      return { label: "S" + w, value: st + ca, text: `${st + ca} <em class="subtle">${st} pesas · ${ca} cardio</em>` };
+    });
+    const types = {};
+    if (sDates.length) types["🏋️ Pesas"] = sDates.length;
+    sess.forEach((s) => (types[s.mode] = (types[s.mode] || 0) + 1));
+    const total = Object.values(types).reduce((a, b) => a + b, 0);
+    // Evolución de cargas: mejor peso por semana (lb) de cada ejercicio con ≥ 2 semanas.
+    const byEx = {};
+    Object.entries(state.weights || {}).forEach(([k, v]) => {
+      const m = /^(.*)-w(\d+)$/.exec(k),
+        n = Number(v);
+      if (!m || !(n > 0) || (weeks.length && !weeks.includes(Number(m[2])))) return;
+      (byEx[m[1]] ||= []).push([Number(m[2]), n]);
+    });
+    const loads = Object.entries(byEx)
+      .filter(([, a]) => a.length >= 2)
+      .map(([id, a]) => {
+        a.sort((x, y) => x[0] - y[0]);
+        const ex = EXERCISES.find((e) => e.id === id);
+        return { name: ex ? ex.name : id, first: a[0], last: a.at(-1), delta: a.at(-1)[1] - a[0][1], pts: a };
+      })
+      .sort((a, b) => b.delta - a.delta);
+    const one = Object.keys(byEx).length;
+    const loadHtml = loads.length
+      ? `<ul class="panel-loads">${loads
+          .slice(0, 8)
+          .map(
+            (l) =>
+              `<li><span>${escape(l.name)}</span><b>${fmt(l.first[1])} → ${fmt(l.last[1])} lb</b><em class="${l.delta > 0 ? "good" : l.delta < 0 ? "bad" : "subtle"}">${signed(l.delta)} · S${l.first[0]}→S${l.last[0]}</em></li>`,
+          )
+          .join("")}</ul>`
+      : note(one ? `Tienes cargas de ${one} ejercicio${one > 1 ? "s" : ""} en una sola semana. La evolución aparece cuando repitas el ejercicio otra semana.` : "Aún no hay cargas registradas en este periodo.");
+    // Volumen = Σ peso × repeticiones de las series completadas.
+    const vol = {};
+    Object.values(state.sets || {}).forEach((sets) =>
+      (sets || []).forEach((z) => {
+        if (z && z.done && set.has(z.d) && Number(z.w) > 0 && Number(z.r) > 0) {
+          const w = weekOf(z.d);
+          vol[w] = (vol[w] || 0) + Number(z.w) * Number(z.r);
+        }
+      }),
+    );
+    const volRows = weeks.filter((w) => vol[w]).map((w) => ({ label: "S" + w, value: vol[w], text: fmt(Math.round(vol[w])) + " lb" }));
+    return `<article class="panel-card"><div class="dash-head"><span>🏋️ Entrenamiento</span><strong>${sDates.length + sess.length} sesiones</strong></div>
+      <h4 class="panel-sub">Entrenamientos por semana</h4>${perWeek.some((r) => r.value) ? bars(perWeek) : note("No hay entrenamientos registrados en este periodo.")}
+      <h4 class="panel-sub">Distribución por tipo</h4>${total ? `<div class="panel-split">${Object.entries(types)
+        .sort((a, b) => b[1] - a[1])
+        .map(([k, v]) => `<span style="flex:${v}" title="${escape(k)}">${escape(k)} · ${v}</span>`)
+        .join("")}</div>` : note("Sin sesiones para repartir por tipo.")}
+      <h4 class="panel-sub">Evolución de cargas</h4>${loadHtml}
+      <h4 class="panel-sub">Volumen semanal</h4>${volRows.length ? bars(volRows) : note("El volumen (peso × repeticiones) aparece cuando completes series con peso y repeticiones en Entreno.")}</article>`;
+  }
+  function panelFood(days) {
+    const logged = days.map((d) => [d, program.diary[d]]).filter(([, d]) => d && (d.meals || []).length),
+      whoop = days.map((d) => program.diary[d]).filter((d) => d && C.has(d.whoop));
+    if (!logged.length && !whoop.length)
+      return `<article class="panel-card"><div class="dash-head"><span>🍽 Alimentación</span></div>${note("No hay comidas ni calorías de Whoop en este periodo.")}</article>`;
+    const avgIn = logged.length ? logged.reduce((n, [, d]) => n + C.intake(d), 0) / logged.length : null,
+      avgOut = whoop.length ? whoop.reduce((n, d) => n + Number(d.whoop), 0) / whoop.length : null,
+      inside = logged.filter(([, d]) => C.intake(d) <= KCAL_TARGET).length;
+    const weeks = [...new Set(days.map(weekOf).filter(Boolean))];
+    const bal = weeks
+      .map((w) => {
+        const ds = days.filter((d) => weekOf(d) === w).map((d) => program.diary[d]).filter((d) => d && C.balance(d) !== null);
+        const s = ds.reduce((n, d) => n + C.balance(d), 0);
+        return ds.length ? { label: "S" + w, value: s, cls: s >= 0 ? "good" : "bad", text: `${signed(Math.round(s))} kcal <em class="subtle">${ds.length} d · meta ${fmt(ds.length * C.NEEDED)}</em>` } : null;
+      })
+      .filter(Boolean);
+    return `<article class="panel-card"><div class="dash-head"><span>🍽 Alimentación</span><strong>${logged.length} días con comidas</strong></div>
+      <div class="panel-stats">${stat("Consumo medio", avgIn != null ? fmt(Math.round(avgIn)) + " kcal" : "—", logged.length + " días")}${stat("Gasto medio (Whoop)", avgOut != null ? fmt(Math.round(avgOut)) + " kcal" : "—", whoop.length + " días")}${stat(
+        "Dentro del objetivo",
+        logged.length ? `${inside}/${logged.length}` : "—",
+        "≤ " + fmt(KCAL_TARGET) + " kcal",
+      )}</div>${logged.length ? bar(inside, logged.length) : ""}
+      <h4 class="panel-sub">Balance energético semanal</h4>${bal.length ? bars(bal) + `<p class="tiny subtle">Positivo = déficit (gasto Whoop − consumo). Solo días con Whoop.</p>` : note("El balance necesita días con calorías de Whoop registradas.")}</article>`;
+  }
+  function panelConsistency(days) {
+    const sDates = strengthDates(),
+      active = days.filter((d) => activeOn(d)).length,
+      weekdays = days.filter(isWeekday),
+      inRange = new Set(days),
+      doneW = Math.min(weekdays.length, [...sDates].filter((d) => inRange.has(d)).length),
+      cardioPlanned = weekdays.length,
+      cardioDone = Math.min(cardioPlanned, new Set(program.sessions.filter((s) => inRange.has(s.date)).map((s) => s.date)).size);
+    const lead = (new Date(days[0] + "T12:00:00Z").getUTCDay() + 6) % 7;
+    const cells =
+      DOW.map((d) => `<b>${d}</b>`).join("") +
+      "<i></i>".repeat(lead) +
+      days
+        .map((d) => {
+          const st = sDates.has(d),
+            ca = program.sessions.some((s) => s.date === d),
+            any = activeOn(d),
+            food = (program.diary[d]?.meals || []).length > 0,
+            lv = st && ca ? 3 : st || ca ? 2 : any ? 1 : 0;
+          return `<span class="lv${lv}${d === today() ? " now" : ""}" title="${d}${st ? " · pesas" : ""}${ca ? " · cardio" : ""}${food ? " · comidas" : ""}">${Number(d.slice(8))}</span>`;
+        })
+        .join("");
+    return `<article class="panel-card"><div class="dash-head"><span>📅 Consistencia</span><strong>Racha ${streak(today())} d</strong></div>
+      <div class="panel-stats">${stat("Días con actividad", `${active}/${days.length}`)}${stat("Pesas vs. programadas", `${doneW}/${weekdays.length}`, "5 días por semana")}${stat("Cardio vs. programado", `${cardioDone}/${cardioPlanned}`, "días con cardio")}</div>
+      ${bar(doneW, weekdays.length || 1)}
+      <h4 class="panel-sub">Calendario de actividad</h4><div class="panel-cal">${cells}</div>
+      <p class="panel-legend"><span class="lg-c lv1"></span>Reto <span class="lg-c lv2"></span>Pesas o cardio <span class="lg-c lv3"></span>Pesas + cardio</p></article>`;
+  }
+  function panel() {
+    if (!C.validDate(program.start)) return note("Elige la fecha de inicio del programa para ver el panel.");
+    const n = RANGES.includes(Number(program.insightRange)) ? Number(program.insightRange) : 30,
+      days = rangeDays(n);
+    const filter = `<nav class="subtabs panel-range" aria-label="Periodo">${RANGES.map((r) => `<button data-insight-range="${r}" aria-pressed="${r === n}">${r} días</button>`).join("")}</nav>`;
+    const span = `<p class="tiny subtle">${days[0]} → ${days.at(-1)} · ${days.length} día${days.length > 1 ? "s" : ""}${days.length < n ? " (desde el inicio del programa)" : ""}</p>`;
+    return `<div class="panel">${filter}${span}${panelWeight(days)}${panelTraining(days)}${panelFood(days)}${panelConsistency(days)}</div>`;
+  }
   function progress() {
     const initial = Number(program.initialWeight) || 85,
       target = initial - C.GOAL_KG;
@@ -473,14 +713,16 @@
       recent = rows.filter((r) => r.week > 0 && r.actual !== null).at(-1);
     const current = recent ? recent.actual : initial;
     const pct = Math.max(0, Math.min(100, ((initial - current) / (initial - target)) * 100));
-    const sub = program.progressTab || "weight";
+    const sub = program.progressTab || "panel";
     const tabs = `<nav class="subtabs" aria-label="Progreso">${[
+      ["panel", "Panel"],
       ["weight", "Peso y balance"],
       ["missions", "Misiones"],
       ["wellbeing", "Bienestar"],
     ]
       .map(([k, l]) => `<button data-progress-tab="${k}" aria-pressed="${sub === k}">${l}</button>`)
       .join("")}</nav>`;
+    if (sub === "panel") return tabs + panel();
     if (sub === "missions") return tabs + challenges.missions();
     if (sub === "wellbeing")
       return (
@@ -724,6 +966,12 @@
     }
     if (b.hasAttribute("data-go-today")) {
       goDate(today());
+      return;
+    }
+    if (b.dataset.insightRange) {
+      program.insightRange = Number(b.dataset.insightRange);
+      persist();
+      show();
       return;
     }
     if (b.dataset.progressTab) {
