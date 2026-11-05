@@ -2785,3 +2785,37 @@ details.fold[open] > summary { margin-bottom: 10px; }
 .goal-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
 .goal-fields label small { display: block; margin-top: 3px; font-size: 11px; }
 .goal-note { grid-column: 1 / -1; margin: 2px 0 0; }
+
+/* r86: Fuerza minimalista; los controles conservan sus selectores y guardado. */
+#exerciseList .exercise-minimal { border: 0; box-shadow: none; background: var(--surface); padding: 14px; }
+#exerciseList .exercise-minimal .exTop { padding: 0; gap: 10px; margin-bottom: 6px; }
+#exerciseList .exercise-minimal .exTop img,
+#exerciseList .exercise-minimal .exTop > div[aria-hidden] { width: 56px !important; height: 56px !important; flex-shrink: 0; border-radius: 8px; }
+#exerciseList .exercise-minimal .exNum { display: none; }
+#exerciseList .exercise-minimal h3 { font-size: 16px; line-height: 1.3; font-weight: 600; margin: 0 0 4px; }
+#exerciseList .exercise-minimal .exTop p { font-size: 12px; color: var(--muted); }
+#exerciseList .exercise-minimal .setmeta { padding: 0; margin: 4px 0 10px; font-size: 12px; }
+#exerciseList .compact-sets { display: flex; gap: 8px; }
+#exerciseList .setlabels { display: grid; grid-template-rows: 20px 36px 36px 36px; gap: 5px; align-items: center; flex: 0 0 34px; color: var(--muted); font-size: 12px; }
+#exerciseList .exercise-minimal .setlist { flex: 1; min-width: 0; padding: 0; gap: 8px; grid-template-columns: repeat(auto-fit,minmax(50px,1fr)); }
+#exerciseList .exercise-minimal .setrow { display: grid; grid-template-columns: minmax(0,1fr); grid-template-areas: "n" "w" "r" "ok"; grid-template-rows: 20px 36px 36px 36px; padding: 0; gap: 5px; background: transparent; border: 0; }
+#exerciseList .exercise-minimal .setrow .setn { text-align: center; font-size: 12px; font-weight: 400; }
+#exerciseList .exercise-minimal .setu,
+#exerciseList .exercise-minimal .setr,
+#exerciseList .exercise-minimal .setx { display: none; }
+#exerciseList .exercise-minimal .setrow input { height: 36px; padding: 4px; border: 0; border-radius: 7px; background: var(--surface-2); font-size: 16px; appearance: textfield; }
+#exerciseList .setrow input::-webkit-inner-spin-button { appearance: none; }
+#exerciseList .exercise-minimal .setrow .setok { width: 100%; height: 36px; min-height: 36px; border: 0; background: transparent; color: transparent; padding: 0; display: grid; place-items: center; position: relative; }
+#exerciseList .exercise-minimal .setok::after { content: ''; width: 18px; height: 18px; border: 1px solid var(--muted); border-radius: 4px; }
+#exerciseList .exercise-minimal .setok[aria-pressed="true"]::after { content: '✓'; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-size: 14px; }
+#exerciseList .exercise-minimal .controls { padding: 6px 0 0; gap: 8px; flex-wrap: wrap; }
+#exerciseList .exercise-minimal .controls button { background: transparent; border: 0; box-shadow: none; color: var(--muted); font-size: 12px; font-weight: 400; min-height: 36px; padding: 6px; }
+#exerciseList .exercise-minimal .controls button[data-done] { color: var(--accent); }
+#exerciseList .exercise-minimal .controls .detailBtn { margin-left: auto; }
+#exerciseList .exercise-minimal button:focus-visible,
+#exerciseList .exercise-minimal input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media(max-width: 640px) { #exerciseList > .grid { grid-template-columns: 1fr; } }
+@media(pointer: coarse) {
+ #exerciseList .exercise-minimal .setrow, #exerciseList .setlabels { grid-template-rows: 20px 44px 44px 44px; }
+ #exerciseList .exercise-minimal .setrow input, #exerciseList .exercise-minimal .setrow .setok, #exerciseList .exercise-minimal .controls button { height: 44px; min-height: 44px; }
+}
