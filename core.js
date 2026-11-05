@@ -12,6 +12,8 @@
   const has = (v) => v !== "" && v != null && Number.isFinite(Number(v));
   const intake = (d) => (d.meals || []).reduce((n, m) => n + Number(m.kcal), 0) + (Number(d.extras) || 0);
   const balance = (d) => (has(d.whoop) ? Number(d.whoop) - intake(d) : null);
+  // Balance confirmado: solo días cerrados con Whoop (un día abierto o sin comidas no cuenta como consumo cero).
+  const confirmed = (d) => (d && d.closed && has(d.whoop) ? balance(d) : null);
   function series(p) {
     if (!validDate(p.start) || !has(p.initialWeight)) return [];
     let total = 0,
@@ -29,8 +31,8 @@
     for (let w = 1; w <= 8; w++) {
       for (let i = (w - 1) * 7; i < w * 7; i++) {
         const d = (p.diary || {})[datePlus(p.start, i)];
-        if (d && balance(d) !== null) {
-          total += balance(d);
+        if (d && confirmed(d) !== null) {
+          total += confirmed(d);
           count++;
         }
       }
@@ -66,8 +68,8 @@
         !object(s) ||
         !["Judo", "Caminar", "Nadar", "Rucking", "Correr", "Bicicleta", "Hiking"].includes(s.mode) ||
         !validDate(s.date) ||
-        !number(s.minutes, 1, 600) ||
-        !number(s.effort, 1, 10) ||
+        !(s.minutes == null || s.minutes === "" || number(s.minutes, 1, 600)) ||
+        !(s.effort == null || s.effort === "" || number(s.effort, 1, 10)) ||
         !Number.isInteger(s.week) ||
         s.week < 1 ||
         s.week > 8
@@ -228,5 +230,5 @@
   }
   const GOAL_KG = 10,
     NEEDED = Math.round((GOAL_KG * 7700) / 56);
-  g.FitCore = { validDate, datePlus, has, intake, balance, series, validate, GOAL_KG, NEEDED };
+  g.FitCore = { validDate, datePlus, has, intake, balance, confirmed, series, validate, GOAL_KG, NEEDED };
 })(typeof window !== "undefined" ? window : globalThis);
