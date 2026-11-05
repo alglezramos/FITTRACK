@@ -244,13 +244,11 @@ function renderNow() {
       (state.day === i + 1 ? "active" : "") +
       '" data-day="' +
       (i + 1) +
+      '" title="' +
+      esc(d + " + " + DAY_CARDIO[i]) +
       '"><b>' +
       DAY_NAMES[i] +
-      "</b><span>" +
-      d +
-      "</span><small>+ " +
-      DAY_CARDIO[i] +
-      "</small></button>",
+      "</b></button>",
   ).join("");
   // Encabezado de la hoja del día: fecha del registro y día de rutina elegido.
   const head = $("sheetHead");
