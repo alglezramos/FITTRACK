@@ -1,11 +1,12 @@
 window.createFitChallenges = function ({ getProgram, persist, week, date, escape, root, rerender }) {
   // Únicas metas: acumuladas durante las ocho semanas. Sin cuotas semanales.
-  const totalTargets = { pushups: 1500, abs: 2000, pullups: 500, squats: 2000 };
+  // Las cifras vienen de las metas del programa (Opciones → Metas).
+  const T = () => FitCore.goals();
   const defaults = () => [
-    { id: "pushups", name: "Push-ups", target: totalTargets.pushups },
-    { id: "abs", name: "Abdominales", target: totalTargets.abs },
-    { id: "pullups", name: "Pull-ups", target: totalTargets.pullups },
-    { id: "squats", name: "Sentadillas", target: totalTargets.squats },
+    { id: "pushups", name: "Push-ups", target: T().pushups },
+    { id: "abs", name: "Abdominales", target: T().abs },
+    { id: "pullups", name: "Pull-ups", target: T().pullups },
+    { id: "squats", name: "Sentadillas", target: T().squats },
   ];
   const data = (w = week(), write = false) => {
     const p = getProgram();
@@ -165,9 +166,9 @@ root.addEventListener("submit", (e) => {
   function planProgress() {
     const sessions = getProgram().sessions.filter((s) => s.week >= 1 && s.week <= 8 && planEligible(s.date));
     const rows = [
-      ["Running", 50, "km", "Correr"],
-      ["Natación", 25, "km", "Nadar"],
-      ["Hiking / Rucking", 50, "km", "Hiking"],
+      ["Running", T().run, "km", "Correr"],
+      ["Natación", T().swim, "km", "Nadar"],
+      ["Hiking / Rucking", T().hike, "km", "Hiking"],
     ].map(([name, target, unit, mode]) => ({
       name,
       target,
@@ -179,14 +180,14 @@ root.addEventListener("submit", (e) => {
     const steps = Object.entries(getProgram().diary || {})
       .filter(([day]) => planEligible(day))
       .reduce((n, [, d]) => n + (FitCore.has(d.steps) ? Number(d.steps) : 0), 0);
-    rows.push({ name: "Pasos", target: 800000, unit: "pasos", completed: steps });
+    rows.push({ name: "Pasos", target: T().steps, unit: "pasos", completed: steps });
     for (const g of defaults()) {
       let completed = 0;
       for (let w = 1; w <= 8; w++)
         completed += data(w)
           .logs.filter((l) => l.goal === g.id && planEligible(l.date))
           .reduce((n, l) => n + l.reps, 0);
-      rows.push({ name: g.name, target: totalTargets[g.id], unit: "reps", completed });
+      rows.push({ name: g.name, target: g.target, unit: "reps", completed });
     }
     return rows;
   }
