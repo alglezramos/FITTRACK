@@ -245,30 +245,35 @@ root.addEventListener("submit", (e) => {
     const pr = projectionOf(r);
     return pr ? `<em class="proj-badge st-${STATUS[pr.status][1]}">${STATUS[pr.status][0]}</em>` : "";
   };
+  // «Avance de retos»: una columna por reto en % para comparar km, pasos y reps
+  // en la misma escala. La línea marca lo esperado a hoy; al tocar una columna
+  // se ven cantidades y pendientes.
+  const SHORT = { "Hiking / Rucking": "Hiking", Abdominales: "Abdom.", Sentadillas: "Sentad.", Natación: "Nado", "Push-ups": "Push", "Pull-ups": "Pull" };
   function projection() {
     const rows = planProgress(),
       first = rows.length ? projectionOf(rows[0]) : null;
     if (!first) return "";
     const unitDay = (r) => (r.unit === "km" ? "km/día" : r.unit === "pasos" ? "pasos/día" : "reps/día"),
-      num = (r, v) => fmt(r.unit === "km" ? Math.round(v * 10) / 10 : Math.round(v));
-    const items = rows
+      num = (r, v) => fmt(r.unit === "km" ? Math.round(v * 10) / 10 : Math.round(v)),
+      expPct = Math.min(100, (first.elapsed / 56) * 100),
+      pick = getProgram().projPick;
+    const cols = rows
       .map((r) => {
         const pr = projectionOf(r),
           pct = Math.min(100, (r.completed / r.target) * 100),
-          exp = Math.min(100, (pr.expected / r.target) * 100),
-          [ic, color] = MISSION_STYLE[r.name] || ["target", "#ffc33d"],
-          msg =
-            pr.status === "done"
-              ? "¡Meta cumplida!"
-              : pr.status === "ahead"
-                ? "Vas por delante. Mantén el ritmo."
-                : pr.status === "ontrack"
-                  ? "Justo en ritmo."
-                  : `Sube a ${num(r, pr.need)} ${unitDay(r)} para llegar.`;
-        return `<div class="proj-row" style="--mc:${color}"><span class="km-icon">${icon(ic)}</span><div class="proj-body"><div class="proj-top"><strong>${escape(r.name)}</strong>${badge(r)}</div><div class="proj-track" role="progressbar" aria-label="${escape(r.name)}" aria-valuemin="0" aria-valuemax="${r.target}" aria-valuenow="${Math.round(r.completed)}"><i style="width:${pct.toFixed(1)}%"></i><b style="left:${exp.toFixed(1)}%" title="Lo esperado a hoy"></b></div><div class="proj-nums"><span>${num(r, r.completed)} / ${fmt(r.target)} ${escape(r.unit)} · ${Math.round(pct)}% · restan ${num(r, pr.remaining)}</span><span>Ritmo ${num(r, pr.rate)} ${unitDay(r)} · necesitas ${num(r, pr.need)}</span></div><small class="proj-msg">${msg}</small></div></div>`;
+          [ic, color] = MISSION_STYLE[r.name] || ["target", "#ffc33d"];
+        return `<button type="button" class="adv-col st-${STATUS[pr.status][1]}" data-proj-pick="${escape(r.name)}" aria-pressed="${pick === r.name}" style="--mc:${color}" aria-label="${escape(r.name)}: ${Math.round(pct)} %, ${STATUS[pr.status][0]}"><span class="adv-pct">${Math.round(pct)}%</span><span class="adv-bar"><i style="height:${Math.max(pct, 1.5).toFixed(1)}%"></i></span><span class="adv-ic">${icon(ic)}</span><span class="adv-name">${escape(SHORT[r.name] || r.name)}</span></button>`;
       })
       .join("");
-    return `<article class="proj-card"><div class="challenge-heading"><h3>Proyección de retos</h3><span>Día ${first.elapsed} de 56 · quedan ${first.left} días</span></div><p class="tiny subtle">La línea marca lo esperado a hoy. Adelantado o atrasado: ±5 % respecto a ese punto.</p>${items}</article>`;
+    const sel = rows.find((r) => r.name === pick);
+    let detail = `<p class="tiny subtle adv-hint">Toca una columna para ver cantidades y pendientes.</p>`;
+    if (sel) {
+      const pr = projectionOf(sel),
+        [, color] = MISSION_STYLE[sel.name] || ["target", "#ffc33d"],
+        msg = pr.status === "done" ? "¡Meta cumplida!" : pr.status === "ahead" ? "Vas por delante. Mantén el ritmo." : pr.status === "ontrack" ? "Justo en ritmo." : `Sube a ${num(sel, pr.need)} ${unitDay(sel)} para llegar.`;
+      detail = `<div class="adv-detail" style="--mc:${color}"><div class="proj-top"><strong>${escape(sel.name)}</strong>${badge(sel)}</div><div class="adv-grid"><span>Hecho<b>${num(sel, sel.completed)} / ${fmt(sel.target)} ${escape(sel.unit)}</b></span><span>Pendiente<b>${num(sel, pr.remaining)} ${escape(sel.unit)}</b></span><span>Ritmo actual<b>${num(sel, pr.rate)} ${unitDay(sel)}</b></span><span>Necesitas<b>${num(sel, pr.need)} ${unitDay(sel)}</b></span></div><small class="proj-msg">${msg}</small></div>`;
+    }
+    return `<article class="proj-card adv-card"><div class="challenge-heading"><h3>Avance de retos</h3><span>Día ${first.elapsed} de 56 · quedan ${first.left} días</span></div><div class="adv-chart" style="--exp:${expPct.toFixed(1)}"><b class="adv-exp" title="Lo esperado a hoy"><em>${fmt(Math.round(expPct * 10) / 10)} % esperado</em></b>${cols}</div>${detail}</article>`;
   }
   function missions() {
     const rows = planProgress(),
@@ -364,6 +369,13 @@ root.addEventListener("submit", (e) => {
   root.addEventListener("click", (e) => {
     const b = e.target.closest("button");
     if (!b) return;
+    if (b.dataset.projPick) {
+      const p = getProgram();
+      p.projPick = p.projPick === b.dataset.projPick ? null : b.dataset.projPick;
+      persist();
+      rerender();
+      return;
+    }
     if (b.dataset.missionName) {
       getProgram().selectedMission = b.dataset.missionName;
       persist();
