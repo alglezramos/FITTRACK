@@ -210,14 +210,14 @@ root.addEventListener("submit", (e) => {
   const icon = (k) =>
     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k]}</svg>`;
   const MISSION_STYLE = {
-    Running: ["run", "#ef4444"],
-    Natación: ["swim", "#3b82f6"],
-    "Hiking / Rucking": ["hike", "#22c55e"],
-    Pasos: ["steps", "#f97316"],
-    "Push-ups": ["pushups", "#facc15"],
-    Abdominales: ["abs", "#a855f7"],
-    "Pull-ups": ["pullups", "#3b82f6"],
-    Sentadillas: ["squats", "#f43f5e"],
+    Running: ["run", "#c0603f"],
+    Natación: ["swim", "#4f8a8b"],
+    "Hiking / Rucking": ["hike", "#6f845e"],
+    Pasos: ["steps", "#d08b4f"],
+    "Push-ups": ["pushups", "#c9a227"],
+    Abdominales: ["abs", "#8b6f9c"],
+    "Pull-ups": ["pullups", "#3f6e78"],
+    Sentadillas: ["squats", "#a8574f"],
   };
   // ── Proyección de cumplimiento: ritmo actual frente al necesario ──────────
   const STATUS = {
@@ -264,7 +264,7 @@ root.addEventListener("submit", (e) => {
       .map((r) => {
         const pr = projectionOf(r),
           pct = Math.min(100, (r.completed / r.target) * 100),
-          [, color] = MISSION_STYLE[r.name] || ["target", "#ffc33d"];
+          [, color] = MISSION_STYLE[r.name] || ["target", "#bf6b47"];
         return `<button type="button" class="adv-col st-${STATUS[pr.status][1]}" data-proj-pick="${escape(r.name)}" aria-pressed="${sel === r}" style="--mc:${color};--h:${Math.max(pct, 1.2).toFixed(1)}" aria-label="${escape(r.name)}: ${p1(pct)} %, ${STATUS[pr.status][0]}"><span class="adv-bar"><i></i><span class="adv-pct">${p1(pct)}%</span></span><span class="adv-name">${SHORT[r.name] ? `<span class="adv-n-full">${escape(r.name)}</span><span class="adv-n-short">${escape(SHORT[r.name])}</span>` : escape(r.name).replace(" / ", "<br>")}</span></button>`;
       })
       .join("");
@@ -283,7 +283,7 @@ root.addEventListener("submit", (e) => {
       const g = defaults().find((x) => x.name === sel.name);
       field = g ? `<form data-challenge-log="${g.id}" class="adv-form"><label>Sumar repeticiones<input name="reps" type="number" min="1" max="10000" step="1" inputmode="numeric" placeholder="0" required></label><button class="primary">+ Sumar</button></form>` : "";
     } else field = `<p class="tiny subtle adv-note">Los pasos se cargan con el Whoop de cada día · semana ${week()}: ${fmt(stepsWeek(week()))} pasos.</p>`;
-    return `<article class="proj-card adv-card"><div class="challenge-heading"><h3>Avance de retos</h3><span>Día ${first.elapsed} de 56 · quedan ${first.left} días</span></div><div class="adv-legend"><span><i class="adv-dash"></i>Esperado al día ${first.elapsed}: ${p1(expPct)} %</span><span>Altura completa = 100 % de la meta</span></div><div class="adv-chart" style="--exp:${expPct.toFixed(2)}"><b class="adv-exp" aria-hidden="true"></b>${cols}</div><div class="adv-detail" style="--mc:${(MISSION_STYLE[sel.name] || [, "#ffc33d"])[1]}"><p class="adv-line"><strong>${escape(sel.name)}</strong> · ${num(sel, sel.completed)} / ${fmt(sel.target)} ${escape(unit)} · <strong>Faltan ${num(sel, pr.remaining)} ${escape(unit)}</strong> ${badge(sel)}</p><small class="proj-msg">${msg}</small>${field}</div></article>`;
+    return `<article class="proj-card adv-card"><div class="challenge-heading"><h3>Avance de retos</h3><span>Día ${first.elapsed} de 56 · quedan ${first.left} días</span></div><div class="adv-legend"><span><i class="adv-dash"></i>Esperado al día ${first.elapsed}: ${p1(expPct)} %</span><span>Altura completa = 100 % de la meta</span></div><div class="adv-chart" style="--exp:${expPct.toFixed(2)}"><b class="adv-exp" aria-hidden="true"></b>${cols}</div><div class="adv-detail" style="--mc:${(MISSION_STYLE[sel.name] || [, "#bf6b47"])[1]}"><p class="adv-line"><strong>${escape(sel.name)}</strong> · ${num(sel, sel.completed)} / ${fmt(sel.target)} ${escape(unit)} · <strong>Faltan ${num(sel, pr.remaining)} ${escape(unit)}</strong> ${badge(sel)}</p><small class="proj-msg">${msg}</small>${field}</div></article>`;
   }
   function missions() {
     const rows = planProgress(),
@@ -294,14 +294,14 @@ root.addEventListener("submit", (e) => {
       pos = p.start ? FitCalendar.position(p.start, today()) : null,
       curWeek = pos ? pos.week : p.start && today() > FitCore.datePlus(p.start, 55) ? 8 : week();
     const card = (r) => {
-      const [ic, color] = MISSION_STYLE[r.name] || ["target", "#ffc33d"],
+      const [ic, color] = MISSION_STYLE[r.name] || ["target", "#bf6b47"],
         pct = pctOf(r),
         unit = r.unit === "reps" ? "reps" : r.unit;
       return `<div class="mcard" style="--mc:${color}"><div class="mcard-icon">${icon(ic)}</div><div class="mcard-body"><div class="mcard-top"><strong>${escape(r.name)}</strong><span class="mcard-pct">${Math.round(pct)}%</span></div><p><b>${fmt(Math.round(r.completed * 100) / 100)}</b> / ${fmt(r.target)} ${unit}</p><div class="mcard-bar" role="progressbar" aria-label="${escape(r.name)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}"><i style="width:${pct > 0 ? Math.max(pct, 2).toFixed(1) : 0}%"></i></div></div></div>`;
     };
     const section = (title, ic, color, tagline, set) =>
       `<section class="msec"><div class="msec-head"><h3><span style="color:${color}">${icon(ic)}</span>${title}</h3><small>${tagline}</small></div><div class="mgrid">${set.map(card).join("")}</div></section>`;
-    return `<article class="mission-board"><div class="mb-head"><div><div class="eyebrow">RETOS 8 SEMANAS</div><h2>Tu camino al 100%</h2><p class="mb-sub">Disciplina hoy, resultados mañana.</p></div><div class="mb-week"><span>Semana</span><strong>${curWeek} / 8</strong><div class="mcard-bar" style="--mc:#ffc33d"><i style="width:${((curWeek / 8) * 100).toFixed(1)}%"></i></div></div></div><div class="mb-stats"><div class="mb-stat"><span class="mb-ic" style="--ic:#ffc33d">${icon("target")}</span><div><strong>${rows.length}</strong><small>Retos totales</small></div></div><div class="mb-stat"><span class="mb-ic solid" style="--ic:#22c55e">${icon("check")}</span><div><strong>${done}</strong><small>Completadas</small></div></div><div class="mb-stat"><span class="mb-ic solid" style="--ic:#7c3aed">${icon("bars")}</span><div><strong>${rows.length - done}</strong><small>En progreso</small></div></div><div class="mb-stat mb-overall"><small>PROGRESO GENERAL</small><div><strong>${Math.round(overall)}%</strong><div class="mcard-bar" style="--mc:#ffc33d"><i style="width:${overall > 0 ? Math.max(overall, 2).toFixed(1) : 0}%"></i></div></div></div></div></article>${section("Resistencia", "pulse", "#ef4444", "Más kilómetros, más salud, más vida.", rows.filter((r) => r.unit !== "reps"))}${section("Fuerza", "dumbbell", "#c4b5fd", "Un cuerpo más fuerte, una vida más capaz.", rows.filter((r) => r.unit === "reps"))}`;
+    return `<article class="mission-board"><div class="mb-head"><div><div class="eyebrow">RETOS 8 SEMANAS</div><h2>Tu camino al 100%</h2><p class="mb-sub">Disciplina hoy, resultados mañana.</p></div><div class="mb-week"><span>Semana</span><strong>${curWeek} / 8</strong><div class="mcard-bar" style="--mc:#bf6b47"><i style="width:${((curWeek / 8) * 100).toFixed(1)}%"></i></div></div></div><div class="mb-stats"><div class="mb-stat"><span class="mb-ic" style="--ic:#bf6b47">${icon("target")}</span><div><strong>${rows.length}</strong><small>Retos totales</small></div></div><div class="mb-stat"><span class="mb-ic solid" style="--ic:#6f845e">${icon("check")}</span><div><strong>${done}</strong><small>Completadas</small></div></div><div class="mb-stat"><span class="mb-ic solid" style="--ic:#8b6f9c">${icon("bars")}</span><div><strong>${rows.length - done}</strong><small>En progreso</small></div></div><div class="mb-stat mb-overall"><small>PROGRESO GENERAL</small><div><strong>${Math.round(overall)}%</strong><div class="mcard-bar" style="--mc:#bf6b47"><i style="width:${overall > 0 ? Math.max(overall, 2).toFixed(1) : 0}%"></i></div></div></div></div></article>${section("Resistencia", "pulse", "#c0603f", "Más kilómetros, más salud, más vida.", rows.filter((r) => r.unit !== "reps"))}${section("Fuerza", "dumbbell", "#c4b5fd", "Un cuerpo más fuerte, una vida más capaz.", rows.filter((r) => r.unit === "reps"))}`;
   }
   function history() {
     const p = getProgram(),
@@ -328,7 +328,7 @@ root.addEventListener("submit", (e) => {
     const cell = (v, max, w) => {
       const future = curW && w > curW,
         alpha = v > 0 ? 0.18 + (0.82 * v) / max : 0;
-      return `<td class="hm${future ? " is-future" : ""}${w === curW ? " is-now" : ""}" style="${v > 0 ? `background:rgba(255,195,61,${alpha.toFixed(2)});color:${alpha > 0.55 ? "#121212" : "#f4f4f5"}` : ""}" title="Semana ${w}: ${fmt(v)}">${v > 0 ? fmt(Math.round(v * 10) / 10) : "·"}</td>`;
+      return `<td class="hm${future ? " is-future" : ""}${w === curW ? " is-now" : ""}" style="${v > 0 ? `background:rgba(191,107,71,${alpha.toFixed(2)});color:${alpha > 0.55 ? "#fffaf4" : "#3a2e25"}` : ""}" title="Semana ${w}: ${fmt(v)}">${v > 0 ? fmt(Math.round(v * 10) / 10) : "·"}</td>`;
     };
     return `<details class="fold card-fold"><summary>Ver historial de retos <small>8 semanas${curW && curW < 9 ? " · vas en la semana " + curW : ""}</small></summary><div class="scroll"><table class="heatmap"><thead><tr><th></th>${Array.from({ length: 8 }, (_, i) => `<th class="${i + 1 === curW ? "is-now" : ""}">S${i + 1}</th>`).join("")}</tr></thead><tbody>${rows
       .map((r, ri) => {
