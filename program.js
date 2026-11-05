@@ -107,10 +107,11 @@
       dt = date(),
       canToday = !!FitCalendar.position(program.start, today());
     rd.innerHTML = dt
-      ? `Registrando para: <b>${escape(niceDate(dt))}</b> · Semana ${week()}${dt !== today() && canToday ? ' <button type="button" class="go-today" data-go-today>Ir a hoy</button>' : ""}`
+      ? `Registrando para: <b>${escape(niceDate(dt))}</b> · Semana ${week()}${canToday ? ' <button type="button" class="go-today" data-go-today>Hoy</button>' : ""}${FitCalendar.position(program.start, C.datePlus(today(), -1)) ? ' <button type="button" class="go-today" data-go-yesterday>Ayer</button>' : ""}`
       : 'Elige el inicio del programa. <button type="button" class="go-today" data-open-settings>Configurar programa</button>';
     rd.onclick = (e) => {
-      if (e.target.closest("[data-go-today]")) goDate(today());
+      if (e.target.closest("[data-go-yesterday]")) goDate(C.datePlus(today(), -1));
+      else if (e.target.closest("[data-go-today]")) goDate(today());
       else if (e.target.closest("[data-open-settings]")) document.getElementById("backupBtn").click();
     };
   }
@@ -311,7 +312,7 @@
     const r = C.validDate(program.start) ? route(dt) : { n: 0, def: 0, gap: 0 };
     const sessions = program.sessions.filter((s) => s.date === dt);
     if (!C.validDate(dt))
-      return `<article id="sec-day"><h2>Selecciona el inicio</h2><p>Configura el inicio del programa para empezar a registrar.</p><p><button type="button" class="primary" data-open-settings>Configurar programa</button></p></article>`;
+      return `<article id="sec-day"><h2>Selecciona el inicio</h2><p>Configura el inicio y tu peso inicial, o restaura tu copia si ya usabas FitTrack.</p><p><button type="button" class="primary" data-open-settings>Configurar programa</button> <button type="button" data-open-backup>Restaurar copia</button></p></article>`;
     // Calorías
     const over = kcal > kcalTarget(),
       ok = !over && b !== null && b >= C.NEEDED,
@@ -939,7 +940,9 @@
       )}</div><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Peso objetivo, peso registrado y proyección por déficit"><title>Comparación de peso en 8 semanas</title>${grid}${xs}<text x="4" y="12" fill="#b8b8b8" font-size="11">kg</text>${lines}${start}${labels}${ends}</svg><p class="tiny subtle">Eje vertical: peso en kg · Eje horizontal: semanas del programa (S0 = inicio). Peso real = promedio de las pesadas de la semana.</p>`;
   }
   function backup() {
-    return `<article><h3>Copias de seguridad</h3><p>Los datos se guardan en este navegador. Exporta una copia para cambiarlos de dispositivo o protegerlos si borras el almacenamiento.</p><div class="btn-row"><button id="exportAll" class="primary">Exportar todo</button><label class="file-btn">Importar copia<input id="importAll" type="file" accept="application/json" hidden></label></div></article>`;
+    const last = FitStore.get("backupInfo")?.lastRequested;
+    const lastText = last ? new Date(last).toLocaleString("es-CR") : "Aún no se ha solicitado una copia en este dispositivo";
+    return `<article><h3>Copias de seguridad</h3><p class="tiny subtle">Última descarga solicitada: ${escape(lastText)}. Comprueba que el archivo se haya guardado en Descargas.</p><p>Los datos se guardan en este navegador. Exporta una copia para cambiarlos de dispositivo o protegerlos si borras el almacenamiento.</p><div class="btn-row"><button id="exportAll" class="primary">Exportar todo</button><label class="file-btn">Importar copia<input id="importAll" type="file" accept="application/json" hidden></label></div></article>`;
   }
   let rendering = false;
   function show() {
@@ -975,6 +978,12 @@
     document.body.classList.toggle("sheet-mode", view === "training");
     if (view === "training") render();
     chart();
+    for (const button of root.querySelectorAll('button[data-log-recipe], button[data-quick-log], form button:not([type="button"])')) {
+      if (!button.closest('#cardioForm,#dailyForm,#manualMealForm,#foodLogForm') && !button.matches('[data-log-recipe],[data-quick-log]')) continue;
+      const label = document.createElement('small'); label.className = 'save-date';
+      label.textContent = date() ? 'Para ' + niceDate(date()) : 'Configura la fecha de inicio';
+      button.after(label);
+    }
     if (pendingJump) {
       const el = document.getElementById(pendingJump);
       pendingJump = null;
@@ -1196,6 +1205,14 @@
     show();
   });
   const settings = document.getElementById("settings");
+  const backupAccess = document.createElement("button");
+  backupAccess.type = "button"; backupAccess.textContent = "Copias: descargar o restaurar";
+  backupAccess.setAttribute("data-open-backup", ""); settings.appendChild(backupAccess);
+  document.addEventListener("click", e => {
+    if (!e.target.closest("[data-open-backup]")) return;
+    settings.hidden = true; program.view = "progress"; program.progressTab = "weight";
+    pendingJump = "sec-backup"; persist(); show();
+  });
   document.getElementById("backupBtn").onclick = () => {
     settings.hidden = !settings.hidden;
     if (!settings.hidden) {
@@ -1226,7 +1243,7 @@
         ([k, label, min, max, step]) =>
           `<label>${label}<input data-goal="${k}" type="number" inputmode="decimal" min="${min}" max="${max}" step="${step}" value="${saved[k] ?? ""}" placeholder="${C.DEFAULT_GOALS[k]}">${saved[k] != null && Number(saved[k]) !== C.DEFAULT_GOALS[k] ? `<small class="subtle">Original: ${C.DEFAULT_GOALS[k].toLocaleString("es-CR")}</small>` : ""}</label>`,
       ).join("") +
-      `<p class="tiny subtle goal-note">Déficit diario necesario para −${g.kg} kg: <b>${C.NEEDED.toLocaleString("es-CR")} kcal</b>. Deja un campo vacío para volver al valor original.</p>`;
+      `<p class="tiny subtle goal-note">Equivalencia matemática diaria de la meta de −${g.kg} kg: <b>${C.NEEDED.toLocaleString("es-CR")} kcal</b>. Es una estimación, no una recomendación de déficit diario. Deja un campo vacío para volver al valor original.</p>`;
   }
   document.getElementById("goalFields")?.addEventListener("change", (e) => {
     const k = e.target.dataset.goal;
@@ -1307,7 +1324,7 @@
   strength.addEventListener(
     "click",
     (e) => {
-      if (e.target.closest("[data-done],[data-set-done]") && (!C.validDate(date()) || date() > today())) {
+      if (e.target.closest("[data-done],[data-set-done],[data-copy-series]") && (!C.validDate(date()) || date() > today())) {
         e.preventDefault();
         e.stopImmediatePropagation();
         alert("Selecciona el inicio y un día de hoy o anterior para registrar el entrenamiento.");
