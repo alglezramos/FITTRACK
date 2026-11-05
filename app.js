@@ -650,7 +650,7 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
     const bar = document.createElement("div");
     bar.className = "update-bar";
     bar.setAttribute("role", "status");
-    bar.innerHTML = '<span>Nueva versión de FitTrack lista.</span><button type="button">Recargar</button>';
+    bar.innerHTML = '<span>Nueva versión de EVÓ lista.</span><button type="button">Recargar</button>';
     bar.querySelector("button").onclick = () => location.reload();
     document.body.appendChild(bar);
   };
