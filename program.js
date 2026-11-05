@@ -655,7 +655,9 @@
       return `<article class="panel-card"><div class="dash-head"><span>🍽 Alimentación</span></div>${note("No hay comidas ni calorías de Whoop en este periodo.")}</article>`;
     const avgIn = logged.length ? logged.reduce((n, [, d]) => n + C.intake(d), 0) / logged.length : null,
       avgOut = whoop.length ? whoop.reduce((n, d) => n + Number(d.whoop), 0) / whoop.length : null,
-      inside = logged.filter(([, d]) => C.intake(d) <= KCAL_TARGET).length;
+      closed = logged.filter(([, d]) => d.closed),
+      inside = closed.filter(([, d]) => C.intake(d) <= KCAL_TARGET).length,
+      open = logged.length - closed.length;
     const weeks = [...new Set(days.map(weekOf).filter(Boolean))];
     const bal = weeks
       .map((w) => {
@@ -667,17 +669,20 @@
     return `<article class="panel-card"><div class="dash-head"><span>🍽 Alimentación</span><strong>${logged.length} días con comidas</strong></div>
       <div class="panel-stats">${stat("Consumo medio", avgIn != null ? fmt(Math.round(avgIn)) + " kcal" : "—", logged.length + " días")}${stat("Gasto medio (Whoop)", avgOut != null ? fmt(Math.round(avgOut)) + " kcal" : "—", whoop.length + " días")}${stat(
         "Dentro del objetivo",
-        logged.length ? `${inside}/${logged.length}` : "—",
-        "≤ " + fmt(KCAL_TARGET) + " kcal",
-      )}</div>${logged.length ? bar(inside, logged.length) : ""}
+        closed.length ? `${inside}/${closed.length}` : "—",
+        `días cerrados · ≤ ${fmt(KCAL_TARGET)} kcal${open ? ` · ${open} sin cerrar` : ""}`,
+      )}</div>${closed.length ? bar(inside, closed.length) : ""}
       <h4 class="panel-sub">Balance energético semanal</h4>${bal.length ? bars(bal) + `<p class="tiny subtle">Positivo = déficit (gasto Whoop − consumo). Solo días con Whoop.</p>` : note("El balance necesita días con calorías de Whoop registradas.")}</article>`;
   }
   function panelConsistency(days) {
     const sDates = strengthDates(),
       active = days.filter((d) => activeOn(d)).length,
       weekdays = days.filter(isWeekday),
+      // Días con pesas según la rutina vigente (un día sin ejercicios es solo cardio).
+      liftDays = [1, 2, 3, 4, 5].filter((n) => EXERCISES.some((e) => e.day === n)),
+      planned = days.filter((d) => liftDays.includes(new Date(d + "T12:00:00Z").getUTCDay())),
       inRange = new Set(days),
-      doneW = Math.min(weekdays.length, [...sDates].filter((d) => inRange.has(d)).length),
+      doneW = Math.min(planned.length, [...sDates].filter((d) => inRange.has(d)).length),
       cardioPlanned = weekdays.length,
       cardioDone = Math.min(cardioPlanned, new Set(program.sessions.filter((s) => inRange.has(s.date)).map((s) => s.date)).size);
     const lead = (new Date(days[0] + "T12:00:00Z").getUTCDay() + 6) % 7;
@@ -695,8 +700,8 @@
         })
         .join("");
     return `<article class="panel-card"><div class="dash-head"><span>📅 Consistencia</span><strong>Racha ${streak(today())} d</strong></div>
-      <div class="panel-stats">${stat("Días con actividad", `${active}/${days.length}`)}${stat("Pesas vs. programadas", `${doneW}/${weekdays.length}`, "5 días por semana")}${stat("Cardio vs. programado", `${cardioDone}/${cardioPlanned}`, "días con cardio")}</div>
-      ${bar(doneW, weekdays.length || 1)}
+      <div class="panel-stats">${stat("Días con actividad", `${active}/${days.length}`)}${stat("Pesas vs. programadas", `${doneW}/${planned.length}`, `${liftDays.length} días por semana`)}${stat("Cardio vs. programado", `${cardioDone}/${cardioPlanned}`, "días con cardio")}</div>
+      ${bar(doneW, planned.length || 1)}
       <h4 class="panel-sub">Calendario de actividad</h4><div class="panel-cal">${cells}</div>
       <p class="panel-legend"><span class="lg-c lv1"></span>Reto <span class="lg-c lv2"></span>Pesas o cardio <span class="lg-c lv3"></span>Pesas + cardio</p></article>`;
   }
@@ -719,7 +724,7 @@
     const tabs = `<nav class="subtabs" aria-label="Progreso">${[
       ["panel", "Panel"],
       ["weight", "Peso y balance"],
-      ["missions", "Misiones"],
+      ["missions", "Retos"],
       ["wellbeing", "Bienestar"],
     ]
       .map(([k, l]) => `<button data-progress-tab="${k}" aria-pressed="${sub === k}">${l}</button>`)
