@@ -1,4 +1,4 @@
-const CACHE = "fittrack-pages-v20261104r71-columnas";
+const CACHE = "fittrack-pages-v20261104r72-kbrow";
 const FILES = [
   "./",
   "./index.html",
