@@ -1,4 +1,4 @@
-const CACHE = "fittrack-pages-v20261105r84-calculos";
+const CACHE = "fittrack-pages-v20261105r85-metas";
 const FILES = [
   "./",
   "./index.html",
@@ -28,13 +28,13 @@ const FILES = [
   "./assets/press_inclinado_smith.jpg",
   "./assets/press_recto_mancuernas.jpg",
   "./assets/hip_thrust.jpg",
-  "./assets/1793251058018_image.png",
-  "./assets/1793231218206_image.png",
-  "./assets/1793253500253_image.png",
-  "./assets/1793227982529_image.png",
-  "./assets/1793255402203_image.png",
-  "./assets/1793228103684_image.png",
-  "./assets/1793231485407_image.png",
+  "./assets/stairclimber.jpg",
+  "./assets/press_pecho_maquina.jpg",
+  "./assets/pec_deck.jpg",
+  "./assets/curl_martillo.jpg",
+  "./assets/press_militar_maquina.jpg",
+  "./assets/curl_polea_baja.jpg",
+  "./assets/extension_triceps_cabeza.jpg",
   "./assets/0_0.jpg",
   "./assets/0_1.jpg",
   "./assets/0_2.jpg",
