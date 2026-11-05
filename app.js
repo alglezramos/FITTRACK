@@ -187,22 +187,19 @@ function setsHtml(x) {
     n = Math.max(t.n, cur ? cur.length : 0),
     doneN = cur ? cur.filter((z) => z.done).length : 0,
     top = topOf(cur);
-  const meta =
-    '<div class="setmeta"><span>Anterior' +
-    (prev ? " (S" + prev.week + "): " + prev.sets.filter((z) => z.w > 0).map((z) => fmtW(toShow(z.w)) + "×" + z.r).join(" · ") : ": sin registro") +
-    "</span>" +
-    (top > 0 && best > 0 && top > best
-      ? '<span class="pr new">🏆 ¡Nuevo récord!</span>'
-      : best > 0
-        ? '<span class="pr">🏆 ' + fmtW(toShow(best)) + " " + unit + "</span>"
-        : "") +
-    "</div>";
+  const previousSets = prev ? prev.sets.filter((z) => z.w > 0) : [];
+  const same = previousSets.length && previousSets.every((z) => z.w === previousSets[0].w && z.r === previousSets[0].r);
+  const previousText = same
+    ? fmtW(toShow(previousSets[0].w)) + " " + unit + " × " + previousSets[0].r + " × " + previousSets.length
+    : previousSets.map((z) => fmtW(toShow(z.w)) + " " + unit + " × " + z.r).join(" · ");
+  const meta = '<div class="setmeta"><span>Anterior' +
+    (prev ? " (S" + prev.week + "): " + (previousText || "sin carga") : ": sin registro") + "</span></div>";
   const rows = Array.from({ length: n }, (_, i) => {
     const s = (cur && cur[i]) || { w: prefW, r: t.reps, done: false };
     return (
       '<div class="setrow' +
       (s.done ? " done" : "") +
-      '"><span class="setn">Serie ' +
+      '"><span class="setn">S' +
       (i + 1) +
       '</span><input data-set-w="' +
       x.id +
@@ -234,7 +231,7 @@ function setsHtml(x) {
       '">✓</button></div>'
     );
   }).join("");
-  return { html: meta + '<div class="setlist">' + rows + "</div>", doneN, n, ok: !!state.completed[k] };
+  return { html: meta + '<div class="compact-sets"><div class="setlabels" aria-hidden="true"><span></span><span>' + unit + '</span><span>Reps</span><span></span></div><div class="setlist">' + rows + "</div></div>", doneN, n, ok: !!state.completed[k] };
 }
 // Lee de la tarjeta el peso y las repeticiones de una serie.
 function readRow(id, i) {
@@ -392,7 +389,7 @@ function renderNow() {
           ok = !!state.completed[key],
           sets = load ? setsHtml(x) : null;
         return (
-          '<article class="exercise"><div class="exTop">' +
+          '<article class="exercise exercise-minimal"><div class="exTop">' +
           (x.image
             ? '<img loading="lazy" src="' + x.image + '" alt="Referencia visual de ' + esc(x.name) + '">'
             : '<div aria-hidden="true" style="width:95px;height:102px;flex:0 0 auto;display:grid;place-items:center;background:#e9e9e9;border-radius:10px;font-size:34px">🏋️</div>') +
@@ -400,19 +397,19 @@ function renderNow() {
           (i + 1) +
           "</div><h3>" +
           esc(x.name) +
-          '</h3><p>' + esc(x.sets || "3 series × 10 repeticiones") + '</p></div></div>' +
+          '</h3><p>' + esc((x.sets || "3 series × 10 repeticiones").replace(/\s*series\s*/i, ' ').replace(/\s*repeticiones/i, '')) + '</p></div></div>' +
           (load
             ? sets.html +
               '<div class="controls"><span class="setprog">' +
               sets.doneN +
               "/" +
               sets.n +
-              ' series</span><button class="' +
+              '</span><button class="' +
               (ok ? "done" : "") +
               '" data-done="' +
               x.id +
               '">' +
-              (ok ? "✓ Hecho" : "Completar todo") +
+              (sets.doneN === sets.n ? "✓ Hecho" : "✓ Completar todo") +
               '</button><button class="detailBtn" data-detail="' +
               x.id +
               '">Guía ↓</button></div>'
