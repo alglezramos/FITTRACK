@@ -1,3 +1,9 @@
+# EVÓ r89 · Paleta «Tulum día»
+
+- Colores cálidos tipo Tulum/wellness: fondo arena, terracota como color principal, salvia para lo completado y café espresso para el texto. Todos los colores del CSS pasan por variables en `:root`, así que la paleta se puede ajustar en un solo lugar.
+- Gráficas y colores de los retos adaptados a la paleta (terracota, salvia, laguna, ocre, mostaza, ciruela, arcilla).
+- Sin cambios de datos.
+
 # EVÓ (antes FitTrack) r88 · Marca nueva y macros por alimento
 
 - Nuevo nombre e identidad: EVÓ · Entrenamiento | Nutrición | Progreso (logo, iconos y nombre de la app instalada).
