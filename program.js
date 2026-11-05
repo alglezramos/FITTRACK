@@ -256,7 +256,9 @@
   function planFor(dt) {
     const i = (new Date(dt + "T12:00:00Z").getUTCDay() + 6) % 7;
     return i < 5
-      ? { label: "Pesas · Día " + (i + 1) + " + " + ([0, 2, 4].includes(i) ? "Judo" : "Natación"), day: i + 1 }
+      ? i === 3
+        ? { label: "Solo cardio · Natación", day: 4 }
+        : { label: "Pesas · Día " + (i + 1) + " + " + ([0, 2, 4].includes(i) ? "Judo" : "Natación"), day: i + 1 }
       : i === 5
         ? { label: "Fondo o hiking", day: 0 }
         : { label: "Recuperación", day: 0 };
@@ -740,8 +742,7 @@
       `<h3 class="sheet-label">🏃 Cardio</h3>` +
       cardio() +
       `<h3 class="sheet-label" id="sec-retos">🔥 Retos</h3>` +
-      challenges.render() +
-      calendar()
+      challenges.render()
     );
   }
   function cardio() {
