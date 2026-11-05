@@ -2746,3 +2746,24 @@ body.sheet-mode #programView {
 .setlist .setrow .setok { grid-area: ok; height: 34px; width: 100%; }
 .setlist .setrow input { padding: 7px 4px; }
 .setlist .setrow.done { border-color: #276f52; }
+/* r77: franja de Fuerza, saltos, plegables, guardado */
+.sheet-jumps { display: flex; gap: 8px; margin: 4px 0 10px; overflow-x: auto; }
+.program .sheet-jumps button, .sheet-jumps button { flex: 1 1 0; min-width: 0; padding: 8px 10px; border-radius: var(--r-pill); border: 1px solid var(--line-strong); background: var(--surface); color: var(--text); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.str-strip { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); padding: 10px 12px; display: grid; gap: 8px; margin-bottom: 8px; }
+.str-nums { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; font-size: 13px; color: var(--muted); }
+.str-nums b { color: var(--text); }
+.str-nums .sess { margin-left: auto; }
+details.fold { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); padding: 10px 14px; margin-top: 12px; }
+details.fold > summary { cursor: pointer; font-weight: 700; list-style: none; display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+details.fold > summary::-webkit-details-marker { display: none; }
+details.fold > summary::after { content: "▾"; color: var(--accent); }
+details.fold[open] > summary::after { content: "▴"; }
+details.fold > summary small { font-weight: 400; color: var(--muted); margin-left: auto; }
+details.fold[open] > summary { margin-bottom: 10px; }
+.save-state { font-size: 11px; color: var(--muted); margin-left: auto; margin-right: 8px; white-space: nowrap; }
+.save-state.fail { color: var(--bad); font-weight: 700; white-space: normal; }
+#saveBtn.urgent { background: var(--accent); color: var(--accent-ink); }
+#recordDate .go-today { margin-left: 8px; padding: 4px 10px; border-radius: var(--r-pill); border: 1px solid var(--accent); background: transparent; color: var(--accent); font-size: 12px; font-weight: 700; cursor: pointer; }
+.adv-form { flex-wrap: wrap; }
+.adv-form select { width: 100%; }
+.app-version { margin-top: 10px; }
