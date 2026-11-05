@@ -141,10 +141,10 @@ const sparkline = (vals) => {
     x = (i) => 6 + (i * 148) / 7,
     y = (v) => 34 - ((v - min) / span) * 26;
   return (
-    '<svg class="spark" viewBox="0 0 160 40" role="img" aria-label="Evolución del mejor peso por semana"><polyline fill="none" stroke="#ffc33d" stroke-width="2" points="' +
+    '<svg class="spark" viewBox="0 0 160 40" role="img" aria-label="Evolución del mejor peso por semana"><polyline fill="none" stroke="#bf6b47" stroke-width="2" points="' +
     pts.map(([i, v]) => x(i) + "," + y(v)).join(" ") +
     '"/>' +
-    pts.map(([i, v]) => '<circle cx="' + x(i) + '" cy="' + y(v) + '" r="2.5" fill="#ffc33d"/>').join("") +
+    pts.map(([i, v]) => '<circle cx="' + x(i) + '" cy="' + y(v) + '" r="2.5" fill="#bf6b47"/>').join("") +
     "</svg>"
   );
 };
@@ -392,7 +392,7 @@ function renderNow() {
           '<article class="exercise exercise-minimal"><div class="exTop">' +
           (x.image
             ? '<button class="exercise-photo" type="button" data-photo="' + x.id + '" aria-label="Ampliar imagen de ' + esc(x.name) + '"><img loading="lazy" src="' + x.image + '" alt="Referencia visual de ' + esc(x.name) + '"></button>'
-            : '<div aria-hidden="true" style="width:95px;height:102px;flex:0 0 auto;display:grid;place-items:center;background:#e9e9e9;border-radius:10px;font-size:34px">🏋️</div>') +
+            : '<div aria-hidden="true" style="width:95px;height:102px;flex:0 0 auto;display:grid;place-items:center;background:#efe5d8;border-radius:10px;font-size:34px">🏋️</div>') +
           '<div><div class="exNum">EJERCICIO ' +
           (i + 1) +
           "</div><h3>" +
