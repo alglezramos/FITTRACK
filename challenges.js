@@ -245,35 +245,40 @@ root.addEventListener("submit", (e) => {
     const pr = projectionOf(r);
     return pr ? `<em class="proj-badge st-${STATUS[pr.status][1]}">${STATUS[pr.status][0]}</em>` : "";
   };
-  // «Avance de retos»: una columna por reto en % para comparar km, pasos y reps
-  // en la misma escala. La línea marca lo esperado a hoy; al tocar una columna
-  // se ven cantidades y pendientes.
-  const SHORT = { "Hiking / Rucking": "Hiking", Abdominales: "Abdom.", Sentadillas: "Sentad.", Natación: "Nado", "Push-ups": "Push", "Pull-ups": "Pull" };
+  // «Avance de retos»: una columna por reto en % (km, pasos y reps en la misma
+  // escala), línea de lo esperado a hoy y un solo campo de registro que cambia
+  // según el reto tocado. Los pasos se cargan con el Whoop del día.
+  const SHORT = { Abdominales: "Abdom.", Sentadillas: "Sentad." };
+  const KM_MODE = { Running: ["Correr", 6], Natación: ["Nadar", 30], "Hiking / Rucking": ["Hiking", 15] };
   function projection() {
     const rows = planProgress(),
       first = rows.length ? projectionOf(rows[0]) : null;
     if (!first) return "";
     const unitDay = (r) => (r.unit === "km" ? "km/día" : r.unit === "pasos" ? "pasos/día" : "reps/día"),
       num = (r, v) => fmt(r.unit === "km" ? Math.round(v * 10) / 10 : Math.round(v)),
+      p1 = (v) => fmt(Math.round(v * 10) / 10),
       expPct = Math.min(100, (first.elapsed / 56) * 100),
-      pick = getProgram().projPick;
+      sel = rows.find((r) => r.name === getProgram().projPick) || rows[0];
     const cols = rows
       .map((r) => {
         const pr = projectionOf(r),
           pct = Math.min(100, (r.completed / r.target) * 100),
-          [ic, color] = MISSION_STYLE[r.name] || ["target", "#ffc33d"];
-        return `<button type="button" class="adv-col st-${STATUS[pr.status][1]}" data-proj-pick="${escape(r.name)}" aria-pressed="${pick === r.name}" style="--mc:${color}" aria-label="${escape(r.name)}: ${Math.round(pct)} %, ${STATUS[pr.status][0]}"><span class="adv-pct">${Math.round(pct)}%</span><span class="adv-bar"><i style="height:${Math.max(pct, 1.5).toFixed(1)}%"></i></span><span class="adv-ic">${icon(ic)}</span><span class="adv-name">${escape(SHORT[r.name] || r.name)}</span></button>`;
+          [, color] = MISSION_STYLE[r.name] || ["target", "#ffc33d"];
+        return `<button type="button" class="adv-col st-${STATUS[pr.status][1]}" data-proj-pick="${escape(r.name)}" aria-pressed="${sel === r}" style="--mc:${color};--h:${Math.max(pct, 1.2).toFixed(1)}" aria-label="${escape(r.name)}: ${p1(pct)} %, ${STATUS[pr.status][0]}"><span class="adv-bar"><i></i><span class="adv-pct">${p1(pct)}%</span></span><span class="adv-name">${escape(SHORT[r.name] || r.name)}</span></button>`;
       })
       .join("");
-    const sel = rows.find((r) => r.name === pick);
-    let detail = `<p class="tiny subtle adv-hint">Toca una columna para ver cantidades y pendientes.</p>`;
-    if (sel) {
-      const pr = projectionOf(sel),
-        [, color] = MISSION_STYLE[sel.name] || ["target", "#ffc33d"],
-        msg = pr.status === "done" ? "¡Meta cumplida!" : pr.status === "ahead" ? "Vas por delante. Mantén el ritmo." : pr.status === "ontrack" ? "Justo en ritmo." : `Sube a ${num(sel, pr.need)} ${unitDay(sel)} para llegar.`;
-      detail = `<div class="adv-detail" style="--mc:${color}"><div class="proj-top"><strong>${escape(sel.name)}</strong>${badge(sel)}</div><div class="adv-grid"><span>Hecho<b>${num(sel, sel.completed)} / ${fmt(sel.target)} ${escape(sel.unit)}</b></span><span>Pendiente<b>${num(sel, pr.remaining)} ${escape(sel.unit)}</b></span><span>Ritmo actual<b>${num(sel, pr.rate)} ${unitDay(sel)}</b></span><span>Necesitas<b>${num(sel, pr.need)} ${unitDay(sel)}</b></span></div><small class="proj-msg">${msg}</small></div>`;
-    }
-    return `<article class="proj-card adv-card"><div class="challenge-heading"><h3>Avance de retos</h3><span>Día ${first.elapsed} de 56 · quedan ${first.left} días</span></div><div class="adv-chart" style="--exp:${expPct.toFixed(1)}"><b class="adv-exp" title="Lo esperado a hoy"><em>${fmt(Math.round(expPct * 10) / 10)} % esperado</em></b>${cols}</div>${detail}</article>`;
+    const pr = projectionOf(sel),
+      msg = pr.status === "done" ? "¡Meta cumplida!" : pr.status === "ahead" ? "Vas por delante." : pr.status === "ontrack" ? "Justo en ritmo." : `Necesitas ${num(sel, pr.need)} ${unitDay(sel)} para llegar.`,
+      unit = sel.unit === "reps" ? "reps" : sel.unit;
+    let field;
+    if (sel.unit === "km") {
+      const [mode] = KM_MODE[sel.name] || ["Correr"];
+      field = `<form id="advKmForm" class="adv-form"><input type="hidden" name="mode" value="${mode}"><label>Sumar kilómetros<input name="km" type="number" min="0.01" max="1000" step="0.01" inputmode="decimal" placeholder="0" required></label><button class="primary">+ Sumar</button></form>`;
+    } else if (sel.unit === "reps") {
+      const g = defaults().find((x) => x.name === sel.name);
+      field = g ? `<form data-challenge-log="${g.id}" class="adv-form"><label>Sumar repeticiones<input name="reps" type="number" min="1" max="10000" step="1" inputmode="numeric" placeholder="0" required></label><button class="primary">+ Sumar</button></form>` : "";
+    } else field = `<p class="tiny subtle adv-note">Los pasos se cargan con el Whoop de cada día · semana ${week()}: ${fmt(stepsWeek(week()))} pasos.</p>`;
+    return `<article class="proj-card adv-card"><div class="challenge-heading"><h3>Avance de retos</h3><span>Día ${first.elapsed} de 56 · quedan ${first.left} días</span></div><div class="adv-legend"><span><i class="adv-dash"></i>Esperado al día ${first.elapsed}: ${p1(expPct)} %</span><span>Altura completa = 100 % de la meta</span></div><div class="adv-chart" style="--exp:${expPct.toFixed(2)}"><b class="adv-exp" aria-hidden="true"></b>${cols}</div><div class="adv-detail" style="--mc:${(MISSION_STYLE[sel.name] || [, "#ffc33d"])[1]}"><p class="adv-line"><strong>${escape(sel.name)}</strong> · ${num(sel, sel.completed)} / ${fmt(sel.target)} ${escape(unit)} · <strong>Faltan ${num(sel, pr.remaining)} ${escape(unit)}</strong> ${badge(sel)}</p><small class="proj-msg">${msg}</small>${field}</div></article>`;
   }
   function missions() {
     const rows = planProgress(),
@@ -332,36 +337,49 @@ root.addEventListener("submit", (e) => {
   }
   function render() {
     const d = data(),
-      progress = planProgress(),
-      challengeRows = progress.filter((r) => r.unit === "reps");
-    return `<p id="challengeStatus" role="status" class="status"></p>${projection()}<article class="reps-compact"><div class="challenge-heading"><h3>Retos de fuerza</h3><span>Meta final · 8 semanas</span></div>${challengeRows
-      .map((g) => {
-        const id =
-            g.name === "Push-ups"
-              ? "pushups"
-              : g.name === "Pull-ups"
-                ? "pullups"
-                : g.name === "Sentadillas"
-                  ? "squats"
-                  : "abs",
-          pct = Math.min(100, (g.completed / g.target) * 100);
-        return `<div class="rep-row"><div class="rep-info"><div class="rep-top"><strong>${escape(g.name)}</strong><span>${fmt(g.completed)} / ${fmt(g.target)}${g.completed >= g.target ? " ✓" : ""}</span></div><progress class="challenge-progress" value="${Math.min(g.completed, g.target)}" max="${g.target}" aria-label="${escape(g.name)}: ${fmt(g.completed)} de ${fmt(g.target)} repeticiones"></progress><small>${Math.round(pct)}% · faltan ${fmt(Math.max(0, g.target - g.completed))}</small></div><form data-challenge-log="${id}" class="rep-form"><input name="reps" type="number" min="1" max="10000" step="1" placeholder="reps" inputmode="numeric" required aria-label="Repeticiones de ${escape(g.name)}"><button class="primary" aria-label="Sumar a ${escape(g.name)}">+</button></form></div>`;
-      })
-      .join(
-        "",
-      )}</article>${distances()}<article><div class="card-head"><h3>Registro de la semana</h3><span>${d.logs.length} tandas</span></div>${
-      d.logs.length
-        ? d.logs
-            .slice()
-            .reverse()
-            .map(
-              (l) =>
-                `<div class="food-log"><div><strong>${escape(defaults().find((g) => g.id === l.goal)?.name || "Ejercicio")}</strong><p>${l.reps} repeticiones · ${escape(l.date)}</p></div><button data-delete-challenge-log="${l.id}">Eliminar</button></div>`,
-            )
-            .join("")
-        : '<p class="subtle">Registra tu primera tanda para empezar.</p>'
-    }</article>${history()}`;
+      label = { Correr: "🏃 Running", Nadar: "🏊 Natación", Hiking: "🥾 Hiking", Rucking: "🎒 Rucking" },
+      sessions = getProgram().sessions.filter((s) => s.week === week() && label[s.mode]);
+    const items = [
+      ...d.logs.map((l) => ({
+        date: l.date,
+        html: `<div class="food-log"><div><strong>${escape(defaults().find((g) => g.id === l.goal)?.name || "Ejercicio")}</strong><p>${l.reps} repeticiones · ${escape(l.date)}</p></div><button data-delete-challenge-log="${l.id}">Eliminar</button></div>`,
+      })),
+      ...sessions.map((s) => ({
+        date: s.date,
+        html: `<div class="food-log"><div><strong>${label[s.mode]}</strong><p>${fmt(distance(s))} km · ${s.minutes} min · ${escape(s.date)}</p></div><button data-delete-distance="${escape(s.id)}">Eliminar</button></div>`,
+      })),
+    ].sort((x, y) => (x.date < y.date ? 1 : x.date > y.date ? -1 : 0));
+    return `<p id="challengeStatus" role="status" class="status"></p>${projection()}<article><div class="card-head"><h3>Registro de la semana</h3><span>${items.length} registro${items.length === 1 ? "" : "s"}</span></div>${
+      items.length ? items.map((x) => x.html).join("") : '<p class="subtle">Registra tu primera tanda para empezar.</p>'
+    }<p class="tiny subtle km-note">Natación: 1.000 m = 1 km. Los km incluyen lo registrado en Cardio; cada salida cuenta una sola vez.</p></article>${history()}`;
   }
+  root.addEventListener("submit", (e) => {
+    if (e.target.id !== "advKmForm") return;
+    e.preventDefault();
+    const fd = new FormData(e.target),
+      p = getProgram(),
+      mode = fd.get("mode"),
+      km = Number(fd.get("km")),
+      when = date(),
+      pace = { Correr: 6, Nadar: 30, Hiking: 15 }[mode];
+    if (!pace || !Number.isFinite(km) || km <= 0 || km > 1000) return;
+    if (!FitCore.validDate(when) || when > today()) {
+      status("Selecciona una fecha válida de hoy o anterior.");
+      return;
+    }
+    if (p.start) {
+      const from = FitCore.datePlus(p.start, (week() - 1) * 7);
+      if (when < from || when > FitCore.datePlus(from, 6)) {
+        status("La fecha no corresponde a la semana activa.");
+        return;
+      }
+    }
+    // Duración estimada por ritmo típico (min/km); se puede editar en Cardio.
+    p.sessions.push({ id: freshId(), week: week(), mode, date: when, distance: km, unit: "km", minutes: Math.min(600, Math.max(1, Math.round(km * pace))), effort: 3, load: "", calories: "" });
+    persist();
+    rerender();
+    status(`${fmt(km)} km sumados.`);
+  });
   function status(msg) {
     const el = document.getElementById("challengeStatus");
     if (el) el.textContent = msg;
@@ -371,7 +389,7 @@ root.addEventListener("submit", (e) => {
     if (!b) return;
     if (b.dataset.projPick) {
       const p = getProgram();
-      p.projPick = p.projPick === b.dataset.projPick ? null : b.dataset.projPick;
+      p.projPick = b.dataset.projPick;
       persist();
       rerender();
       return;
