@@ -265,13 +265,14 @@
   // Plan del día según el día de la semana (igual que «Tu semana»).
   function planFor(dt) {
     const i = (new Date(dt + "T12:00:00Z").getUTCDay() + 6) % 7;
+    const names = ["BASE CAMP", "PUSH MODE", "PULL POWER", "ENGINE DAY", "ARM FORCE", "WILD MILES", "RESET & RECHARGE"];
     return i < 5
       ? i === 3
-        ? { label: "Solo cardio · Natación", day: 4 }
-        : { label: "Pesas · Día " + (i + 1) + " + " + ([0, 2, 4].includes(i) ? "Judo" : "Natación"), day: i + 1 }
+        ? { label: names[i] + " · Solo cardio · Natación", day: 4 }
+        : { label: names[i] + " · Pesas + " + ([0, 2, 4].includes(i) ? "Judo" : "Natación"), day: i + 1 }
       : i === 5
-        ? { label: "Fondo o hiking", day: 0 }
-        : { label: "Recuperación", day: 0 };
+        ? { label: names[i] + " · Fondo o hiking", day: 0 }
+        : { label: names[i] + " · Recuperación", day: 0 };
   }
   // Pesada de una fecha (lunes a viernes), en kg.
   function weightOn(day) {
