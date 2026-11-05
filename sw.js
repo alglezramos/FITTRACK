@@ -1,4 +1,4 @@
-const CACHE = "fittrack-pages-v20261104r80-fotos";
+const CACHE = "fittrack-pages-v20261104r81-pesomuerto";
 const FILES = [
   "./",
   "./index.html",
@@ -21,6 +21,7 @@ const FILES = [
   "./food-photos.js",
   "./nutrition.js",
   "./program.js",
+  "./assets/peso_muerto_kettlebell.jpg",
   "./assets/remo_kettlebell.jpg",
   "./assets/curl_ez_scott.jpg",
   "./assets/trunk_extension.jpg",
