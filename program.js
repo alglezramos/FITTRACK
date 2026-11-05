@@ -385,9 +385,9 @@
         if (show_("food") && meals.length)
           parts.push(`<div class="hist-sec"><h4>🍽 Comida · ${fmt(kcal)} kcal</h4><ul>${meals.map((m) => `<li><span class="subtle">${escape(m.kind || "")}</span> ${escape(m.name)} · ${fmt(Math.round(Number(m.kcal)))} kcal</li>`).join("")}</ul></div>`);
         if (show_("train") && (sess.length || strengthRows.length))
-          parts.push(`<div class="hist-sec"><h4>🏋️ Entreno</h4><ul>${sess.map((s) => `<li>${escape(s.mode)} · ${s.minutes} min${s.distance ? " · " + escape(s.distance) + " " + escape(s.unit || "km") : ""} · esfuerzo ${s.effort}/10</li>`).join("")}${strengthRows.join("")}</ul></div>`);
+          parts.push(`<div class="hist-sec"><h4>🏋️ Entreno</h4><ul>${sess.map((s) => `<li class="hist-item"><span>${escape(s.mode)} · ${s.minutes} min${s.distance ? " · " + escape(s.distance) + " " + escape(s.unit || "km") : ""} · esfuerzo ${s.effort}/10</span><button type="button" class="hist-del" data-delete-distance="${escape(s.id)}" aria-label="Eliminar ${escape(s.mode)} del ${day}">Eliminar</button></li>`).join("")}${strengthRows.join("")}</ul></div>`);
         if (show_("goals") && logs.length)
-          parts.push(`<div class="hist-sec"><h4>🔥 Retos</h4><p>${logs.map((l) => `${escape(goalName[l.goal] || l.goal)} ${l.reps}`).join(" · ")}</p></div>`);
+          parts.push(`<div class="hist-sec"><h4>🔥 Retos</h4><ul>${logs.map((l) => `<li class="hist-item"><span>${escape(goalName[l.goal] || l.goal)} · ${l.reps} repeticiones</span><button type="button" class="hist-del" data-delete-challenge-log="${escape(l.id)}" aria-label="Eliminar ${escape(goalName[l.goal] || l.goal)} del ${day}">Eliminar</button></li>`).join("")}</ul></div>`);
         if (f === "all" && (program.meds[day] || (coachD && coachD.checkin)))
           parts.push(`<div class="hist-sec"><h4>📝 Otros</h4><p>${program.meds[day] ? "Suplemento ✓" : ""}${program.meds[day] && coachD && coachD.checkin ? " · " : ""}${coachD && coachD.checkin ? `Check-in: energía ${coachD.energy}/5${coachD.pain && coachD.pain !== "none" ? " · molestia: " + escape(coachD.pain === "shoulder" ? "hombro" : coachD.pain) : ""}` : ""}</p></div>`);
         if (!parts.length) return "";
