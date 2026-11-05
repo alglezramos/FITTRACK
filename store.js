@@ -71,11 +71,26 @@
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
+  // Estado visible del guardado: solo dice «Guardado» si el almacenamiento funcionó.
+  const mark = (ok) => {
+    const el = typeof document !== "undefined" && document.getElementById("saveState");
+    if (!el) return;
+    el.className = "save-state " + (ok ? "ok" : "fail");
+    el.textContent = ok ? "✓ Guardado en este dispositivo" : "⚠️ No se pudo guardar: descarga una copia";
+    const btn = document.getElementById("saveBtn");
+    if (btn) btn.classList.toggle("urgent", !ok);
+  };
   g.FitStore = {
     get: (part) => data[part] ?? null,
     set(part, value) {
       data[part] = value;
-      write();
+      try {
+        write();
+      } catch (e) {
+        mark(false);
+        throw e;
+      }
+      mark(true);
     },
     exportBackup,
     readBackup,
