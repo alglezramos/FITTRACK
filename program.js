@@ -60,6 +60,9 @@
       (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
     );
   const fmt = (n) => Number(n).toLocaleString("es-CR", { maximumFractionDigits: 1 });
+  // Duración y esfuerzo pueden faltar (registro rápido desde Retos): nunca se inventan.
+  const minTxt = (s) => (C.has(s.minutes) && Number(s.minutes) > 0 ? s.minutes + " min" : "sin duración");
+  const effTxt = (s) => (C.has(s.effort) && Number(s.effort) > 0 ? ` · esfuerzo ${s.effort}/10` : "");
   const week = () => Number(document.getElementById("week").value) || 1;
   const date = () => FitCalendar.date(program.start, week(), program.recordDay);
   window.fitSheetDate = date;
@@ -100,9 +103,16 @@
       { length: 7 },
       (_, i) => `<option value="${i}" ${i === program.recordDay ? "selected" : ""}>${dayLabel(i)}</option>`,
     ).join("");
-    document.getElementById("recordDate").textContent = date()
-      ? "Registro: " + date() + " · fin: " + C.datePlus(program.start, 55)
-      : "Elige el inicio para registrar tus avances.";
+    const rd = document.getElementById("recordDate"),
+      dt = date(),
+      canToday = !!FitCalendar.position(program.start, today());
+    rd.innerHTML = dt
+      ? `Registrando para: <b>${escape(niceDate(dt))}</b> · Semana ${week()}${dt !== today() && canToday ? ' <button type="button" class="go-today" data-go-today>Ir a hoy</button>' : ""}`
+      : 'Elige el inicio del programa. <button type="button" class="go-today" data-open-settings>Configurar programa</button>';
+    rd.onclick = (e) => {
+      if (e.target.closest("[data-go-today]")) goDate(today());
+      else if (e.target.closest("[data-open-settings]")) document.getElementById("backupBtn").click();
+    };
   }
   const persist = () => {
     try {
@@ -243,9 +253,9 @@
       const day = C.datePlus(program.start, i);
       if (day > upTo) break;
       const d = program.diary[day];
-      if (d && C.balance(d) !== null) {
+      if (d && C.confirmed(d) !== null) {
         n++;
-        def += C.balance(d);
+        def += C.confirmed(d);
       }
     }
     return { n, def, gap: def - n * C.NEEDED };
@@ -299,17 +309,17 @@
     const r = C.validDate(program.start) ? route(dt) : { n: 0, def: 0, gap: 0 };
     const sessions = program.sessions.filter((s) => s.date === dt);
     if (!C.validDate(dt))
-      return `<article id="sec-day"><h2>Selecciona el inicio</h2><p>Configura el inicio del programa en ⚙ Opciones.</p></article>`;
+      return `<article id="sec-day"><h2>Selecciona el inicio</h2><p>Configura el inicio del programa para empezar a registrar.</p><p><button type="button" class="primary" data-open-settings>Configurar programa</button></p></article>`;
     // Calorías
     const over = kcal > KCAL_TARGET,
       ok = !over && b !== null && b >= C.NEEDED,
       status = b === null ? ["", "Carga el Whoop para ver el balance"] : ok ? ["good", "✓ Día en objetivo"] : over ? ["bad", "Sobre el objetivo de consumo"] : ["warn", "Déficit por debajo de lo necesario"];
-    const kcalCard = `<article class="dash-card"><div class="dash-head"><span>🔥 Calorías</span><strong class="${status[0]}">${status[1]}</strong></div><div class="dash-big"><strong>${fmt(kcal)}</strong><span>/ ${fmt(KCAL_TARGET)} kcal consumidas</span></div>${bar(kcal, KCAL_TARGET, over ? "is-over" : "")}<div class="dash-row"><div><span>Gastadas</span><strong>${C.has(d.whoop) ? fmt(d.whoop) : "—"}</strong></div><div><span>Balance</span><strong>${b === null ? "—" : (b >= 0 ? "−" : "+") + fmt(Math.abs(b))}</strong></div><div><span>Necesario</span><strong>−${fmt(C.NEEDED)}</strong></div></div><p class="tiny subtle">${r.n ? `Ruta −${C.GOAL_KG} kg: vas <b>${fmt(Math.abs(r.gap))} kcal ${r.gap >= 0 ? "por delante" : "por detrás"}</b> (${r.n} días con Whoop).` : "Cuando cargues el Whoop verás si vas en ruta."}</p></article>`;
+    const kcalCard = `<article class="dash-card"><div class="dash-head"><span>🔥 Calorías</span><strong class="${status[0]}">${status[1]}</strong></div><div class="dash-big"><strong>${fmt(kcal)}</strong><span>/ ${fmt(KCAL_TARGET)} kcal consumidas</span></div>${bar(kcal, KCAL_TARGET, over ? "is-over" : "")}<div class="dash-row"><div><span>Gastadas</span><strong>${C.has(d.whoop) ? fmt(d.whoop) : "—"}</strong></div><div><span>Balance</span><strong>${b === null ? "—" : (b >= 0 ? "−" : "+") + fmt(Math.abs(b))}</strong></div><div><span>Necesario</span><strong>−${fmt(C.NEEDED)}</strong></div></div><p class="tiny subtle">${r.n ? `Ruta −${C.GOAL_KG} kg: vas <b>${fmt(Math.abs(r.gap))} kcal ${r.gap >= 0 ? "por delante" : "por detrás"}</b> (${r.n} días cerrados con Whoop).` : "Datos insuficientes: cierra días con Whoop y comidas para ver si vas en ruta."}${b !== null && !d.closed ? " Balance de hoy provisional hasta cerrar el día." : ""}</p></article>`;
     // Actividad
     const plan = planFor(dt),
       todaySets = Object.values(state.sets || {}).reduce((n, sets) => n + (sets || []).filter((z) => z && z.done && z.d === dt).length, 0),
       todayEx = Object.values(state.completedDates || {}).filter((x) => x === dt).length;
-    const actCard = `<article class="dash-card"><div class="dash-head"><span>🏋️ Actividad</span><strong>${plan.label}</strong></div><div class="dash-row"><div><span>Ejercicios</span><strong>${todayEx || "—"}</strong></div><div><span>Series</span><strong>${todaySets || "—"}</strong></div><div><span>Pasos</span><strong>${C.has(d.steps) ? fmt(d.steps) : "—"}</strong></div></div>${sessions.length ? `<ul class="dash-list">${sessions.map((s) => `<li>${escape(s.mode)} · ${s.minutes} min${s.distance ? " · " + escape(s.distance) + " " + escape(s.unit || "km") : ""}</li>`).join("")}</ul>` : '<p class="tiny subtle">Sin actividades de cardio registradas.</p>'}</article>`;
+    const actCard = `<article class="dash-card"><div class="dash-head"><span>🏋️ Actividad</span><strong>${plan.label}</strong></div><div class="dash-row"><div><span>Ejercicios</span><strong>${todayEx || "—"}</strong></div><div><span>Series</span><strong>${todaySets || "—"}</strong></div><div><span>Pasos</span><strong>${C.has(d.steps) ? fmt(d.steps) : "—"}</strong></div></div>${sessions.length ? `<ul class="dash-list">${sessions.map((s) => `<li>${escape(s.mode)} · ${minTxt(s)}${s.distance ? " · " + escape(s.distance) + " " + escape(s.unit || "km") : ""}</li>`).join("")}</ul>` : '<p class="tiny subtle">Sin actividades de cardio registradas.</p>'}</article>`;
     // Progreso: peso, variación 7 días y racha
     // Peso: promedio de las pesadas de la semana frente a la semana anterior con datos.
     const rows = C.series(program),
@@ -387,7 +397,7 @@
         if (show_("food") && meals.length)
           parts.push(`<div class="hist-sec"><h4>🍽 Comida · ${fmt(kcal)} kcal</h4><ul>${meals.map((m) => `<li><span class="subtle">${escape(m.kind || "")}</span> ${escape(m.name)} · ${fmt(Math.round(Number(m.kcal)))} kcal</li>`).join("")}</ul></div>`);
         if (show_("train") && (sess.length || strengthRows.length))
-          parts.push(`<div class="hist-sec"><h4>🏋️ Entreno</h4><ul>${sess.map((s) => `<li class="hist-item"><span>${escape(s.mode)} · ${s.minutes} min${s.distance ? " · " + escape(s.distance) + " " + escape(s.unit || "km") : ""} · esfuerzo ${s.effort}/10</span><button type="button" class="hist-del" data-delete-distance="${escape(s.id)}" aria-label="Eliminar ${escape(s.mode)} del ${day}">Eliminar</button></li>`).join("")}${strengthRows.join("")}</ul></div>`);
+          parts.push(`<div class="hist-sec"><h4>🏋️ Entreno</h4><ul>${sess.map((s) => `<li class="hist-item"><span>${escape(s.mode)} · ${minTxt(s)}${s.distance ? " · " + escape(s.distance) + " " + escape(s.unit || "km") : ""}${effTxt(s)}</span><button type="button" class="hist-del" data-delete-distance="${escape(s.id)}" aria-label="Eliminar ${escape(s.mode)} del ${day}">Eliminar</button></li>`).join("")}${strengthRows.join("")}</ul></div>`);
         if (show_("goals") && logs.length)
           parts.push(`<div class="hist-sec"><h4>🔥 Retos</h4><ul>${logs.map((l) => `<li class="hist-item"><span>${escape(goalName[l.goal] || l.goal)} · ${l.reps} repeticiones</span><button type="button" class="hist-del" data-delete-challenge-log="${escape(l.id)}" aria-label="Eliminar ${escape(goalName[l.goal] || l.goal)} del ${day}">Eliminar</button></li>`).join("")}</ul></div>`);
         if (f === "all" && (program.meds[day] || (coachD && coachD.checkin)))
@@ -409,8 +419,8 @@
       n = 0;
     for (let i = (w - 1) * 7; i < w * 7; i++) {
       const d = program.diary[C.datePlus(program.start, i)];
-      if (d && C.balance(d) !== null) {
-        defSum += C.balance(d);
+      if (d && C.confirmed(d) !== null) {
+        defSum += C.confirmed(d);
         n++;
       }
     }
@@ -470,7 +480,7 @@
     const w = week(),
       r = weekReview(w);
     if (!r) return "";
-    return `<article id="sec-review"><div class="eyebrow">CIERRE SEMANAL · SEMANA ${w}</div><h3>¿Vas en ruta a −${C.GOAL_KG} kg?</h3><div class="daily-numbers"><div><span>Déficit semanal</span><strong>${r.n ? fmt(r.defSum) + " kcal" : "—"}</strong><p class="tiny subtle">Ruta: ${fmt(C.NEEDED * 7)} · ${r.n} de 7 días con Whoop</p></div><div><span>Cintura · Fuerza</span><strong>${C.has(r.waist) ? fmt(r.waist) + " cm" : "—"} · ${r.strengthDone}/${EXERCISES.length}</strong></div></div><p class="coach-reco ${r.tone}">${escape(r.reco)}</p><details><summary>Cómo se calcula</summary><p class="tiny subtle">Estimación con 7.700 kcal/kg: tiende a sobreestimar la pérdida real y las primeras semanas incluyen agua. Úsala como guía, no como promesa. El peso real y la ruta de la semana están en Pesadas.</p></details></article>`;
+    return `<article id="sec-review"><div class="eyebrow">CIERRE SEMANAL · SEMANA ${w}</div><h3>¿Vas en ruta a −${C.GOAL_KG} kg?</h3><div class="daily-numbers"><div><span>Déficit semanal</span><strong>${r.n ? fmt(r.defSum) + " kcal" : "—"}</strong><p class="tiny subtle">Ruta: ${fmt(C.NEEDED * 7)} · ${r.n} de 7 días cerrados con Whoop</p></div><div><span>Cintura · Fuerza</span><strong>${C.has(r.waist) ? fmt(r.waist) + " cm" : "—"} · ${r.strengthDone}/${EXERCISES.length}</strong></div></div><p class="coach-reco ${r.tone}">${escape(r.reco)}</p><details><summary>Cómo se calcula</summary><p class="tiny subtle">Estimación con 7.700 kcal/kg: tiende a sobreestimar la pérdida real y las primeras semanas incluyen agua. Úsala como guía, no como promesa. El peso real y la ruta de la semana están en Pesadas.</p></details></article>`;
   }
   // ── Panel de Progreso: análisis con filtros de 7/30/90 días ────────────────
   const RANGES = [7, 30, 90];
@@ -493,6 +503,24 @@
     const s = new Set(Object.values(state.completedDates || {}).filter((d) => C.validDate(d)));
     Object.values(state.sets || {}).forEach((sets) => (sets || []).forEach((z) => z && z.done && C.validDate(z.d) && s.add(z.d)));
     return s;
+  }
+  // Fechas en que se completó una rutina entera (todos los ejercicios de un día).
+  // Una sola serie o un ejercicio suelto cuenta como «día con fuerza», no como rutina.
+  function routineDates(days) {
+    const byDate = {};
+    Object.entries(state.completedDates || {}).forEach(([k, d]) => {
+      if (!state.completed?.[k] || !C.validDate(d)) return;
+      const m = /^(.*)-w\d+$/.exec(k);
+      if (m) (byDate[d] ||= new Set()).add(m[1]);
+    });
+    return days.filter((d) => {
+      const ids = byDate[d];
+      if (!ids) return false;
+      return [1, 2, 3, 4, 5].some((n) => {
+        const ex = EXERCISES.filter((e) => e.day === n);
+        return ex.length && ex.every((e) => ids.has(e.id));
+      });
+    });
   }
   // Gráfico de línea SVG (escala propia; null = sin dato).
   function lineChart(days, lines, ref) {
@@ -653,26 +681,26 @@
       whoop = days.map((d) => program.diary[d]).filter((d) => d && C.has(d.whoop));
     if (!logged.length && !whoop.length)
       return `<article class="panel-card"><div class="dash-head"><span>🍽 Alimentación</span></div>${note("No hay comidas ni calorías de Whoop en este periodo.")}</article>`;
-    const avgIn = logged.length ? logged.reduce((n, [, d]) => n + C.intake(d), 0) / logged.length : null,
+    const closed = logged.filter(([, d]) => d.closed),
+      avgIn = closed.length ? closed.reduce((n, [, d]) => n + C.intake(d), 0) / closed.length : null,
       avgOut = whoop.length ? whoop.reduce((n, d) => n + Number(d.whoop), 0) / whoop.length : null,
-      closed = logged.filter(([, d]) => d.closed),
       inside = closed.filter(([, d]) => C.intake(d) <= KCAL_TARGET).length,
       open = logged.length - closed.length;
     const weeks = [...new Set(days.map(weekOf).filter(Boolean))];
     const bal = weeks
       .map((w) => {
-        const ds = days.filter((d) => weekOf(d) === w).map((d) => program.diary[d]).filter((d) => d && C.balance(d) !== null);
-        const s = ds.reduce((n, d) => n + C.balance(d), 0);
+        const ds = days.filter((d) => weekOf(d) === w).map((d) => program.diary[d]).filter((d) => C.confirmed(d) !== null);
+        const s = ds.reduce((n, d) => n + C.confirmed(d), 0);
         return ds.length ? { label: "S" + w, value: s, cls: s >= 0 ? "good" : "bad", text: `${signed(Math.round(s))} kcal <em class="subtle">${ds.length} d · meta ${fmt(ds.length * C.NEEDED)}</em>` } : null;
       })
       .filter(Boolean);
     return `<article class="panel-card"><div class="dash-head"><span>🍽 Alimentación</span><strong>${logged.length} días con comidas</strong></div>
-      <div class="panel-stats">${stat("Consumo medio", avgIn != null ? fmt(Math.round(avgIn)) + " kcal" : "—", logged.length + " días")}${stat("Gasto medio (Whoop)", avgOut != null ? fmt(Math.round(avgOut)) + " kcal" : "—", whoop.length + " días")}${stat(
+      <div class="panel-stats">${stat("Consumo medio", avgIn != null ? fmt(Math.round(avgIn)) + " kcal" : "Datos insuficientes", closed.length + " días cerrados")}${stat("Gasto medio (Whoop)", avgOut != null ? fmt(Math.round(avgOut)) + " kcal" : "—", whoop.length + " días")}${stat(
         "Dentro del objetivo",
         closed.length ? `${inside}/${closed.length}` : "—",
         `días cerrados · ≤ ${fmt(KCAL_TARGET)} kcal${open ? ` · ${open} sin cerrar` : ""}`,
       )}</div>${closed.length ? bar(inside, closed.length) : ""}
-      <h4 class="panel-sub">Balance energético semanal</h4>${bal.length ? bars(bal) + `<p class="tiny subtle">Positivo = déficit (gasto Whoop − consumo). Solo días con Whoop.</p>` : note("El balance necesita días con calorías de Whoop registradas.")}</article>`;
+      <h4 class="panel-sub">Balance energético semanal</h4>${bal.length ? bars(bal) + `<p class="tiny subtle">Positivo = déficit (gasto Whoop − consumo). Solo días cerrados con Whoop.</p>` : note("Datos insuficientes: el balance necesita días cerrados con Whoop.")}</article>`;
   }
   function panelConsistency(days) {
     const sDates = strengthDates(),
@@ -682,7 +710,8 @@
       liftDays = [1, 2, 3, 4, 5].filter((n) => EXERCISES.some((e) => e.day === n)),
       planned = days.filter((d) => liftDays.includes(new Date(d + "T12:00:00Z").getUTCDay())),
       inRange = new Set(days),
-      doneW = Math.min(planned.length, [...sDates].filter((d) => inRange.has(d)).length),
+      liftDone = [...sDates].filter((d) => inRange.has(d)).length,
+      doneW = Math.min(planned.length, routineDates(days).length),
       cardioPlanned = weekdays.length,
       cardioDone = Math.min(cardioPlanned, new Set(program.sessions.filter((s) => inRange.has(s.date)).map((s) => s.date)).size);
     const lead = (new Date(days[0] + "T12:00:00Z").getUTCDay() + 6) % 7;
@@ -700,7 +729,7 @@
         })
         .join("");
     return `<article class="panel-card"><div class="dash-head"><span>📅 Consistencia</span><strong>Racha ${streak(today())} d</strong></div>
-      <div class="panel-stats">${stat("Días con actividad", `${active}/${days.length}`)}${stat("Pesas vs. programadas", `${doneW}/${planned.length}`, `${liftDays.length} días por semana`)}${stat("Cardio vs. programado", `${cardioDone}/${cardioPlanned}`, "días con cardio")}</div>
+      <div class="panel-stats">${stat("Días con actividad", `${active}/${days.length}`)}${stat("Rutinas completas", `${doneW}/${planned.length}`, `${liftDone} días con fuerza · ${liftDays.length} por semana`)}${stat("Cardio vs. programado", `${cardioDone}/${cardioPlanned}`, "días con cardio")}</div>
       ${bar(doneW, planned.length || 1)}
       <h4 class="panel-sub">Calendario de actividad</h4><div class="panel-cal">${cells}</div>
       <p class="panel-legend"><span class="lg-c lv1"></span>Reto <span class="lg-c lv2"></span>Pesas o cardio <span class="lg-c lv3"></span>Pesas + cardio</p></article>`;
@@ -756,7 +785,7 @@
     const sessions = program.sessions.filter((s) => s.date === dt);
     const weekSessions = program.sessions.filter((s) => s.week === week());
     const planned = typeof DAY_CARDIO !== "undefined" ? DAY_CARDIO[(state.day || 1) - 1] : "";
-    return `<article id="cardioEntry"><div class="challenge-heading"><h3>Registrar actividad</h3><span>${dt || "pendiente"}</span></div>${planned ? `<p class="tiny subtle">Plan del Día ${state.day}: <strong>${escape(planned)}</strong>. Puedes registrar cualquier otra actividad.</p>` : ""}<div class="cat-chips mode-chips" role="group" aria-label="Actividad">${modes.map((m) => `<button type="button" data-cardio-mode="${m}" aria-pressed="${m === selected}">${modeIcons[m]} ${m}</button>`).join("")}</div><p class="tiny subtle" id="cardioDesc">${modeDescriptions[selected]}</p><form id="cardioForm"><input type="hidden" name="mode" id="cardioModeValue" value="${selected}"><div class="fields"><label>Minutos <input name="minutes" type="number" min="1" max="600" required></label><label>Esfuerzo 1–10 <input name="effort" type="number" min="1" max="10" value="3" required></label><label>Distancia (opcional) <input name="distance" type="number" min="0" max="100000" step="any"></label><label>Unidad <select name="unit"><option value="km" ${selected !== "Nadar" ? "selected" : ""}>km</option><option value="m" ${selected === "Nadar" ? "selected" : ""}>m</option></select></label><label id="cardioLoad" ${["Rucking", "Hiking"].includes(selected) ? "" : "hidden"}>Mochila kg (opcional) <input name="load" type="number" min="0" max="50" step="0.1"></label><label>Kcal de actividad (opcional) <input name="calories" type="number" min="0" max="10000" step="1"></label></div><button class="primary">Guardar actividad</button></form><p class="tiny subtle">Las kcal de actividad son informativas. El balance usa únicamente Whoop total, sin sumar actividades ni pasos de nuevo.</p></article>`;
+    return `<article id="cardioEntry"><div class="challenge-heading"><h3>Registrar actividad</h3><span>${dt || "pendiente"}</span></div>${planned ? `<p class="tiny subtle">Plan del Día ${state.day}: <strong>${escape(planned)}</strong>. Puedes registrar cualquier otra actividad.</p>` : ""}<div class="cat-chips mode-chips" role="group" aria-label="Actividad">${modes.map((m) => `<button type="button" data-cardio-mode="${m}" aria-pressed="${m === selected}">${modeIcons[m]} ${m}</button>`).join("")}</div><p class="tiny subtle" id="cardioDesc">${modeDescriptions[selected]}</p><form id="cardioForm"><input type="hidden" name="mode" id="cardioModeValue" value="${selected}"><div class="fields"><label>Minutos <input name="minutes" type="number" min="1" max="600" required></label><label>Esfuerzo 1–10 (opcional) <input name="effort" type="number" min="1" max="10"></label><label>Distancia (opcional) <input name="distance" type="number" min="0" max="100000" step="any"></label><label>Unidad <select name="unit"><option value="km" ${selected !== "Nadar" ? "selected" : ""}>km</option><option value="m" ${selected === "Nadar" ? "selected" : ""}>m</option></select></label><label id="cardioLoad" ${["Rucking", "Hiking"].includes(selected) ? "" : "hidden"}>Mochila kg (opcional) <input name="load" type="number" min="0" max="50" step="0.1"></label><label>Kcal de actividad (opcional) <input name="calories" type="number" min="0" max="10000" step="1"></label></div><button class="primary">Guardar actividad</button></form><p class="tiny subtle">Las kcal de actividad son informativas. El balance usa únicamente Whoop total, sin sumar actividades ni pasos de nuevo.</p></article>`;
   }
   function weight() {
     const w = week(),
@@ -847,8 +876,8 @@
       )
       .join("");
     const series = [
-      ["target", "#9399a5", "6 4", "Objetivo"],
-      ["projected", "#7ac7bd", "3 4", "Proyección"],
+      ["target", "#9399a5", "6 4", "Trayectoria objetivo"],
+      ["projected", "#7ac7bd", "3 4", `Estimación por balance (${(rows.at(-1) || {}).count || 0} días cerrados)`],
       ["actual", "#ffc33d", "", "Peso real"],
     ];
     const lines = series
@@ -972,6 +1001,10 @@
     }
     if (b.hasAttribute("data-go-today")) {
       goDate(today());
+      return;
+    }
+    if (b.hasAttribute("data-open-settings")) {
+      document.getElementById("backupBtn").click();
       return;
     }
     if (b.dataset.insightRange) {
@@ -1136,7 +1169,7 @@
         mode: d.get("mode"),
         date: date(),
         minutes: Number(d.get("minutes")),
-        effort: Number(d.get("effort")),
+        effort: d.get("effort") === "" ? null : Number(d.get("effort")),
         distance: d.get("distance"),
         unit: d.get("unit"),
         load: ["Rucking", "Hiking"].includes(d.get("mode")) ? d.get("load") : "",
