@@ -1,6 +1,6 @@
 {
-  "name": "FitTrack · Mi entrenamiento",
-  "short_name": "FitTrack",
+  "name": "EVÓ · Entrenamiento, nutrición y progreso",
+  "short_name": "EVÓ",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#101114",
@@ -28,5 +28,5 @@
   "id": "./",
   "scope": "./",
   "lang": "es",
-  "description": "Tu rutina y registro de pesos durante 8 semanas."
+  "description": "Entrenamiento, nutrición y progreso."
 }
