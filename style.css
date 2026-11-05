@@ -2723,3 +2723,11 @@ body.sheet-mode #programView {
 .adv-form button { white-space: nowrap; }
 .adv-note { margin: 2px 0 0; }
 .adv-chart .adv-col { border: 0; background: transparent; padding: 0; margin: 0; border-radius: 8px; min-height: 0; box-shadow: none; color: inherit; font: inherit; }
+.adv-chart { gap: 6px; height: 230px; }
+.adv-chart .adv-col { grid-template-rows: 1fr 36px; }
+.adv-bar { width: 88%; max-width: 96px; }
+.adv-name { font-size: clamp(10px, 2.7vw, 14px); line-height: 1.25; letter-spacing: 0; white-space: nowrap; }
+.adv-pct { font-size: clamp(11px, 2.8vw, 14px); }
+.adv-exp { bottom: calc(42px + (100% - 42px) * var(--exp) / 100); }
+.adv-n-full { display: none; }
+@media (min-width: 600px) { .adv-n-full { display: inline; } .adv-n-short { display: none; } }
