@@ -11,13 +11,29 @@ window.createFitNutrition = function ({
 }) {
   const foods = [],
     menus = [];
+  const MACRO_KEYS = ["protein", "carbs", "fat", "fiber"];
+  const MACRO_LABELS = { protein: "Proteína", carbs: "Carbohidratos", fat: "Grasas", fiber: "Fibra" };
+  const macroLine = (f) =>
+    MACRO_KEYS.some((k) => typeof f[k] === "number")
+      ? `P ${fmt(f.protein ?? 0)} · C ${fmt(f.carbs ?? 0)} · G ${fmt(f.fat ?? 0)} · Fibra ${fmt(f.fiber ?? 0)} g${f.macroSource === "etiqueta" ? " · etiqueta" : f.macroSource ? " · aprox." : ""}`
+      : "Sin macros";
   const sync = () => {
     const p = getProgram();
+    // Catálogo + alimentos propios + ediciones. Los macros (proteína, carbohidratos, grasas, fibra)
+    // se guardan por porción base; si una edición cambia la porción sin macros propios, se escalan.
+    const builtin = new Map(window.FIT_FOODS.map((f) => [f.id, f])),
+      extra = window.FIT_FOOD_MACROS || {};
+    const scaled = (f, e) => {
+      const out = { ...f, ...e };
+      if (e && e.protein === undefined && Number(e.base) > 0 && Number(f.base) > 0 && Number(e.base) !== Number(f.base))
+        for (const k of MACRO_KEYS) if (typeof f[k] === "number") out[k] = Math.round((f[k] * e.base * 10) / f.base) / 10;
+      return out;
+    };
     foods.splice(
       0,
       foods.length,
-      ...[...new Map([...window.FIT_FOODS, ...(p.customFoods || [])].map((f) => [f.id, f])).values()].map(
-        (f) => ({ ...f, ...(p.foodEdits || {})[f.id] }),
+      ...[...new Map([...window.FIT_FOODS, ...(p.customFoods || [])].map((f) => [f.id, f])).values()].map((f) =>
+        scaled(scaled({ ...extra[f.id], ...builtin.get(f.id) }, f), (p.foodEdits || {})[f.id]),
       ),
     );
     menus.splice(
@@ -265,7 +281,7 @@ window.createFitNutrition = function ({
     p.shoppingHave ??= {}; p.shoppingHave[week()] ??= {};
     const old = Number(p.shoppingHave[week()][id]) || 0;
     // Convert the existing quantity so changing display mode preserves the stock.
-    p.shoppingHave[week()][id] = oldMode === mode ? old : old * (mode === "raw" ? BUY[id][0] : 1 / BUY[id][0]);
+    p.shoppingHave[week()][id] = oldMode === mode ? old : Math.round(old * (mode === "raw" ? BUY[id][0] : 1 / BUY[id][0]) * 10) / 10;
     p.shoppingHaveMode ??= {}; p.shoppingHaveMode[week()] ??= {};
     p.shoppingHaveMode[week()][id] = mode;
     persist(); rerender();
@@ -344,7 +360,7 @@ window.createFitNutrition = function ({
       `<article class="catalog-head"><div class="challenge-heading"><h3>${foods.length} alimentos</h3><button id="newFood" class="primary">+ Agregar</button></div><input id="foodSearch" type="search" placeholder="Buscar: pollo, tortilla, yogurt…" aria-label="Buscar alimento"><div class="cat-chips">${["Todas", ...cats].map((c) => `<button data-cat-filter="${escape(c)}" aria-pressed="${c === cat}">${escape(c)}</button>`).join("")}</div></article><article class="food-compact">${shown
         .map((c) => {
           const list = foods.filter((f) => f.category === c);
-          return `<details open data-food-cat><summary><span>${escape(c)}</span><small>${list.length}</small></summary><ul class="food-rows">${list.map((f) => `<li data-food-row="${escape(f.name.toLowerCase())}"><div class="fr-main"><strong>${escape(f.name)}</strong><small>${fmt(f.base)} ${escape(f.unit)}${f.pending ? ' · <span class="food-badge">Por confirmar</span>' : ""}</small><span class="fr-photos" data-food-photos="${escape(f.id)}" hidden></span></div><label class="fr-kcal"><input data-food-kcal="${f.id}" type="number" min="0" max="5000" step="0.1" value="${unitKcal(f)}" aria-label="Kcal de ${escape(f.name)}"><span>kcal</span></label><button class="fr-log" data-log-food="${f.id}" aria-label="Registrar ${escape(f.name)}" title="Registrar en el día">＋</button><button class="fr-edit" data-edit-food="${f.id}" aria-label="Editar ${escape(f.name)}">✎</button></li>`).join("")}</ul></details>`;
+          return `<details open data-food-cat><summary><span>${escape(c)}</span><small>${list.length}</small></summary><ul class="food-rows">${list.map((f) => `<li data-food-row="${escape(f.name.toLowerCase())}"><div class="fr-main"><strong>${escape(f.name)}</strong><small>${fmt(f.base)} ${escape(f.unit)}${f.pending ? ' · <span class="food-badge">Por confirmar</span>' : ""}</small><small class="fr-macros">${macroLine(f)}</small><span class="fr-photos" data-food-photos="${escape(f.id)}" hidden></span></div><label class="fr-kcal"><input data-food-kcal="${f.id}" type="number" min="0" max="5000" step="0.1" value="${unitKcal(f)}" aria-label="Kcal de ${escape(f.name)}"><span>kcal</span></label><button class="fr-log" data-log-food="${f.id}" aria-label="Registrar ${escape(f.name)}" title="Registrar en el día">＋</button><button class="fr-edit" data-edit-food="${f.id}" aria-label="Editar ${escape(f.name)}">✎</button></li>`).join("")}</ul></details>`;
         })
         .join(
           "",
@@ -409,7 +425,7 @@ window.createFitNutrition = function ({
     const id = prog().editingFood;
     if (!id) return "";
     const f = fById(id) || { name: "", base: 100, unit: "g", kcal: 0, category: "Proteínas" };
-    return `<article><h3>${id === "new" ? "Agregar" : "Editar"} alimento</h3><form id="foodEditorForm"><div class="fields"><label>Nombre <input name="name" value="${escape(f.name)}" maxlength="120" required></label><label>Porción base <input name="base" type="number" min="0.01" max="100000" step="any" value="${f.base}" required></label><label>Unidad <input name="unit" maxlength="30" value="${escape(f.unit)}" required></label><label>Kcal de la porción <input name="kcal" type="number" min="0" max="5000" step="any" value="${unitKcal(f) || 0}" required></label><label>Categoría <select name="category">${[...new Set(window.FIT_FOODS.map((f) => f.category))].map((c) => `<option ${c === f.category ? "selected" : ""}>${c}</option>`).join("")}</select></label></div><div class="food-photos" data-photo-editor="${escape(id)}"></div><button class="primary">Guardar alimento</button> <button type="button" id="closeFood">Cancelar</button></form></article>`;
+    return `<article><h3>${id === "new" ? "Agregar" : "Editar"} alimento</h3><form id="foodEditorForm"><div class="fields"><label>Nombre <input name="name" value="${escape(f.name)}" maxlength="120" required></label><label>Porción base <input name="base" type="number" min="0.01" max="100000" step="any" value="${f.base}" required></label><label>Unidad <input name="unit" maxlength="30" value="${escape(f.unit)}" required></label><label>Kcal de la porción <input name="kcal" type="number" min="0" max="5000" step="any" value="${unitKcal(f) || 0}" required></label>${MACRO_KEYS.map((k) => `<label>${MACRO_LABELS[k]} (g) <input name="${k}" type="number" min="0" max="1000" step="any" inputmode="decimal" value="${f[k] ?? ""}" placeholder="0"></label>`).join("")}<label>Categoría <select name="category">${[...new Set(window.FIT_FOODS.map((f) => f.category))].map((c) => `<option ${c === f.category ? "selected" : ""}>${c}</option>`).join("")}</select></label></div><div class="food-photos" data-photo-editor="${escape(id)}"></div><button class="primary">Guardar alimento</button> <button type="button" id="closeFood">Cancelar</button></form></article>`;
   }
   function renderCreate() {
     const draft = prog().recipeDraft || { items: [] };
@@ -455,6 +471,12 @@ window.createFitNutrition = function ({
         category: fd.get("category"),
         pending: false,
       };
+      // Macros por porción base: se guardan, aún no se contabilizan.
+      for (const k of MACRO_KEYS) {
+        const v = fd.get(k);
+        if (v !== null && v !== "" && Number(v) >= 0) f[k] = Number(v);
+      }
+      if (MACRO_KEYS.some((k) => k in f)) f.macroSource = "usuario";
       if (!f.name || !f.unit) return;
       p.customFoods ??= [];
       p.foodEdits ??= {};
