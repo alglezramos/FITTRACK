@@ -2845,3 +2845,13 @@ details.fold[open] > summary { margin-bottom: 10px; }
 @media(max-width: 600px) { .sheet-mode #sheetHead p { display: none; } .recipe-row { flex-wrap: wrap; } .shop-row { flex-wrap: wrap; } }
 
 #exerciseList .exercise-minimal .setrow .setok { font-size: 0; }
+
+/* r88: macros por alimento (informativos, no se contabilizan) */
+.fr-main small.fr-macros { display: block; font-size: 11px; margin-top: 2px; }
+
+/* r88: marca EVÓ */
+.brand .evo-mark { display: block; height: 30px; width: auto; }
+.brand .evo-mark + small { margin-top: 6px; font-size: 9px; letter-spacing: 2.5px; color: #d9d9d9; white-space: nowrap; }
+.brand small i { font-style: normal; color: var(--accent, #ffc33d); padding: 0 3px; }
+@media (max-width: 420px) { .brand .evo-mark { height: 22px; } .brand .evo-mark + small { font-size: 7px; letter-spacing: 0.8px; } .brand small i { padding: 0 1px; } }
+@media (max-width: 600px) { header { flex-wrap: wrap; row-gap: 6px; } header .save-state { order: 3; flex-basis: 100%; } header #saveBtn { padding: 6px 10px; font-size: 12px; white-space: nowrap; } }
