@@ -175,7 +175,7 @@ function setsHtml(x) {
     return (
       '<div class="setrow' +
       (s.done ? " done" : "") +
-      '"><span class="setn">' +
+      '"><span class="setn">Serie ' +
       (i + 1) +
       '</span><input data-set-w="' +
       x.id +
@@ -195,7 +195,7 @@ function setsHtml(x) {
       (s.r ?? t.reps) +
       '" aria-label="Repeticiones de la serie ' +
       (i + 1) +
-      '"><button type="button" class="setok" data-set-done="' +
+      '"><span class="setr">reps</span><button type="button" class="setok" data-set-done="' +
       x.id +
       '" data-i="' +
       i +
