@@ -247,7 +247,7 @@
   const weighKey = (d) =>
     ({ 1: "weight1", 2: "weight4", 3: "weight2", 4: "weight5", 5: "weight3" })[new Date(d + "T12:00:00Z").getUTCDay()] || null;
   function route(upTo) {
-    /* déficit acumulado (días con Whoop) frente a la ruta de 10 kg */ let n = 0,
+    /* déficit acumulado (días con Whoop) frente a la ruta de la meta */ let n = 0,
       def = 0;
     for (let i = 0; i < 56; i++) {
       const day = C.datePlus(program.start, i);
@@ -261,7 +261,7 @@
     return { n, def, gap: def - n * C.NEEDED };
   }
   // ── Dashboard «Hoy»: centro de control diario ─────────────────────────────
-  const KCAL_TARGET = 1800;
+  const kcalTarget = () => C.goals().kcal;
   // Plan del día según el día de la semana (igual que «Tu semana»).
   function planFor(dt) {
     const i = (new Date(dt + "T12:00:00Z").getUTCDay() + 6) % 7;
@@ -313,10 +313,10 @@
     if (!C.validDate(dt))
       return `<article id="sec-day"><h2>Selecciona el inicio</h2><p>Configura el inicio del programa para empezar a registrar.</p><p><button type="button" class="primary" data-open-settings>Configurar programa</button></p></article>`;
     // Calorías
-    const over = kcal > KCAL_TARGET,
+    const over = kcal > kcalTarget(),
       ok = !over && b !== null && b >= C.NEEDED,
       status = b === null ? ["", "Carga el Whoop para ver el balance"] : ok ? ["good", "✓ Día en objetivo"] : over ? ["bad", "Sobre el objetivo de consumo"] : ["warn", "Déficit por debajo de lo necesario"];
-    const kcalCard = `<article class="dash-card"><div class="dash-head"><span>🔥 Calorías</span><strong class="${status[0]}">${status[1]}</strong></div><div class="dash-big"><strong>${fmt(kcal)}</strong><span>/ ${fmt(KCAL_TARGET)} kcal consumidas</span></div>${bar(kcal, KCAL_TARGET, over ? "is-over" : "")}<div class="dash-row"><div><span>Gastadas</span><strong>${C.has(d.whoop) ? fmt(d.whoop) : "—"}</strong></div><div><span>Balance</span><strong>${b === null ? "—" : (b >= 0 ? "−" : "+") + fmt(Math.abs(b))}</strong></div><div><span>Necesario</span><strong>−${fmt(C.NEEDED)}</strong></div></div><p class="tiny subtle">${r.n ? `Ruta −${C.GOAL_KG} kg: vas <b>${fmt(Math.abs(r.gap))} kcal ${r.gap >= 0 ? "por delante" : "por detrás"}</b> (${r.n} días cerrados con Whoop).` : "Datos insuficientes: cierra días con Whoop y comidas para ver si vas en ruta."}${b !== null && !d.closed ? " Balance de hoy provisional hasta cerrar el día." : ""}</p></article>`;
+    const kcalCard = `<article class="dash-card"><div class="dash-head"><span>🔥 Calorías</span><strong class="${status[0]}">${status[1]}</strong></div><div class="dash-big"><strong>${fmt(kcal)}</strong><span>/ ${fmt(kcalTarget())} kcal consumidas</span></div>${bar(kcal, kcalTarget(), over ? "is-over" : "")}<div class="dash-row"><div><span>Gastadas</span><strong>${C.has(d.whoop) ? fmt(d.whoop) : "—"}</strong></div><div><span>Balance</span><strong>${b === null ? "—" : (b >= 0 ? "−" : "+") + fmt(Math.abs(b))}</strong></div><div><span>Necesario</span><strong>−${fmt(C.NEEDED)}</strong></div></div><p class="tiny subtle">${r.n ? `Ruta −${C.GOAL_KG} kg: vas <b>${fmt(Math.abs(r.gap))} kcal ${r.gap >= 0 ? "por delante" : "por detrás"}</b> (${r.n} días cerrados con Whoop).` : "Datos insuficientes: cierra días con Whoop y comidas para ver si vas en ruta."}${b !== null && !d.closed ? " Balance de hoy provisional hasta cerrar el día." : ""}</p></article>`;
     // Actividad
     const plan = planFor(dt),
       todaySets = Object.values(state.sets || {}).reduce((n, sets) => n + (sets || []).filter((z) => z && z.done && z.d === dt).length, 0),
@@ -699,7 +699,7 @@
     const closed = logged.filter(([, d]) => d.closed),
       avgIn = closed.length ? closed.reduce((n, [, d]) => n + C.intake(d), 0) / closed.length : null,
       avgOut = whoop.length ? whoop.reduce((n, d) => n + Number(d.whoop), 0) / whoop.length : null,
-      inside = closed.filter(([, d]) => C.intake(d) <= KCAL_TARGET).length,
+      inside = closed.filter(([, d]) => C.intake(d) <= kcalTarget()).length,
       open = logged.length - closed.length;
     const weeks = [...new Set(days.map(weekOf).filter(Boolean))];
     const bal = weeks
@@ -713,7 +713,7 @@
       <div class="panel-stats">${stat("Consumo medio", avgIn != null ? fmt(Math.round(avgIn)) + " kcal" : "Datos insuficientes", closed.length + " días cerrados")}${stat("Gasto medio (Whoop)", avgOut != null ? fmt(Math.round(avgOut)) + " kcal" : "—", whoop.length + " días")}${stat(
         "Dentro del objetivo",
         closed.length ? `${inside}/${closed.length}` : "—",
-        `días cerrados · ≤ ${fmt(KCAL_TARGET)} kcal${open ? ` · ${open} sin cerrar` : ""}`,
+        `días cerrados · ≤ ${fmt(kcalTarget())} kcal${open ? ` · ${open} sin cerrar` : ""}`,
       )}</div>${closed.length ? bar(inside, closed.length) : ""}
       <h4 class="panel-sub">Balance energético semanal</h4>${bal.length ? bars(bal) + `<p class="tiny subtle">Positivo = déficit (gasto Whoop − consumo). Solo días cerrados con Whoop.</p>` : note("Datos insuficientes: el balance necesita días cerrados con Whoop.")}</article>`;
   }
@@ -1203,6 +1203,49 @@
       settings.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
+  // Opciones → Metas: cada meta se puede cambiar; vacío vuelve al valor original.
+  const GOAL_FIELDS = [
+    ["kg", "Bajar en 8 semanas (kg)", 1, 40, 0.5],
+    ["kcal", "Consumo máximo diario (kcal)", 1000, 5000, 50],
+    ["run", "Running (km)", 1, 2000, 1],
+    ["swim", "Natación (km)", 1, 2000, 1],
+    ["hike", "Hiking / Rucking (km)", 1, 2000, 1],
+    ["steps", "Pasos totales", 1000, 5000000, 1000],
+    ["pushups", "Push-ups (reps)", 1, 100000, 1],
+    ["abs", "Abdominales (reps)", 1, 100000, 1],
+    ["pullups", "Pull-ups (reps)", 1, 100000, 1],
+    ["squats", "Sentadillas (reps)", 1, 100000, 1],
+  ];
+  function renderGoals() {
+    const box = document.getElementById("goalFields");
+    if (!box) return;
+    const g = C.goals(),
+      saved = program.goals || {};
+    box.innerHTML =
+      GOAL_FIELDS.map(
+        ([k, label, min, max, step]) =>
+          `<label>${label}<input data-goal="${k}" type="number" inputmode="decimal" min="${min}" max="${max}" step="${step}" value="${saved[k] ?? ""}" placeholder="${C.DEFAULT_GOALS[k]}">${saved[k] != null && Number(saved[k]) !== C.DEFAULT_GOALS[k] ? `<small class="subtle">Original: ${C.DEFAULT_GOALS[k].toLocaleString("es-CR")}</small>` : ""}</label>`,
+      ).join("") +
+      `<p class="tiny subtle goal-note">Déficit diario necesario para −${g.kg} kg: <b>${C.NEEDED.toLocaleString("es-CR")} kcal</b>. Deja un campo vacío para volver al valor original.</p>`;
+  }
+  document.getElementById("goalFields")?.addEventListener("change", (e) => {
+    const k = e.target.dataset.goal;
+    if (!k) return;
+    if (e.target.value === "") {
+      if (program.goals) delete program.goals[k];
+    } else {
+      if (!e.target.checkValidity()) {
+        e.target.reportValidity?.();
+        return;
+      }
+      program.goals ??= {};
+      program.goals[k] = Number(e.target.value);
+    }
+    persist();
+    renderGoals();
+    show();
+  });
+  renderGoals();
   // Opciones: inicio y peso inicial, sin mezclar configuración con registros.
   document.getElementById("setupInitialWeight").addEventListener("change", (e) => {
     if (!e.target.checkValidity()) return;
