@@ -3,8 +3,8 @@
   "short_name": "EVÓ",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#101114",
-  "theme_color": "#101114",
+  "background_color": "#f3ece2",
+  "theme_color": "#f3ece2",
   "icons": [
     {
       "src": "icon.svg",
