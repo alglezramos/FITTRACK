@@ -213,6 +213,10 @@
           throw Error("Actividad propuesta inválida");
       }
     }
+    if (p.goals !== undefined) {
+      if (!object(p.goals)) throw Error("Metas inválidas");
+      for (const v of Object.values(p.goals)) if (!number(Number(v), 0.1, 10000000)) throw Error("Meta inválida");
+    }
     if (p.shopping !== undefined) {
       if (!object(p.shopping)) throw Error("Lista del súper inválida");
       for (const [week, rows] of Object.entries(p.shopping)) {
@@ -229,7 +233,42 @@
     }
     return p;
   }
-  const GOAL_KG = 10,
-    NEEDED = Math.round((GOAL_KG * 7700) / 56);
-  g.FitCore = { validDate, datePlus, has, intake, balance, confirmed, series, validate, GOAL_KG, NEEDED };
+  // Metas del programa: valores por defecto que el usuario puede cambiar en Opciones.
+  const DEFAULT_GOALS = {
+    kg: 10,
+    kcal: 1800,
+    run: 50,
+    swim: 25,
+    hike: 50,
+    steps: 800000,
+    pushups: 1500,
+    abs: 2000,
+    pullups: 500,
+    squats: 2000,
+  };
+  function goals() {
+    const p = g.FitStore && g.FitStore.get("program"),
+      saved = (p && p.goals) || {},
+      out = { ...DEFAULT_GOALS };
+    for (const k of Object.keys(DEFAULT_GOALS)) if (Number(saved[k]) > 0) out[k] = Number(saved[k]);
+    return out;
+  }
+  g.FitCore = {
+    validDate,
+    datePlus,
+    has,
+    intake,
+    balance,
+    confirmed,
+    series,
+    validate,
+    goals,
+    DEFAULT_GOALS,
+    get GOAL_KG() {
+      return goals().kg;
+    },
+    get NEEDED() {
+      return Math.round((goals().kg * 7700) / 56);
+    },
+  };
 })(typeof window !== "undefined" ? window : globalThis);
