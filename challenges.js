@@ -273,7 +273,11 @@ root.addEventListener("submit", (e) => {
     let field;
     if (sel.unit === "km") {
       const [mode] = KM_MODE[sel.name] || ["Correr"];
-      field = `<form id="advKmForm" class="adv-form"><input type="hidden" name="mode" value="${mode}"><label>Sumar kilómetros<input name="km" type="number" min="0.01" max="1000" step="0.01" inputmode="decimal" placeholder="0" required></label><button class="primary">+ Sumar</button></form>`;
+      const pick =
+        mode === "Hiking"
+          ? `<label>Actividad<select name="mode"><option value="Hiking">Hiking</option><option value="Rucking">Rucking</option></select></label>`
+          : `<input type="hidden" name="mode" value="${mode}">`;
+      field = `<form id="advKmForm" class="adv-form">${pick}<label>Kilómetros<input name="km" type="number" min="0.01" max="1000" step="0.01" inputmode="decimal" placeholder="0" required></label><label>Minutos (opcional)<input name="minutes" type="number" min="1" max="600" step="1" inputmode="numeric" placeholder="—"></label><button class="primary">+ Sumar</button></form>`;
     } else if (sel.unit === "reps") {
       const g = defaults().find((x) => x.name === sel.name);
       field = g ? `<form data-challenge-log="${g.id}" class="adv-form"><label>Sumar repeticiones<input name="reps" type="number" min="1" max="10000" step="1" inputmode="numeric" placeholder="0" required></label><button class="primary">+ Sumar</button></form>` : "";
@@ -325,7 +329,7 @@ root.addEventListener("submit", (e) => {
         alpha = v > 0 ? 0.18 + (0.82 * v) / max : 0;
       return `<td class="hm${future ? " is-future" : ""}${w === curW ? " is-now" : ""}" style="${v > 0 ? `background:rgba(255,195,61,${alpha.toFixed(2)});color:${alpha > 0.55 ? "#121212" : "#f4f4f5"}` : ""}" title="Semana ${w}: ${fmt(v)}">${v > 0 ? fmt(Math.round(v * 10) / 10) : "·"}</td>`;
     };
-    return `<article><div class="card-head"><h3>Historial de 8 semanas</h3><span>${curW && curW < 9 ? "Vas en la semana " + curW : ""}</span></div><div class="scroll"><table class="heatmap"><thead><tr><th></th>${Array.from({ length: 8 }, (_, i) => `<th class="${i + 1 === curW ? "is-now" : ""}">S${i + 1}</th>`).join("")}</tr></thead><tbody>${rows
+    return `<details class="fold card-fold"><summary>Ver historial de retos <small>8 semanas${curW && curW < 9 ? " · vas en la semana " + curW : ""}</small></summary><div class="scroll"><table class="heatmap"><thead><tr><th></th>${Array.from({ length: 8 }, (_, i) => `<th class="${i + 1 === curW ? "is-now" : ""}">S${i + 1}</th>`).join("")}</tr></thead><tbody>${rows
       .map((r, ri) => {
         const max = Math.max(...r.vals, 1);
         const pct = r.target ? Math.min(100, (r.sum / r.target) * 100) : 0;
@@ -333,7 +337,7 @@ root.addEventListener("submit", (e) => {
       })
       .join(
         "",
-      )}</tbody></table></div><p class="tiny subtle">Repeticiones, km y pasos por semana; todo suma a la meta final del programa. Más intenso = más volumen esa semana. Los retos no añaden calorías al balance: ya están en el total de Whoop.</p></article>`;
+      )}</tbody></table></div><p class="tiny subtle">Repeticiones, km y pasos por semana; todo suma a la meta final del programa. Más intenso = más volumen esa semana. Los retos no añaden calorías al balance: ya están en el total de Whoop.</p></details>`;
   }
   // El registro de tandas y salidas vive en Historial (con su botón Eliminar).
   function render() {
@@ -347,8 +351,13 @@ root.addEventListener("submit", (e) => {
       mode = fd.get("mode"),
       km = Number(fd.get("km")),
       when = date(),
-      pace = { Correr: 6, Nadar: 30, Hiking: 15 }[mode];
-    if (!pace || !Number.isFinite(km) || km <= 0 || km > 1000) return;
+      rawMin = fd.get("minutes"),
+      minutes = rawMin === "" || rawMin == null ? null : Number(rawMin);
+    if (!["Correr", "Nadar", "Hiking", "Rucking"].includes(mode) || !Number.isFinite(km) || km <= 0 || km > 1000) return;
+    if (minutes !== null && (!Number.isInteger(minutes) || minutes < 1 || minutes > 600)) {
+      status("La duración debe estar entre 1 y 600 minutos, o déjala vacía.");
+      return;
+    }
     if (!FitCore.validDate(when) || when > today()) {
       status("Selecciona una fecha válida de hoy o anterior.");
       return;
@@ -360,8 +369,8 @@ root.addEventListener("submit", (e) => {
         return;
       }
     }
-    // Duración estimada por ritmo típico (min/km); se puede editar en Cardio.
-    p.sessions.push({ id: freshId(), week: week(), mode, date: when, distance: km, unit: "km", minutes: Math.min(600, Math.max(1, Math.round(km * pace))), effort: 3, load: "", calories: "" });
+    // Sin duración ni esfuerzo inventados: si no se escriben, quedan vacíos.
+    p.sessions.push({ id: freshId(), week: week(), mode, date: when, distance: km, unit: "km", minutes, effort: null, load: "", calories: "" });
     persist();
     rerender();
     status(`${fmt(km)} km sumados.`);
