@@ -56,6 +56,8 @@
   function validate(p) {
     const object = (v) => v && typeof v === "object" && !Array.isArray(v);
     const number = (v, min, max) => typeof v === "number" && Number.isFinite(v) && v >= min && v <= max;
+    // Macros opcionales del alimento (g por porción base).
+    const macrosOk = (f) => ["protein", "carbs", "fat", "fiber"].every((k) => f[k] === undefined || number(f[k], 0, 1000));
     if (!object(p) || !object(p.weeks) || !Array.isArray(p.sessions))
       throw Error("Estructura de copia no válida");
     for (const key of ["diary", "meds", "foodKcal", "foodEdits", "recipeEdits", "menuPlan"])
@@ -108,7 +110,8 @@
             typeof f.category !== "string" ||
             typeof f.unit !== "string" ||
             !number(f.base, 0.01, 100000) ||
-            !number(f.kcal, 0, 5000),
+            !number(f.kcal, 0, 5000) ||
+            !macrosOk(f),
         ))
     )
       throw Error("Alimento no válido");
@@ -136,7 +139,8 @@
         typeof f.unit !== "string" ||
         typeof f.category !== "string" ||
         !number(f.base, 0.01, 100000) ||
-        !number(f.kcal, 0, 5000)
+        !number(f.kcal, 0, 5000) ||
+        !macrosOk(f)
       )
         throw Error("Edición de alimento inválida");
     for (const v of Object.values(p.foodKcal || {}))
