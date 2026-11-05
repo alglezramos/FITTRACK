@@ -14,7 +14,7 @@ window.FitSummaryModel = function (p, today) {
   for (let i = 0; i < elapsed; i++) {
     const d = p.diary?.[C.datePlus(p.start, i)];
     if (!d) continue;
-    const b = C.balance(d),
+    const b = C.confirmed(d),
       r = rows[Math.floor(i / 7)];
     if (b !== null) {
       r.days++;
@@ -84,7 +84,7 @@ window.createFitSummary = function ({
       })
       .join(
         "",
-      )}<text x="5" y="18" fill="#b8b8b8" font-size="12">kg</text>${[0, 2, 4, 6, 8].map((w) => `<text x="${x(w)}" y="214" fill="#b8b8b8" font-size="12" text-anchor="middle">S${w}</text>`).join("")}<line x1="${x(0)}" y1="${y(m.initial)}" x2="${x(8)}" y2="${y(m.target)}" stroke="#a4a8b0" stroke-width="2" stroke-dasharray="6 4"/>${m.projection === null ? "" : `<line x1="${x(0)}" y1="${y(m.initial)}" x2="${x(8)}" y2="${y(m.projection)}" stroke="#7ac7bd" stroke-width="2" stroke-dasharray="2 4"/>`}${points.map((r) => `<circle cx="${x(r.week)}" cy="${y(r.actual)}" r="4" fill="#ffc33d"><title>Semana ${r.week}: ${fmt(r.actual)} kg</title></circle>`).join("")}<circle cx="${x(0)}" cy="${y(m.initial)}" r="4" fill="#ffc33d"/></svg><p class="tiny">● Amarillo: peso real · Línea gris: objetivo · Línea verde punteada: escenario por déficit promedio.</p>`;
+      )}<text x="5" y="18" fill="#b8b8b8" font-size="12">kg</text>${[0, 2, 4, 6, 8].map((w) => `<text x="${x(w)}" y="214" fill="#b8b8b8" font-size="12" text-anchor="middle">S${w}</text>`).join("")}<line x1="${x(0)}" y1="${y(m.initial)}" x2="${x(8)}" y2="${y(m.target)}" stroke="#a4a8b0" stroke-width="2" stroke-dasharray="6 4"/>${m.projection === null ? "" : `<line x1="${x(0)}" y1="${y(m.initial)}" x2="${x(8)}" y2="${y(m.projection)}" stroke="#7ac7bd" stroke-width="2" stroke-dasharray="2 4"/>`}${points.map((r) => `<circle cx="${x(r.week)}" cy="${y(r.actual)}" r="4" fill="#ffc33d"><title>Semana ${r.week}: ${fmt(r.actual)} kg</title></circle>`).join("")}<circle cx="${x(0)}" cy="${y(m.initial)}" r="4" fill="#ffc33d"/></svg><p class="tiny">● Amarillo: peso real · Línea gris: trayectoria objetivo · Línea verde punteada: estimación por balance (${m.count} días cerrados con Whoop)${m.count ? "" : " — datos insuficientes"}.</p>`;
   }
   function energyChart(m) {
     const p = getProgram(),
@@ -118,7 +118,7 @@ window.createFitSummary = function ({
           future: pos ? r.week > pos.week : false,
           now: pos ? r.week === pos.week : false,
           prov: false,
-          title: `Semana ${r.week}: ${r.days ? (r.deficit > 0 ? "+" : "") + fmt(r.deficit, 0) + " kcal" : "sin datos"} · ${r.days} de 7 días con Whoop`,
+          title: `Semana ${r.week}: ${r.days ? (r.deficit > 0 ? "+" : "") + fmt(r.deficit, 0) + " kcal" : "sin datos"} · ${r.days} de 7 días cerrados con Whoop`,
         }));
     const goal = daily ? NEED : NEED * 7,
       vals = rows.map((r) => r.value).filter((v) => v !== null),
@@ -141,7 +141,7 @@ window.createFitSummary = function ({
       count = daily ? vals.length : m.count,
       goalTotal = daily ? NEED * 7 : NEED * 56,
       pct = Math.max(0, Math.min(100, (total / goalTotal) * 100));
-    return `<article class="energy-card"><div class="card-head"><h3>Balance energético</h3><span>${daily ? "Semana " + w : "8 semanas"}</span></div><div class="food-tabs"><button data-balance-view="daily" aria-pressed="${daily}">Diario</button><button data-balance-view="weekly" aria-pressed="${!daily}">Semanal</button></div><div class="ec" role="img" aria-label="Balance ${daily ? "diario de la semana " + w : "por semana"} frente a la meta de ${fmt(goal, 0)} kcal"><div class="ec-goal" style="bottom:${zero + (goal / span) * 100}%"><span>Meta ${short(goal)}</span></div><div class="ec-zero" style="bottom:${zero}%"></div><div class="ec-cols" style="grid-template-columns:repeat(${rows.length},1fr)">${cols}</div></div><div class="ec-axis" style="grid-template-columns:repeat(${rows.length},1fr)">${rows.map((r) => `<div class="${r.now ? "is-now" : ""}${r.future ? " is-future" : ""}">${r.top}<small>${r.sub}</small></div>`).join("")}</div><div class="ec-sum"><div class="ec-sum-row"><span>Déficit ${daily ? "de la semana" : "del programa"}</span><strong>${total > 0 ? "+" : ""}${fmt(total, 0)} / ${fmt(goalTotal, 0)} kcal</strong></div><div class="ec-sum-bar"><i style="width:${pct.toFixed(1)}%"></i></div><div class="ec-sum-row"><span>${count} de ${daily ? 7 : 56} días con Whoop</span><span>${Math.round(pct)}% de la meta</span></div></div><div class="ec-legend"><span style="--c:#7ac7bd">Déficit</span><span style="--c:#ed9b76">Superávit</span>${daily ? '<span class="prov">Provisional</span>' : ""}<span style="--c:#ffc33d">Meta ${daily ? "diaria" : "semanal"}</span></div><p class="tiny subtle">Whoop total − calorías consumidas. Provisional: día con Whoop sin marcar como «Día completo».</p></article>`;
+    return `<article class="energy-card"><div class="card-head"><h3>Balance energético</h3><span>${daily ? "Semana " + w : "8 semanas"}</span></div><div class="food-tabs"><button data-balance-view="daily" aria-pressed="${daily}">Diario</button><button data-balance-view="weekly" aria-pressed="${!daily}">Semanal</button></div><div class="ec" role="img" aria-label="Balance ${daily ? "diario de la semana " + w : "por semana"} frente a la meta de ${fmt(goal, 0)} kcal"><div class="ec-goal" style="bottom:${zero + (goal / span) * 100}%"><span>Meta ${short(goal)}</span></div><div class="ec-zero" style="bottom:${zero}%"></div><div class="ec-cols" style="grid-template-columns:repeat(${rows.length},1fr)">${cols}</div></div><div class="ec-axis" style="grid-template-columns:repeat(${rows.length},1fr)">${rows.map((r) => `<div class="${r.now ? "is-now" : ""}${r.future ? " is-future" : ""}">${r.top}<small>${r.sub}</small></div>`).join("")}</div><div class="ec-sum"><div class="ec-sum-row"><span>Déficit ${daily ? "de la semana" : "del programa"}</span><strong>${total > 0 ? "+" : ""}${fmt(total, 0)} / ${fmt(goalTotal, 0)} kcal</strong></div><div class="ec-sum-bar"><i style="width:${pct.toFixed(1)}%"></i></div><div class="ec-sum-row"><span>${count} de ${daily ? 7 : 56} días con Whoop</span><span>${Math.round(pct)}% de la meta</span></div></div><div class="ec-legend"><span style="--c:#7ac7bd">Déficit</span><span style="--c:#ed9b76">Superávit</span>${daily ? '<span class="prov">Provisional</span>' : ""}<span style="--c:#ffc33d">Meta ${daily ? "diaria" : "semanal"}</span></div><p class="tiny subtle">Whoop total − calorías consumidas. Provisional: día con Whoop sin marcar como «Día completo»; la vista semanal y la estimación solo usan días cerrados.</p></article>`;
   }
   root.addEventListener("click", (e) => {
     const b = e.target.closest("[data-balance-view]");
