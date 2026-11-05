@@ -1,3 +1,14 @@
+# EVÓ r90 · Tira semanal y «Tu día»
+
+Basada en r89.
+
+Cambios:
+- Encabezado: los selectores de semana y día se reemplazan por una tira L–D con flechas de semana. Cada día muestra un punto: verde = día cerrado, terracota = con registros pendientes de cerrar, vacío = sin registro. Un toque elige el día.
+- Hoy: nueva tarjeta «Tu día» con los pendientes (comidas, peso, entreno o cardio, Whoop, pasos y cerrar día), cada uno con su botón para registrar. Los retos siguen en Progreso → Retos y en Entreno.
+- Textos pequeños más grandes y con más contraste (lema del logo, macros, textos grises).
+
+Datos: no cambian claves de almacenamiento ni IDs.
+
 # EVÓ r89 · Paleta «Tulum día»
 
 - Colores cálidos tipo Tulum/wellness: fondo arena, terracota como color principal, salvia para lo completado y café espresso para el texto. Todos los colores del CSS pasan por variables en `:root`, así que la paleta se puede ajustar en un solo lugar.
