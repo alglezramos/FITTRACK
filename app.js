@@ -1,4 +1,4 @@
-const DAYS = ["Piernas y glúteos", "Pecho y tríceps", "Espalda y bíceps", "Hombros y estabilidad", "Brazos y core"];
+const DAYS = ["Piernas y glúteos", "Pecho y tríceps", "Espalda, hombros y bíceps", "Solo cardio", "Brazos y core"];
 // Cardio de cada día de la rutina general (fuerza + cardio).
 const DAY_CARDIO = ["🥋 Judo", "🏊 Natación", "🥋 Judo", "🏊 Natación", "🥋 Judo"];
 let state = { day: 1, week: 1, weights: {}, completed: {} };
@@ -409,6 +409,10 @@ function renderNow() {
       })
       .join("") +
     "</div>";
+  // Día sin pesas (Día 4): solo cardio.
+  if (!ex.length)
+    $("exerciseList").innerHTML =
+      '<p class="subtle empty-day">Este día no tiene pesas: solo cardio. Registra tu actividad abajo, en Cardio.</p>';
   $("history").innerHTML =
     '<div class="sectionHead"><h2>Historial de pesos</h2><span>lb · 8 semanas</span></div><div class="history"><table><thead><tr><th>Ejercicio</th>' +
     Array.from({ length: 8 }, (_, i) => "<th>S" + (i + 1) + "</th>").join("") +
