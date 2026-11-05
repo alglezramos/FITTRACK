@@ -312,7 +312,7 @@
     const r = C.validDate(program.start) ? route(dt) : { n: 0, def: 0, gap: 0 };
     const sessions = program.sessions.filter((s) => s.date === dt);
     if (!C.validDate(dt))
-      return `<article id="sec-day"><h2>Selecciona el inicio</h2><p>Configura el inicio y tu peso inicial, o restaura tu copia si ya usabas FitTrack.</p><p><button type="button" class="primary" data-open-settings>Configurar programa</button> <button type="button" data-open-backup>Restaurar copia</button></p></article>`;
+      return `<article id="sec-day"><h2>Selecciona el inicio</h2><p>Configura el inicio y tu peso inicial, o restaura tu copia si ya usabas la app.</p><p><button type="button" class="primary" data-open-settings>Configurar programa</button> <button type="button" data-open-backup>Restaurar copia</button></p></article>`;
     // Calorías
     const over = kcal > kcalTarget(),
       ok = !over && b !== null && b >= C.NEEDED,
