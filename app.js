@@ -71,6 +71,9 @@ function setsOf(id, w) {
   return null;
 }
 const hasData = (sets) => !!sets && sets.some((z) => z.done || z.w > 0);
+// Sesiones archivadas: si un ejercicio se repite otro día de la misma semana, la sesión
+// anterior se guarda aquí con su fecha en lugar de sobrescribirse.
+const archived = (id, w) => (state.archive || []).filter((a) => a.id === id && (w == null || a.week === w));
 function prevSession(id) {
   for (let w = state.week - 1; w >= 1; w--) {
     const s = setsOf(id, w);
@@ -83,13 +86,25 @@ const topOf = (sets) => (sets || []).filter((z) => z.done && z.w > 0).reduce((m,
 function bestOf(id, exceptWeek) {
   let best = 0;
   for (let w = 1; w <= 8; w++) if (w !== exceptWeek) best = Math.max(best, topOf(setsOf(id, w)));
+  for (const a of archived(id)) best = Math.max(best, topOf(a.sets));
   return best;
 }
 // Crea las series de la semana actual (si no existen) a partir de lo que muestra la tarjeta.
 function ensureSets(id) {
   const k = weightKey(id);
   state.sets ??= {};
-  if (Array.isArray(state.sets[k])) return state.sets[k];
+  const cur = state.sets[k];
+  if (Array.isArray(cur)) {
+    // Nueva sesión del mismo ejercicio en otra fecha de la semana: archiva la anterior.
+    const today = recordDate(),
+      doneDates = [...new Set(cur.filter((z) => z.done && z.d).map((z) => z.d))];
+    if (today && doneDates.length && !doneDates.includes(today)) {
+      state.archive ??= [];
+      state.archive.push({ id, week: state.week, date: doneDates.sort().at(-1), sets: cur.map((z) => ({ ...z })) });
+      return (state.sets[k] = cur.map((z) => ({ w: z.w, r: z.r, done: false })));
+    }
+    return cur;
+  }
   const inferred = setsOf(id, state.week);
   if (inferred) return (state.sets[k] = inferred.map((z) => ({ ...z })));
   const t = target(exById(id)),
@@ -108,9 +123,14 @@ function syncExercise(id) {
   else delete state.weights[k];
   const all = sets.length > 0 && sets.every((z) => z.done);
   state.completedDates ??= {};
+  // Una sesión archivada completa de esta semana mantiene el ejercicio como hecho.
+  const prevDone = archived(id, state.week).find((a) => a.sets.length && a.sets.every((z) => z.done));
   if (all && !state.completed[k]) state.completedDates[k] = recordDate();
-  if (!all) delete state.completedDates[k];
-  state.completed[k] = all;
+  if (!all) {
+    if (prevDone) state.completedDates[k] = prevDone.date;
+    else delete state.completedDates[k];
+  }
+  state.completed[k] = all || !!prevDone;
 }
 const sparkline = (vals) => {
   const pts = vals.map((v, i) => [i, v]).filter(([, v]) => v > 0);
@@ -137,7 +157,12 @@ function historyHtml(x) {
       k = x.id + "-w" + w;
     tops.push(topOf(s));
     if (!hasData(s)) continue;
-    const date = (state.completedDates || {})[k] || s.find((z) => z.d)?.d || "";
+    for (const a of archived(x.id, w))
+      rows.push(
+        "<li><b>S" + w + "</b> · " + esc(a.date.slice(8) + "/" + a.date.slice(5, 7)) + " · " +
+          a.sets.filter((z) => z.w > 0).map((z) => fmtW(toShow(z.w)) + "×" + z.r + (z.done ? "" : "?")).join(" · ") + "</li>",
+      );
+    const date = s.find((z) => z.d)?.d || (state.completedDates || {})[k] || "";
     rows.push(
       "<li><b>S" +
         w +
@@ -222,6 +247,34 @@ const esc = (s) =>
     /[&<>"']/g,
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
   );
+// Rutina histórica: las semanas ya pasadas guardan la lista de ejercicios que tenían,
+// así agregar o quitar ejercicios no cambia su porcentaje de cumplimiento.
+function routineIds(w) {
+  const snap = state.routineByWeek && state.routineByWeek[w];
+  return Array.isArray(snap) && snap.length ? snap : EXERCISES.map((e) => e.id);
+}
+function freezeRoutines() {
+  const p = FitStore.get("program") || {};
+  if (!p.start || !window.FitCalendar) return;
+  const t = new Date(),
+    iso = new Date(t.getTime() - t.getTimezoneOffset() * 60000).toISOString().slice(0, 10),
+    pos = FitCalendar.position(p.start, iso),
+    cur = pos ? pos.week : iso > FitCalendar.date(p.start, 8, 6) ? 9 : 1;
+  state.routineByWeek ??= {};
+  let changed = false;
+  for (let w = 1; w < Math.min(cur, 9); w++) {
+    if (state.routineByWeek[w]) continue;
+    const ids = new Set(EXERCISES.map((e) => e.id));
+    Object.keys(state.completed || {}).forEach((k) => {
+      const m = /^(.*)-w(\d+)$/.exec(k);
+      if (m && Number(m[2]) === w && state.completed[k]) ids.add(m[1]);
+    });
+    state.routineByWeek[w] = [...ids];
+    changed = true;
+  }
+  if (changed) save();
+}
+window.fitRoutineIds = routineIds;
 let rendering = false;
 function render() {
   if (rendering) return;
@@ -288,11 +341,13 @@ function renderNow() {
   }
   const sessionTag =
     setsDone === 0 ? "" : setsDone >= setsTotal ? '<span class="sess done">✓ Sesión completa</span>' : '<span class="sess">⏸ En curso · continúa cuando quieras</span>';
-  const total = EXERCISES.filter((x) => state.completed[weightKey(x.id)]).length;
+  freezeRoutines();
+  const weekIds = routineIds(state.week),
+    total = weekIds.filter((id) => state.completed[id + "-w" + state.week]).length;
   const pct = (n, of) => (of ? (n / of) * 100 : 0);
   const pctText = (n, of) => pct(n, of).toFixed(1).replace(".", ",") + "%";
-  const weekPct = pct(total, EXERCISES.length);
-  $("progress").textContent = total + "/" + EXERCISES.length + " completados · " + pctText(total, EXERCISES.length);
+  const weekPct = pct(total, weekIds.length);
+  $("progress").textContent = total + "/" + weekIds.length + " completados · " + pctText(total, weekIds.length);
   // Franja compacta: semana, ejercicios y series del día en una sola línea.
   const dayPct = setsTotal ? (setsDone / setsTotal) * 100 : pct(done, ex.length);
   $("summary").innerHTML =
@@ -311,7 +366,7 @@ function renderNow() {
         " <b>" +
         total +
         "/" +
-        EXERCISES.length +
+        weekIds.length +
         "</b></span>" +
         sessionTag +
         '</div><div class="weight-progress-track dash-bar" role="progressbar" aria-label="Avance del día" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' +
@@ -483,7 +538,7 @@ document.addEventListener("click", (e) => {
     const id = c.dataset.done,
       k = weightKey(id),
       sets = ensureSets(id);
-    if (state.completed[k]) sets.forEach((z) => (z.done = false));
+    if (sets.length && sets.every((z) => z.done)) sets.forEach((z) => (z.done = false));
     else {
       for (let i = 0; i < sets.length; i++) {
         const row = readRow(id, i);
@@ -571,6 +626,29 @@ function download(name, body, type) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-if ("serviceWorker" in navigator && location.protocol.startsWith("http"))
-  navigator.serviceWorker.register("./sw.js").catch(() => {});
+// Actualizaciones: cuando una versión nueva toma el control, se avisa para recargar
+// la app completa (evita seguir usando archivos de la versión anterior).
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  const hadController = !!navigator.serviceWorker.controller;
+  let shown = false;
+  const showUpdate = () => {
+    if (shown || !hadController) return;
+    shown = true;
+    const bar = document.createElement("div");
+    bar.className = "update-bar";
+    bar.setAttribute("role", "status");
+    bar.innerHTML = '<span>Nueva versión de FitTrack lista.</span><button type="button">Recargar</button>';
+    bar.querySelector("button").onclick = () => location.reload();
+    document.body.appendChild(bar);
+  };
+  navigator.serviceWorker.addEventListener("controllerchange", showUpdate);
+  navigator.serviceWorker
+    .register("./sw.js")
+    .then((reg) => {
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") reg.update().catch(() => {});
+      });
+    })
+    .catch(() => {});
+}
 render();
