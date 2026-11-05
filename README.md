@@ -1,3 +1,7 @@
+# r86 · Fuerza minimalista
+
+Diseño compacto con fotos originales, series editables, unidades kg/lb, botones de completar y guías. Basado en r85. Sin cambios de formato de datos ni migraciones.
+
 # FitTrack — versión del 19 de octubre de 2026
 
 Aplicación web instalable (PWA), compatible con GitHub Pages.
