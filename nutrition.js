@@ -135,6 +135,10 @@ window.createFitNutrition = function ({
       .join("");
     return `<article><div class="card-head"><div><div class="eyebrow">REGISTRO DEL DÍA</div><h3>${escape(dt || "Selecciona el inicio")}</h3></div><span class="pill">${meals.length} · ${fmt(kcal)} kcal</span></div><p>${kcal <= FitCore.goals().kcal ? "Restan " + fmt(FitCore.goals().kcal - kcal) + " de " + fmt(FitCore.goals().kcal) + " kcal" : "Sobre " + fmt(FitCore.goals().kcal) + " por " + fmt(kcal - FitCore.goals().kcal) + " kcal"}${d.closed ? " · ✓ Día completo" : ""}</p>${groups || '<p class="subtle">Aún no hay comidas registradas este día.</p>'}<div class="btn-row"><button class="primary" data-quick-food>+ Alimento</button><button data-food-tab="menus">+ Receta</button><button data-food-tab="week">Ver plan</button></div></article>`;
   }
+  let recipeSearch = "";
+  let recipeScope = "all";
+  const normalizeSearch = (s) => String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const recentRecipeIds = () => Object.entries(prog().diary || {}).sort(([a],[b]) => b.localeCompare(a)).flatMap(([,d]) => [...(d.meals || [])].reverse().map(m => m.recipeId || menus.find(r => r.name === m.name)?.id)).filter(Boolean);
   function renderMenus() {
     const selected = prog().menuFilter || "Todos",
       groups = ["Desayuno", "Almuerzo", "Cena", "Merienda"].filter(
@@ -142,12 +146,18 @@ window.createFitNutrition = function ({
       );
     const row = (r) => {
       const kcal = calories(items(r));
-      return `<div class="recipe-row"><div class="rr-main"><strong>${escape(r.name)}</strong><small><span class="${kcal > 500 ? "over-limit" : "rr-kcal"}">${fmt(kcal)} kcal${kcal > 500 ? " · supera 500" : ""}</span> · ${items(r).length} ingredientes</small></div><div class="rr-actions"><button data-edit-recipe="${r.id}" aria-label="Ajustar ${escape(r.name)}" title="Ajustar porciones">✎</button><button data-log-recipe="${r.id}" class="primary" aria-label="Registrar ${escape(r.name)}">+ Registrar</button></div></div>`;
+      const duplicates = menus.filter(m => normalizeSearch(m.name) === normalizeSearch(r.name));
+      const variant = duplicates.length > 1 ? ` · Porción ${duplicates.findIndex(m => m.id === r.id) + 1}` : "";
+      const portion = items(r).map(i => `${fmt(i.qty)} ${fById(i.food).unit} ${fById(i.food).name}`).join(" · ");
+      return `<div class="recipe-row" data-recipe-row="${escape(r.id)}"><div class="rr-main"><strong>${escape(r.name)}${variant}</strong><small><span class="${kcal > 500 ? "over-limit" : "rr-kcal"}">${fmt(kcal)} kcal${kcal > 500 ? " · supera 500" : ""}</span> · ${items(r).length} ingredientes</small><details class="recipe-portions"><summary>Ver porción e ingredientes</summary><p>${escape(portion)}</p></details></div><div class="rr-actions"><button data-recipe-favorite="${r.id}" aria-pressed="${!!prog().recipeFavorites?.includes(r.id)}" aria-label="Favorito: ${escape(r.name)}">${prog().recipeFavorites?.includes(r.id) ? "★" : "☆"}</button><button data-edit-recipe="${r.id}" aria-label="Ajustar ${escape(r.name)}" title="Ajustar porciones">✎</button><button data-log-recipe="${r.id}" class="primary" aria-label="Registrar ${escape(r.name)}">+ Registrar</button></div></div>`;
     };
-    return `<article class="catalog-head"><div class="card-head"><h3>${menus.length} recetas</h3><span>Se registran en ${selectedDate() || "—"}</span></div><div class="cat-chips">${["Todos", "Desayuno", "Almuerzo", "Cena", "Merienda"].map((k) => `<button data-menu-filter="${k}" aria-pressed="${k === selected}">${k}</button>`).join("")}</div></article><article class="food-compact">${groups
+    return `<article class="catalog-head"><div class="card-head"><h3>${menus.length} recetas</h3><span>Se registran en ${selectedDate() || "—"}</span></div><label class="recipe-search">Buscar receta<input type="search" id="recipeSearch" value="${escape(recipeSearch)}" placeholder="Nombre o ingrediente"></label><div class="cat-chips">${[["all","Todas"],["favorites","Favoritos"],["recent","Recientes"]].map(([id,label]) => `<button data-recipe-scope="${id}" aria-pressed="${recipeScope === id}">${label}</button>`).join("")}</div><div class="cat-chips">${["Todos", "Desayuno", "Almuerzo", "Cena", "Merienda"].map((k) => `<button data-menu-filter="${k}" aria-pressed="${k === selected}">${k}</button>`).join("")}</div></article><article class="food-compact">${groups
       .map((k) => {
         const list = menus.filter(
-          (r) => r.kind === k || (selected !== "Todos" && matches(r, k) && r.kind !== k),
+          (r) => (r.kind === k || (selected !== "Todos" && matches(r, k) && r.kind !== k)) &&
+            (recipeScope !== "favorites" || prog().recipeFavorites?.includes(r.id)) &&
+            (recipeScope !== "recent" || recentRecipeIds().slice(0,20).includes(r.id)) &&
+            normalizeSearch(r.name + " " + items(r).map(i => fById(i.food).name).join(" ")).includes(normalizeSearch(recipeSearch)),
         );
         return list.length
           ? `<details open><summary><span>${k}</span><small>${list.length}</small></summary>${list.map(row).join("")}</details>`
@@ -158,7 +168,7 @@ window.createFitNutrition = function ({
       )}</article><article><div class="card-head"><h3>Crear una receta</h3><button data-food-tab="create" class="primary">+ Crear receta</button></div><p class="tiny subtle">Agrega una receta personalizada a tu catálogo.</p></article>`;
   }
   function renderWeek(day) {
-    return `<article><div class="card-head"><h3>Menú · semana ${week()}</h3><span>${fmt(totalDay(day))} kcal propuestas</span></div><details class="intro"><summary>Cómo funciona el plan</summary><p class="tiny subtle">La misma semana se repite durante las ocho semanas: un desayuno fijo, diez opciones intercambiables de almuerzo y cena, yogurt con fruta, batido solo o con fruta y helado de soya con 200 ml de leche por la noche. Reutiliza pollo, arroz y brócoli para preparar varias porciones. Puedes cambiar cualquiera de las seis comidas. Son propuestas; solo se suman al consumo cuando las registras.</p><p class="tiny subtle">Estimaciones, no etiquetas verificadas. El límite es por comida, no por día. Las porciones no acreditan un objetivo de proteína: faltan esos datos nutricionales.</p></details><div class="cat-chips day-picker">${weekdays.map((d, i) => `<button data-menu-day="${i}" aria-pressed="${i === day}">${dayLabel(i)}</button>`).join("")}</div><h3 class="sub-title">${dayLabel(day)} · ${fmt(totalDay(day))} kcal</h3><p class="tiny subtle">Referencia: ${fmt(FitCore.goals().kcal)} kcal. El total propuesto varía según los platos y las meriendas elegidas; no se ajusta automáticamente a 1.800. Los cambios de porción actualizan el total; revisa esta referencia según rendimiento y recuperación.</p></article><article><h3>Los 7 días de esta semana</h3><p class="tiny subtle">Toca cualquier comida para cambiarla. El cambio se guarda solo para la semana activa y actualiza el total del día y la lista del súper.</p><button data-food-tab="shopping" class="primary">Generar lista del supermercado</button><p class="tiny subtle">Se suman los ingredientes de los seis tiempos de comida de cada día, según tus selecciones y porciones.</p><div class="scroll"><table><thead><tr><th>Día</th><th>Desayuno</th><th>Almuerzo</th><th>Cena</th><th>Merienda 1</th><th>Merienda 2</th><th>Snack nocturno</th><th>Kcal</th></tr></thead><tbody>${weekdays
+    return `<article><div class="card-head"><h3>Menú · semana ${week()}</h3><span>${fmt(totalDay(day))} kcal propuestas</span></div><details class="intro"><summary>Cómo funciona el plan</summary><p class="tiny subtle">La misma semana se repite durante las ocho semanas: un desayuno fijo, diez opciones intercambiables de almuerzo y cena, yogurt con fruta, batido solo o con fruta y helado de soya con 200 ml de leche por la noche. Reutiliza pollo, arroz y brócoli para preparar varias porciones. Puedes cambiar cualquiera de las seis comidas. Son propuestas; solo se suman al consumo cuando las registras.</p><p class="tiny subtle">Estimaciones, no etiquetas verificadas. El límite es por comida, no por día. Las porciones no acreditan un objetivo de proteína: faltan esos datos nutricionales.</p></details><div class="cat-chips day-picker">${weekdays.map((d, i) => `<button data-menu-day="${i}" aria-pressed="${i === day}">${dayLabel(i)}</button>`).join("")}</div><h3 class="sub-title">${dayLabel(day)} · ${fmt(totalDay(day))} kcal</h3><p class="tiny subtle">Referencia: ${fmt(FitCore.goals().kcal)} kcal. El total propuesto varía según los platos y las meriendas elegidas; no se ajusta automáticamente a esa referencia. Los cambios de porción actualizan el total; revisa esta referencia según rendimiento y recuperación.</p></article><article><h3>Los 7 días de esta semana</h3><p class="tiny subtle">Toca cualquier comida para cambiarla. El cambio se guarda solo para la semana activa y actualiza el total del día y la lista del súper.</p><button data-food-tab="shopping" class="primary">Generar lista del supermercado</button><p class="tiny subtle">Se suman los ingredientes de los seis tiempos de comida de cada día, según tus selecciones y porciones.</p><div class="scroll"><table><thead><tr><th>Día</th><th>Desayuno</th><th>Almuerzo</th><th>Cena</th><th>Merienda 1</th><th>Merienda 2</th><th>Snack nocturno</th><th>Kcal</th></tr></thead><tbody>${weekdays
       .map(
         (d, i) =>
           `<tr><td>${dayLabel(i)}</td>${kinds
@@ -226,7 +236,9 @@ window.createFitNutrition = function ({
     cmvfrfku87diwxvqe30x: [1 / 0.75, "carne molida cruda"],
   };
   const haveOf = (row) => Number(prog().shoppingHave?.[week()]?.[row.id]) || 0;
-  const toBuy = (row) => Math.max(0, Math.round((row.qty - haveOf(row)) * 10) / 10);
+  const haveMode = (id) => BUY[id] && prog().shoppingHaveMode?.[week()]?.[id] === "raw" ? "raw" : "cooked";
+  const haveCooked = (row) => haveMode(row.id) === "raw" ? haveOf(row) / BUY[row.id][0] : haveOf(row);
+  const toBuy = (row) => Math.max(0, Math.round((row.qty - haveCooked(row)) * 10) / 10);
   const buyHint = (row) => {
     const b = BUY[row.id],
       n = toBuy(row);
@@ -236,15 +248,53 @@ window.createFitNutrition = function ({
     const rows = shoppingRows(),
       done = rows.filter(covered).length,
       categories = [...new Set(rows.map((r) => r.category))];
-    return `<article><div class="eyebrow">LISTA DEL SÚPER · SEMANA ${week()}</div><div class="card-head"><h2>Todo para tu menú</h2><span class="pill">${done}/${rows.length}</span></div><p>Escribe en «Ya tengo» lo que hay en casa y verás cuánto falta comprar. Marca la casilla cuando lo compres.</p><p class="tiny subtle">Se suman las recetas elegidas en «Semana», incluyendo tus cambios de porción. Si cambia la cantidad de un producto marcado, vuelve a quedar pendiente para que lo revises. Las comidas consumidas no se descuentan de esta lista.</p><button data-food-tab="week">Revisar menú semanal</button></article><article class="food-compact">${categories
+    return `<article><div class="eyebrow">LISTA DEL SÚPER · SEMANA ${week()}</div><div class="card-head"><h2>Todo para tu menú</h2><span class="pill">${done}/${rows.length}</span></div><p>Escribe en «Ya tengo» lo que hay en casa. Para arroz, pasta y carnes, selecciona si lo pesaste cocinado o crudo/seco; las equivalencias son aproximadas. Marca la casilla cuando lo compres.</p><p class="tiny subtle">Se suman las recetas elegidas en «Plan», incluyendo tus cambios de porción. Si cambia la cantidad de un producto marcado, vuelve a quedar pendiente para que lo revises. Las comidas consumidas no se descuentan de esta lista.</p><button data-food-tab="week">Revisar menú semanal</button></article><article class="food-compact">${categories
       .map((category) => {
         const list = rows.filter((r) => r.category === category);
-        return `<details open><summary><span>${escape(category)}</span><small>${list.filter(covered).length}/${list.length}</small></summary>${list.map((r) => `<div class="shop-row${covered(r) ? " is-done" : ""}"><label><input type="checkbox" data-shopping-item="${escape(r.id)}" ${covered(r) ? "checked" : ""}><span><strong>${escape(r.name)}</strong><br>Menú: ${quantity(r)}${r.id === "gnc" ? " · " + fmt(r.qty / 414) + " envases de 414 ml" : ""}<br><b class="shop-buy">${toBuy(r) > 0 ? `Por comprar: ${quantity({ ...r, qty: toBuy(r) })}${buyHint(r)}` : "✓ Ya lo tienes"}</b></span></label><label class="shop-have">Ya tengo<input type="number" min="0" step="any" inputmode="decimal" data-shopping-have="${escape(r.id)}" value="${haveOf(r) || ""}" placeholder="0"><small>${escape(r.unit)}</small></label></div>`).join("")}</details>`;
+        return `<details open><summary><span>${escape(category)}</span><small>${list.filter(covered).length}/${list.length}</small></summary>${list.map((r) => `<div class="shop-row${covered(r) ? " is-done" : ""}"><label><input type="checkbox" data-shopping-item="${escape(r.id)}" ${covered(r) ? "checked" : ""}><span><strong>${escape(r.name)}</strong><br>Menú: ${quantity(r)}${r.id === "gnc" ? " · " + fmt(r.qty / 414) + " envases de 414 ml" : ""}<br><b class="shop-buy">${toBuy(r) > 0 ? `Por comprar: ${quantity({ ...r, qty: toBuy(r) })}${buyHint(r)}` : "✓ Ya lo tienes"}</b></span></label><label class="shop-have">Ya tengo<input type="number" min="0" step="any" inputmode="decimal" data-shopping-have="${escape(r.id)}" value="${haveOf(r) || ""}" placeholder="0"><small>${haveMode(r.id) === "raw" ? "g crudos/secos" : escape(r.unit)}</small>${BUY[r.id] ? `<select data-have-mode="${r.id}" aria-label="Estado de ${escape(r.name)}"><option value="cooked" ${haveMode(r.id) === "cooked" ? "selected" : ""}>Cocinado</option><option value="raw" ${haveMode(r.id) === "raw" ? "selected" : ""}>Crudo / seco</option></select>` : ""}</label></div>`).join("")}</details>`;
       })
       .join(
         "",
       )}</article><article><h3>Cómo interpretar las cantidades</h3><p class="tiny subtle">Las cantidades del menú son listas para comer. Esta lista suma lo que servirás, no el peso crudo de compra: 1 kg de arroz cocido no significa comprar 1 kg de arroz seco. En el pastor se usa provisionalmente 100 g crudos → 75 g cocinados, conservando las kcal originales; no descuenta grasa descartada. Ajusta la porción base en Alimentos según lo que rinda tu preparación.</p></article>`;
   }
+  root.addEventListener("change", (e) => {
+    const id = e.target.dataset.haveMode;
+    if (!id || !BUY[id]) return;
+    const p = prog();
+    const oldMode = haveMode(id), mode = e.target.value === "raw" ? "raw" : "cooked";
+    p.shoppingHave ??= {}; p.shoppingHave[week()] ??= {};
+    const old = Number(p.shoppingHave[week()][id]) || 0;
+    // Convert the existing quantity so changing display mode preserves the stock.
+    p.shoppingHave[week()][id] = oldMode === mode ? old : old * (mode === "raw" ? BUY[id][0] : 1 / BUY[id][0]);
+    p.shoppingHaveMode ??= {}; p.shoppingHaveMode[week()] ??= {};
+    p.shoppingHaveMode[week()][id] = mode;
+    persist(); rerender();
+  });
+  root.addEventListener("input", (e) => {
+    if (e.target.id !== "recipeSearch") return;
+    recipeSearch = e.target.value;
+    const pos = e.target.selectionStart;
+    rerender();
+    const input = document.getElementById("recipeSearch");
+    input?.focus({preventScroll:true}); input?.setSelectionRange(pos,pos);
+  });
+  root.addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.recipeScope) { recipeScope = b.dataset.recipeScope; rerender(); }
+    if (b.dataset.recipeFavorite) {
+      const p = prog(), id = b.dataset.recipeFavorite;
+      const ids = new Set(p.recipeFavorites || []);
+      if (ids.has(id)) ids.delete(id); else ids.add(id);
+      p.recipeFavorites = [...ids]; persist(); rerender();
+    }
+    if (b.dataset.fitLimit) {
+      const r = menus.find(r => r.id === b.dataset.fitLimit); if (!r) return;
+      const total = calories(items(r)); if (!(total > 500)) return;
+      prog().recipeEdits[r.id] = items(r).map(i => ({...i, qty: Math.floor(i.qty * 500 / total * 100) / 100}));
+      persist(); rerender();
+      notify("Porción ajustada. Las comidas ya registradas no cambian.");
+    }
+  });
   root.addEventListener("change", (e) => {
     const hid = e.target.dataset.shoppingHave;
     if (!hid) return;
@@ -313,7 +363,7 @@ window.createFitNutrition = function ({
       })
       .join(
         "",
-      )}</div><form id="addRecipeIngredient"><div class="fields"><label>Añadir alimento <select name="food">${foods.map((f) => `<option value="${f.id}">${escape(f.name)} · ${escape(f.unit)}</option>`).join("")}</select></label><label>Cantidad <input name="quantity" type="number" min="0.01" max="5000" step="any" required></label><button>Añadir ingrediente</button></div></form><p class="meal-kcal" id="recipeTotal" aria-live="polite">${fmt(kcal)} kcal · ${kcal <= 500 ? "dentro de 500 kcal" : "supera 500 kcal"}</p><p class="tiny subtle">Las cantidades se guardan automáticamente. Puedes añadir aceite u otros ingredientes arriba; todos cuentan en el total. El total es estimado.</p><button data-log-recipe="${r.id}" class="primary">Registrar en ${escape(selectedDate())}</button> <button data-reset-recipe="${r.id}">Restaurar porciones</button> <button id="closeRecipe">Cerrar</button></article>`;
+      )}</div><form id="addRecipeIngredient"><div class="fields"><label>Añadir alimento <select name="food">${foods.map((f) => `<option value="${f.id}">${escape(f.name)} · ${escape(f.unit)}</option>`).join("")}</select></label><label>Cantidad <input name="quantity" type="number" min="0.01" max="5000" step="any" required></label><button>Añadir ingrediente</button></div></form><p class="meal-kcal" id="recipeTotal" aria-live="polite">${fmt(kcal)} kcal · ${kcal <= 500 ? "dentro de 500 kcal" : "supera 500 kcal"}</p>${kcal > 500 ? `<button type="button" data-fit-limit="${r.id}">Ajustar porción a 500 kcal</button>` : ""}<p class="tiny subtle">Las cantidades se guardan automáticamente. Puedes añadir aceite u otros ingredientes arriba; todos cuentan en el total. El total es estimado.</p><button data-log-recipe="${r.id}" class="primary">Registrar en ${escape(selectedDate())}</button> <button data-reset-recipe="${r.id}">Restaurar porciones</button> <button id="closeRecipe">Cerrar</button></article>`;
   }
   function renderQuick() {
     sync();
@@ -585,6 +635,7 @@ window.createFitNutrition = function ({
       d.meals.push({
         id: stamp(),
         name: r.name,
+        recipeId: r.id,
         kind: r.kind,
         kcal: calories(rows),
         items: rows.map((i) => {
