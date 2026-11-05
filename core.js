@@ -13,7 +13,8 @@
   const intake = (d) => (d.meals || []).reduce((n, m) => n + Number(m.kcal), 0) + (Number(d.extras) || 0);
   const balance = (d) => (has(d.whoop) ? Number(d.whoop) - intake(d) : null);
   // Balance confirmado: solo días cerrados con Whoop (un día abierto o sin comidas no cuenta como consumo cero).
-  const confirmed = (d) => (d && d.closed && has(d.whoop) ? balance(d) : null);
+  const confirmed = (d) =>
+    d && d.closed && has(d.whoop) && ((d.meals || []).length || Number(d.extras) > 0) ? balance(d) : null;
   function series(p) {
     if (!validDate(p.start) || !has(p.initialWeight)) return [];
     let total = 0,
