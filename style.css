@@ -2731,3 +2731,6 @@ body.sheet-mode #programView {
 .adv-exp { bottom: calc(42px + (100% - 42px) * var(--exp) / 100); }
 .adv-n-full { display: none; }
 @media (min-width: 600px) { .adv-n-full { display: inline; } .adv-n-short { display: none; } }
+.hist-sec .hist-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 0; }
+.hist-sec ul:has(.hist-item) { list-style: none; padding-left: 0; }
+.program .hist-del { padding: 4px 10px; font-size: 12px; min-height: 0; flex: none; }
