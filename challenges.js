@@ -335,23 +335,9 @@ root.addEventListener("submit", (e) => {
         "",
       )}</tbody></table></div><p class="tiny subtle">Repeticiones, km y pasos por semana; todo suma a la meta final del programa. Más intenso = más volumen esa semana. Los retos no añaden calorías al balance: ya están en el total de Whoop.</p></article>`;
   }
+  // El registro de tandas y salidas vive en Historial (con su botón Eliminar).
   function render() {
-    const d = data(),
-      label = { Correr: "🏃 Running", Nadar: "🏊 Natación", Hiking: "🥾 Hiking", Rucking: "🎒 Rucking" },
-      sessions = getProgram().sessions.filter((s) => s.week === week() && label[s.mode]);
-    const items = [
-      ...d.logs.map((l) => ({
-        date: l.date,
-        html: `<div class="food-log"><div><strong>${escape(defaults().find((g) => g.id === l.goal)?.name || "Ejercicio")}</strong><p>${l.reps} repeticiones · ${escape(l.date)}</p></div><button data-delete-challenge-log="${l.id}">Eliminar</button></div>`,
-      })),
-      ...sessions.map((s) => ({
-        date: s.date,
-        html: `<div class="food-log"><div><strong>${label[s.mode]}</strong><p>${fmt(distance(s))} km · ${s.minutes} min · ${escape(s.date)}</p></div><button data-delete-distance="${escape(s.id)}">Eliminar</button></div>`,
-      })),
-    ].sort((x, y) => (x.date < y.date ? 1 : x.date > y.date ? -1 : 0));
-    return `<p id="challengeStatus" role="status" class="status"></p>${projection()}<article><div class="card-head"><h3>Registro de la semana</h3><span>${items.length} registro${items.length === 1 ? "" : "s"}</span></div>${
-      items.length ? items.map((x) => x.html).join("") : '<p class="subtle">Registra tu primera tanda para empezar.</p>'
-    }<p class="tiny subtle km-note">Natación: 1.000 m = 1 km. Los km incluyen lo registrado en Cardio; cada salida cuenta una sola vez.</p></article>${history()}`;
+    return `<p id="challengeStatus" role="status" class="status"></p>${projection()}${history()}`;
   }
   root.addEventListener("submit", (e) => {
     if (e.target.id !== "advKmForm") return;
@@ -407,8 +393,10 @@ root.addEventListener("submit", (e) => {
       rerender();
     }
     if (b.dataset.deleteChallengeLog) {
-      const d = data(week(), true);
-      d.logs = d.logs.filter((l) => l.id !== b.dataset.deleteChallengeLog);
+      const p = getProgram();
+      Object.values(p.challenges || {}).forEach((ch) => {
+        if (ch && Array.isArray(ch.logs)) ch.logs = ch.logs.filter((l) => l.id !== b.dataset.deleteChallengeLog);
+      });
       persist();
       rerender();
       status("Registro eliminado.");
