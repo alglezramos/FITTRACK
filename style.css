@@ -2771,3 +2771,11 @@ details.fold[open] > summary { margin-bottom: 10px; }
 #days { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; overflow: visible; }
 #days .day { min-width: 0; display: grid; place-items: center; text-align: center; padding: 14px 6px; min-height: 52px; }
 #days .day b { font-size: clamp(10px, 2.6vw, 14px); letter-spacing: 1px; line-height: 1.2; }
+/* r84: aviso de actualización y Súper */
+.update-bar { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 9999; display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--surface-2); border: 1px solid var(--accent); border-radius: var(--r-pill); box-shadow: 0 6px 24px rgba(0,0,0,.45); color: var(--text); font-size: 14px; max-width: calc(100vw - 32px); }
+.update-bar button { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: var(--r-pill); padding: 6px 14px; font-weight: 700; cursor: pointer; }
+.shop-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.shop-buy { font-weight: 600; color: var(--accent); font-size: 13px; }
+.shop-row.is-done .shop-buy { color: var(--good); }
+.shop-have { display: grid; grid-template-columns: auto 64px auto; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.shop-have input { width: 64px; padding: 6px; border-radius: var(--r-ctl); border: 1px solid var(--line-strong); background: var(--surface-2); color: var(--text); }
