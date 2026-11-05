@@ -391,7 +391,7 @@ function renderNow() {
         return (
           '<article class="exercise exercise-minimal"><div class="exTop">' +
           (x.image
-            ? '<img loading="lazy" src="' + x.image + '" alt="Referencia visual de ' + esc(x.name) + '">'
+            ? '<button class="exercise-photo" type="button" data-photo="' + x.id + '" aria-label="Ampliar imagen de ' + esc(x.name) + '"><img loading="lazy" src="' + x.image + '" alt="Referencia visual de ' + esc(x.name) + '"></button>'
             : '<div aria-hidden="true" style="width:95px;height:102px;flex:0 0 auto;display:grid;place-items:center;background:#e9e9e9;border-radius:10px;font-size:34px">🏋️</div>') +
           '<div><div class="exNum">EJERCICIO ' +
           (i + 1) +
@@ -410,7 +410,7 @@ function renderNow() {
               x.id +
               '">' +
               (sets.doneN === sets.n ? "✓ Hecho" : "✓ Completar todo") +
-              '</button><button class="detailBtn" data-detail="' +
+              '</button><button type="button" class="copy-series" data-copy-series="' + x.id + '" aria-label="Copiar peso y repeticiones de la primera serie a las pendientes">Copiar S1</button><button class="detailBtn" data-detail="' +
               x.id +
               '">Guía ↓</button></div>'
             : '<div class="controls"><label for="w' +
@@ -505,6 +505,22 @@ document.addEventListener("click", (e) => {
     const el = $("detail-" + t.dataset.detail);
     el.hidden = !el.hidden;
     return;
+  }
+  const photo = e.target.closest("[data-photo]");
+  if (photo) {
+    const x = exById(photo.dataset.photo);
+    let dialog = document.getElementById("exercisePhotoDialog");
+    if (!dialog) { dialog = document.createElement("dialog"); dialog.id = "exercisePhotoDialog"; document.body.appendChild(dialog); }
+    dialog.innerHTML = '<form method="dialog"><button aria-label="Cerrar imagen">Cerrar ×</button></form><h3>' + esc(x.name) + '</h3><img src="' + x.image + '" alt="' + esc(x.name) + '">';
+    dialog.showModal(); return;
+  }
+  const copy = e.target.closest("[data-copy-series]");
+  if (copy) {
+    const id = copy.dataset.copySeries, first = readRow(id, 0);
+    if (!(first.w > 0 && first.r > 0)) { alert("Introduce peso y repeticiones en S1."); return; }
+    const sets = ensureSets(id);
+    sets.forEach((s,i) => { if (!s.done) { s.w = toLb(first.w); s.r = first.r; } });
+    syncExercise(id); save(); render(); return;
   }
   const sd = e.target.closest("[data-set-done]");
   if (sd) {
