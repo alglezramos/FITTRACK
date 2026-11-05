@@ -1,3 +1,17 @@
+# EVÓ (antes FitTrack) r88 · Marca nueva y macros por alimento
+
+- Nuevo nombre e identidad: EVÓ · Entrenamiento | Nutrición | Progreso (logo, iconos y nombre de la app instalada).
+
+Basada en r87.
+
+Cambios:
+- Cada alimento guarda proteína, carbohidratos, grasas y fibra (g por porción base). Se muestran en Alimentos y se pueden editar; todavía no se suman al consumo.
+- 72 alimentos nuevos de la lista «Despensa Tica» (marcas de Costa Rica). Los 28 que ya existían no se duplicaron: se conservaron con sus calorías y recibieron los macros de la lista.
+- Origen de los macros: «etiqueta» (tabla nutricional del producto) o «aprox.» (estimación USDA FoodData Central o referencia genérica). Revisa la etiqueta del producto que compras.
+- Súper: al cambiar cocinado ↔ crudo/seco, la existencia se redondea a un decimal.
+
+Datos: no cambian claves de almacenamiento ni IDs existentes.
+
 # FitTrack r87 · Registro rápido, recetas y despensa
 
 Basada en r86. Subir el contenido del ZIP a la raíz de FITTRACK en GitHub Pages.
