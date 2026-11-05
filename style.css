@@ -2734,3 +2734,15 @@ body.sheet-mode #programView {
 .hist-sec .hist-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 0; }
 .hist-sec ul:has(.hist-item) { list-style: none; padding-left: 0; }
 .program .hist-del { padding: 4px 10px; font-size: 12px; min-height: 0; flex: none; }
+/* Series en columnas: Serie 1 / 2 / 3 lado a lado, cada una con su peso, reps y ✓ */
+.setlist { grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); gap: 8px; }
+.setlist .setrow { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "n n" "w u" "r rl" "ok ok"; gap: 5px 4px; padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); align-items: center; }
+.setlist .setrow .setn { grid-area: n; text-align: left; font-size: 12px; font-weight: 700; }
+.setlist .setrow input[data-set-w] { grid-area: w; }
+.setlist .setrow .setu { grid-area: u; min-width: 18px; }
+.setlist .setrow .setx { display: none; }
+.setlist .setrow input[data-set-r] { grid-area: r; }
+.setlist .setrow .setr { grid-area: rl; font-size: 12px; color: var(--muted); min-width: 18px; }
+.setlist .setrow .setok { grid-area: ok; height: 34px; width: 100%; }
+.setlist .setrow input { padding: 7px 4px; }
+.setlist .setrow.done { border-color: #276f52; }
