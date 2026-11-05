@@ -883,19 +883,19 @@
     const grid = ticks
       .map(
         (v) =>
-          `<line x1="${padL}" y1="${y(v)}" x2="${width - padR}" y2="${y(v)}" stroke="#34373d"/><text x="${padL - 8}" y="${y(v) + 4}" fill="#b8b8b8" font-size="11" text-anchor="end">${fmt(v)}</text>`,
+          `<line x1="${padL}" y1="${y(v)}" x2="${width - padR}" y2="${y(v)}" stroke="#e3d4c1"/><text x="${padL - 8}" y="${y(v) + 4}" fill="#7b6a5b" font-size="11" text-anchor="end">${fmt(v)}</text>`,
       )
       .join("");
     const xs = Array.from({ length: 9 }, (_, i) => i)
       .map(
         (i) =>
-          `<line x1="${x(i)}" y1="${padT}" x2="${x(i)}" y2="${height - padB}" stroke="#26282d"/><text x="${x(i)}" y="${height - 12}" fill="#b8b8b8" text-anchor="middle" font-size="11">S${i}</text>`,
+          `<line x1="${x(i)}" y1="${padT}" x2="${x(i)}" y2="${height - padB}" stroke="#eee4d6"/><text x="${x(i)}" y="${height - 12}" fill="#7b6a5b" text-anchor="middle" font-size="11">S${i}</text>`,
       )
       .join("");
     const series = [
-      ["target", "#9399a5", "6 4", "Trayectoria objetivo"],
-      ["projected", "#7ac7bd", "3 4", `Estimación por balance (${(rows.at(-1) || {}).count || 0} días cerrados)`],
-      ["actual", "#ffc33d", "", "Peso real"],
+      ["target", "#a3917f", "6 4", "Trayectoria objetivo"],
+      ["projected", "#6f845e", "3 4", `Estimación por balance (${(rows.at(-1) || {}).count || 0} días cerrados)`],
+      ["actual", "#bf6b47", "", "Peso real"],
     ];
     const lines = series
       .map(([k, color, dash, name]) => {
@@ -915,13 +915,13 @@
       .filter((r) => r.actual !== null && r.week > 0)
       .map(
         (r) =>
-          `<text x="${x(r.week)}" y="${y(r.actual) - 9}" fill="#ffc33d" font-size="11" font-weight="700" text-anchor="middle">${fmt(r.actual)}</text>`,
+          `<text x="${x(r.week)}" y="${y(r.actual) - 9}" fill="#bf6b47" font-size="11" font-weight="700" text-anchor="middle">${fmt(r.actual)}</text>`,
       )
       .join("");
     const last = rows[rows.length - 1],
       ends = [
-        ["target", "#9399a5"],
-        ["projected", "#7ac7bd"],
+        ["target", "#a3917f"],
+        ["projected", "#6f845e"],
       ]
         .filter(([k]) => last[k] !== null)
         .map(
@@ -929,7 +929,7 @@
             `<text x="${x(8) - 6}" y="${y(last[k]) + (k === "target" ? 16 : -8)}" fill="${color}" font-size="11" font-weight="700" text-anchor="end">${fmt(last[k])} kg</text>`,
         )
         .join("");
-    const start = `<text x="${x(0) + 4}" y="${y(rows[0].actual) + 18}" fill="#ffc33d" font-size="11" font-weight="700">${fmt(rows[0].actual)}</text>`;
+    const start = `<text x="${x(0) + 4}" y="${y(rows[0].actual) + 18}" fill="#bf6b47" font-size="11" font-weight="700">${fmt(rows[0].actual)}</text>`;
     box.innerHTML = `<div class="chart-legend">${series
       .map(
         ([, color, dash, name]) =>
@@ -937,7 +937,7 @@
       )
       .join(
         "",
-      )}</div><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Peso objetivo, peso registrado y proyección por déficit"><title>Comparación de peso en 8 semanas</title>${grid}${xs}<text x="4" y="12" fill="#b8b8b8" font-size="11">kg</text>${lines}${start}${labels}${ends}</svg><p class="tiny subtle">Eje vertical: peso en kg · Eje horizontal: semanas del programa (S0 = inicio). Peso real = promedio de las pesadas de la semana.</p>`;
+      )}</div><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Peso objetivo, peso registrado y proyección por déficit"><title>Comparación de peso en 8 semanas</title>${grid}${xs}<text x="4" y="12" fill="#7b6a5b" font-size="11">kg</text>${lines}${start}${labels}${ends}</svg><p class="tiny subtle">Eje vertical: peso en kg · Eje horizontal: semanas del programa (S0 = inicio). Peso real = promedio de las pesadas de la semana.</p>`;
   }
   function backup() {
     const last = FitStore.get("backupInfo")?.lastRequested;
