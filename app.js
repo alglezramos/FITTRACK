@@ -293,50 +293,38 @@ function renderNow() {
   const pctText = (n, of) => pct(n, of).toFixed(1).replace(".", ",") + "%";
   const weekPct = pct(total, EXERCISES.length);
   $("progress").textContent = total + "/" + EXERCISES.length + " completados · " + pctText(total, EXERCISES.length);
+  // Franja compacta: semana, ejercicios y series del día en una sola línea.
+  const dayPct = setsTotal ? (setsDone / setsTotal) * 100 : pct(done, ex.length);
   $("summary").innerHTML =
-    '<h3 class="sheet-label">💪 Fuerza</h3>' +
-    '<div class="week-strength" style="margin:12px 0 4px"><div class="weight-progress-labels" style="margin-bottom:8px"><span>Semana ' +
-    state.week +
-    " · ejercicios de fuerza</span><strong>" +
-    total +
-    "/" +
-    EXERCISES.length +
-    " · " +
-    pctText(total, EXERCISES.length) +
-    '</strong></div><div class="weight-progress-track" role="progressbar" aria-label="Avance semanal de fuerza" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' +
-    weekPct.toFixed(1) +
-    '"><div class="weight-progress-fill" style="width:' +
-    Math.min(100, weekPct).toFixed(1) +
-    '%"></div></div></div>' +
-    '<div class="sectionHead"><h2>' +
-    DAYS[state.day - 1] +
-    "</h2><span>" +
-    done +
-    "/" +
-    ex.length +
-    " completados · " +
-    pctText(done, ex.length) +
-    "</span></div>" +
-    (setsTotal
-      ? '<div class="day-sets"><div class="weight-progress-labels"><span>Series de hoy</span><strong>' +
-        setsDone +
+    '<nav class="sheet-jumps" aria-label="Ir a"><button type="button" data-jump-to="exerciseList">💪 Fuerza</button><button type="button" data-jump-to="cardioEntry">🏃 Cardio</button><button type="button" data-jump-to="sec-retos">🔥 Retos</button></nav>' +
+    (ex.length
+      ? '<div class="str-strip"><div class="str-nums"><span><b>' +
+        esc(DAYS[state.day - 1]) +
+        "</b></span><span>Ejercicios <b>" +
+        done +
         "/" +
-        setsTotal +
-        "</strong></div><div class=\"weight-progress-track\" role=\"progressbar\" aria-label=\"Series completadas del día\" aria-valuemin=\"0\" aria-valuemax=\"" +
-        setsTotal +
-        "\" aria-valuenow=\"" +
-        setsDone +
-        "\"><div class=\"weight-progress-fill\" style=\"width:" +
-        ((setsDone / setsTotal) * 100).toFixed(1) +
-        '%"></div></div>' +
+        ex.length +
+        "</b></span>" +
+        (setsTotal ? "<span>Series <b>" + setsDone + "/" + setsTotal + "</b></span>" : "") +
+        "<span>Semana " +
+        state.week +
+        " <b>" +
+        total +
+        "/" +
+        EXERCISES.length +
+        "</b></span>" +
         sessionTag +
-        "</div>"
-      : "") +
-    '<div class="unit-toggle" role="group" aria-label="Unidad para registrar pesos"><span>Registrar en</span>' +
-    ["lb", "kg"]
-      .map((u) => '<button type="button" data-unit="' + u + '" aria-pressed="' + (state.inputUnit === u) + '">' + u + "</button>")
-      .join("") +
-    "<small>Todo se guarda en libras</small></div>";
+        '</div><div class="weight-progress-track dash-bar" role="progressbar" aria-label="Avance del día" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' +
+        dayPct.toFixed(0) +
+        '"><div class="weight-progress-fill" style="width:' +
+        Math.min(100, dayPct).toFixed(1) +
+        '%"></div></div></div>' +
+        '<div class="unit-toggle" role="group" aria-label="Unidad para registrar pesos"><span>Registrar en</span>' +
+        ["lb", "kg"]
+          .map((u) => '<button type="button" data-unit="' + u + '" aria-pressed="' + (state.inputUnit === u) + '">' + u + "</button>")
+          .join("") +
+        "<small>Todo se guarda en libras</small></div>"
+      : "");
   $("exerciseList").innerHTML =
     '<div class="grid">' +
     ex
@@ -414,7 +402,7 @@ function renderNow() {
     $("exerciseList").innerHTML =
       '<p class="subtle empty-day">Este día no tiene pesas: solo cardio. Registra tu actividad abajo, en Cardio.</p>';
   $("history").innerHTML =
-    '<div class="sectionHead"><h2>Historial de pesos</h2><span>lb · 8 semanas</span></div><div class="history"><table><thead><tr><th>Ejercicio</th>' +
+    '<details class="fold"><summary>Ver historial de pesos <small>lb · 8 semanas</small></summary><div class="history"><table><thead><tr><th>Ejercicio</th>' +
     Array.from({ length: 8 }, (_, i) => "<th>S" + (i + 1) + "</th>").join("") +
     "</tr></thead><tbody>" +
     ex
@@ -435,8 +423,16 @@ function renderNow() {
           "</tr>",
       )
       .join("") +
-    "</tbody></table></div>";
+    "</tbody></table></div></details>";
+  if (!ex.length) $("history").innerHTML = "";
 }
+// Saltos dentro de Entreno: Fuerza, Cardio y Retos.
+document.addEventListener("click", (e) => {
+  const j = e.target.closest("[data-jump-to]");
+  if (!j) return;
+  const el = document.getElementById(j.dataset.jumpTo);
+  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+});
 document.addEventListener("click", (e) => {
   const d = e.target.closest("[data-day]");
   if (d) {
