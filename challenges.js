@@ -264,7 +264,7 @@ root.addEventListener("submit", (e) => {
         const pr = projectionOf(r),
           pct = Math.min(100, (r.completed / r.target) * 100),
           [, color] = MISSION_STYLE[r.name] || ["target", "#ffc33d"];
-        return `<button type="button" class="adv-col st-${STATUS[pr.status][1]}" data-proj-pick="${escape(r.name)}" aria-pressed="${sel === r}" style="--mc:${color};--h:${Math.max(pct, 1.2).toFixed(1)}" aria-label="${escape(r.name)}: ${p1(pct)} %, ${STATUS[pr.status][0]}"><span class="adv-bar"><i></i><span class="adv-pct">${p1(pct)}%</span></span><span class="adv-name">${escape(SHORT[r.name] || r.name)}</span></button>`;
+        return `<button type="button" class="adv-col st-${STATUS[pr.status][1]}" data-proj-pick="${escape(r.name)}" aria-pressed="${sel === r}" style="--mc:${color};--h:${Math.max(pct, 1.2).toFixed(1)}" aria-label="${escape(r.name)}: ${p1(pct)} %, ${STATUS[pr.status][0]}"><span class="adv-bar"><i></i><span class="adv-pct">${p1(pct)}%</span></span><span class="adv-name">${SHORT[r.name] ? `<span class="adv-n-full">${escape(r.name)}</span><span class="adv-n-short">${escape(SHORT[r.name])}</span>` : escape(r.name).replace(" / ", "<br>")}</span></button>`;
       })
       .join("");
     const pr = projectionOf(sel),
