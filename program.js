@@ -287,6 +287,7 @@
     if (program.sessions.some((x) => x.date === day)) return true;
     if (Object.values(state.completedDates || {}).includes(day)) return true;
     if (Object.values(state.sets || {}).some((sets) => (sets || []).some((z) => z && z.done && z.d === day))) return true;
+    if ((state.archive || []).some((a) => a.date === day)) return true;
     return Object.values(program.challenges || {}).some((c) => (c.logs || []).some((l) => l.date === day));
   }
   function streak(dt) {
@@ -366,6 +367,7 @@
     program.sessions.forEach((s) => s.date && days.add(s.date));
     Object.values(state.completedDates || {}).forEach((d) => d && days.add(d));
     Object.values(state.sets || {}).forEach((sets) => (sets || []).forEach((z) => z && z.d && days.add(z.d)));
+    (state.archive || []).forEach((a) => a.date && days.add(a.date));
     Object.values(program.challenges || {}).forEach((c) => (c.logs || []).forEach((l) => l.date && days.add(l.date)));
     Object.keys(program.meds || {}).forEach((d) => program.meds[d] && days.add(d));
     if (C.validDate(program.start)) for (let i = 0; i < 56; i++) { const d = C.datePlus(program.start, i); if (weightOn(d)) days.add(d); }
@@ -387,6 +389,10 @@
           const done = (sets || []).filter((z) => z && z.done && z.d === day);
           if (done.length) strengthRows.push(`<li>${escape(exName(k.replace(/-w\d+$/, "")))} · ${done.map((z) => lb(z.w) + "×" + z.r).join(" · ")} lb</li>`);
         }
+        for (const a of state.archive || []) {
+          const done = a.sets.filter((z) => z && z.done && (z.d || a.date) === day);
+          if (done.length) strengthRows.push(`<li>${escape(exName(a.id))} · ${done.map((z) => lb(z.w) + "×" + z.r).join(" · ")} lb</li>`);
+        }
         for (const [k, dd] of Object.entries(state.completedDates || {})) {
           if (dd !== day || (state.sets || {})[k]) continue;
           const v = state.weights[k];
@@ -404,7 +410,7 @@
         if (f === "all" && (program.meds[day] || (coachD && coachD.checkin)))
           parts.push(`<div class="hist-sec"><h4>📝 Otros</h4><p>${program.meds[day] ? "Suplemento ✓" : ""}${program.meds[day] && coachD && coachD.checkin ? " · " : ""}${coachD && coachD.checkin ? `Check-in: energía ${coachD.energy}/5${coachD.pain && coachD.pain !== "none" ? " · molestia: " + escape(coachD.pain === "shoulder" ? "hombro" : coachD.pain) : ""}` : ""}</p></div>`);
         if (!parts.length) return "";
-        return `<details class="hist-day" ${idx < 7 ? "open" : ""}><summary><span><b>${escape(niceDate(day))}</b>${pos ? ` <small>· Semana ${pos.week}</small>` : ""}</span><span class="hist-tags">${d.closed ? '<em class="ok">✓ Cerrado</em>' : meals.length || C.has(d.whoop) ? "<em>Provisional</em>" : ""}${meals.length ? `<em>${fmt(kcal)} kcal</em>` : ""}</span></summary>${parts.join("")}<p class="hist-open"><button type="button" data-hist-open="${day}">Abrir este día en Hoy →</button></p></details>`;
+        return `<details class="hist-day" ${idx < 7 ? "open" : ""}><summary><span><b>${escape(niceDate(day))}</b>${pos ? ` <small>· Semana ${pos.week}</small>` : ""}</span><span class="hist-tags">${d.closed && (meals.length || Number(d.extras) > 0) ? '<em class="ok">✓ Cerrado</em>' : d.closed ? "<em>Cerrado sin comidas · no cuenta</em>" : meals.length || C.has(d.whoop) ? "<em>Provisional</em>" : ""}${meals.length ? `<em>${fmt(kcal)} kcal</em>` : ""}</span></summary>${parts.join("")}<p class="hist-open"><button type="button" data-hist-open="${day}">Abrir este día en Hoy →</button></p></details>`;
       })
       .filter(Boolean);
     return `<article class="hist-head"><div class="eyebrow">HISTORIAL</div><h2>Todos tus registros</h2><p class="tiny subtle">${cards.length} día${cards.length === 1 ? "" : "s"} con registros · los 7 más recientes abiertos.</p><nav class="subtabs" aria-label="Filtrar historial">${HIST_FILTERS.map(([k, l]) => `<button data-history-filter="${k}" aria-pressed="${f === k}">${l}</button>`).join("")}</nav></article>${cards.join("") || '<article><p class="subtle">No hay registros para este filtro.</p></article>'}`;
@@ -472,8 +478,10 @@
       reco += " Tu energía promedio fue baja: considera comer más antes de recortar más.";
       tone = "warn";
     }
-    const strengthDone = EXERCISES.filter((x) => state.completed[x.id + "-w" + w]).length;
-    return { w, cur, expected, rate, n, avgDef, defSum, waist: wd.waist, en, reco, tone, strengthDone };
+    const wkIds = window.fitRoutineIds ? window.fitRoutineIds(w) : EXERCISES.map((x) => x.id),
+      strengthDone = wkIds.filter((id) => state.completed[id + "-w" + w]).length,
+      strengthTotal = wkIds.length;
+    return { w, cur, expected, rate, n, avgDef, defSum, waist: wd.waist, en, reco, tone, strengthDone, strengthTotal };
   }
   function reviewCard() {
     if (!C.validDate(program.start) || !C.has(program.initialWeight))
@@ -481,7 +489,7 @@
     const w = week(),
       r = weekReview(w);
     if (!r) return "";
-    return `<article id="sec-review"><div class="eyebrow">CIERRE SEMANAL · SEMANA ${w}</div><h3>¿Vas en ruta a −${C.GOAL_KG} kg?</h3><div class="daily-numbers"><div><span>Déficit semanal</span><strong>${r.n ? fmt(r.defSum) + " kcal" : "—"}</strong><p class="tiny subtle">Ruta: ${fmt(C.NEEDED * 7)} · ${r.n} de 7 días cerrados con Whoop</p></div><div><span>Cintura · Fuerza</span><strong>${C.has(r.waist) ? fmt(r.waist) + " cm" : "—"} · ${r.strengthDone}/${EXERCISES.length}</strong></div></div><p class="coach-reco ${r.tone}">${escape(r.reco)}</p><details><summary>Cómo se calcula</summary><p class="tiny subtle">Estimación con 7.700 kcal/kg: tiende a sobreestimar la pérdida real y las primeras semanas incluyen agua. Úsala como guía, no como promesa. El peso real y la ruta de la semana están en Pesadas.</p></details></article>`;
+    return `<article id="sec-review"><div class="eyebrow">CIERRE SEMANAL · SEMANA ${w}</div><h3>¿Vas en ruta a −${C.GOAL_KG} kg?</h3><div class="daily-numbers"><div><span>Déficit semanal</span><strong>${r.n ? fmt(r.defSum) + " kcal" : "—"}</strong><p class="tiny subtle">Ruta: ${fmt(C.NEEDED * 7)} · ${r.n} de 7 días cerrados con Whoop</p></div><div><span>Cintura · Fuerza</span><strong>${C.has(r.waist) ? fmt(r.waist) + " cm" : "—"} · ${r.strengthDone}/${r.strengthTotal}</strong></div></div><p class="coach-reco ${r.tone}">${escape(r.reco)}</p><details><summary>Cómo se calcula</summary><p class="tiny subtle">Estimación con 7.700 kcal/kg: tiende a sobreestimar la pérdida real y las primeras semanas incluyen agua. Úsala como guía, no como promesa. El peso real y la ruta de la semana están en Pesadas.</p></details></article>`;
   }
   // ── Panel de Progreso: análisis con filtros de 7/30/90 días ────────────────
   const RANGES = [7, 30, 90];
@@ -503,8 +511,11 @@
   function strengthDates() {
     const s = new Set(Object.values(state.completedDates || {}).filter((d) => C.validDate(d)));
     Object.values(state.sets || {}).forEach((sets) => (sets || []).forEach((z) => z && z.done && C.validDate(z.d) && s.add(z.d)));
+    (state.archive || []).forEach((a) => a.sets.some((z) => z.done) && C.validDate(a.date) && s.add(a.date));
     return s;
   }
+  // Todas las series registradas: las de cada semana y las de sesiones archivadas.
+  const allSets = () => [...Object.values(state.sets || {}), ...(state.archive || []).map((a) => a.sets)];
   // Fechas en que se completó una rutina entera (todos los ejercicios de un día).
   // Una sola serie o un ejercicio suelto cuenta como «día con fuerza», no como rutina.
   function routineDates(days) {
@@ -513,6 +524,9 @@
       if (!state.completed?.[k] || !C.validDate(d)) return;
       const m = /^(.*)-w\d+$/.exec(k);
       if (m) (byDate[d] ||= new Set()).add(m[1]);
+    });
+    (state.archive || []).forEach((a) => {
+      if (a.sets.length && a.sets.every((z) => z.done) && C.validDate(a.date)) (byDate[a.date] ||= new Set()).add(a.id);
     });
     return days.filter((d) => {
       const ids = byDate[d];
@@ -659,7 +673,7 @@
       : note(one ? `Tienes cargas de ${one} ejercicio${one > 1 ? "s" : ""} en una sola semana. La evolución aparece cuando repitas el ejercicio otra semana.` : "Aún no hay cargas registradas en este periodo.");
     // Volumen = Σ peso × repeticiones de las series completadas.
     const vol = {};
-    Object.values(state.sets || {}).forEach((sets) =>
+    allSets().forEach((sets) =>
       (sets || []).forEach((z) => {
         if (z && z.done && set.has(z.d) && Number(z.w) > 0 && Number(z.r) > 0) {
           const w = weekOf(z.d);
@@ -709,7 +723,8 @@
       weekdays = days.filter(isWeekday),
       // Días con pesas según la rutina vigente (un día sin ejercicios es solo cardio).
       liftDays = [1, 2, 3, 4, 5].filter((n) => EXERCISES.some((e) => e.day === n)),
-      planned = days.filter((d) => liftDays.includes(new Date(d + "T12:00:00Z").getUTCDay())),
+      // Mismo plan que «Hoy» (planFor) y solo desde la fecha de inicio del programa.
+      planned = days.filter((d) => d >= program.start && planFor(d).day && liftDays.includes(planFor(d).day)),
       inRange = new Set(days),
       liftDone = [...sDates].filter((d) => inRange.has(d)).length,
       doneW = Math.min(planned.length, routineDates(days).length),
