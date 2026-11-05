@@ -105,12 +105,38 @@
     ).join("");
     const rd = document.getElementById("recordDate"),
       dt = date(),
-      canToday = !!FitCalendar.position(program.start, today());
+      w = week(),
+      canToday = !!FitCalendar.position(program.start, today()),
+      canYest = !!FitCalendar.position(program.start, C.datePlus(today(), -1));
+    // r90: tira semanal L–D con estado de cada día.
+    const letters = ["L", "M", "M", "J", "V", "S", "D"];
+    const status = (day) => {
+      const d = program.diary[day];
+      if (d && d.closed) return "done";
+      if ((d && ((d.meals || []).length || C.has(d.whoop) || C.has(d.steps))) || activeOn(day)) return "part";
+      return "none";
+    };
+    const strip = dt
+      ? `<span class="wk-strip"><button type="button" class="wk-arrow" data-wk-shift="-1" ${w <= 1 ? "disabled" : ""} aria-label="Semana anterior">‹</button>${letters
+          .map((l, i) => {
+            const day = FitCalendar.date(program.start, w, i),
+              st = status(day),
+              fut = day > today();
+            return `<button type="button" class="wk-day is-${st}${i === program.recordDay ? " is-sel" : ""}${day === today() ? " is-today" : ""}${fut ? " is-future" : ""}" data-wk-day="${i}" aria-pressed="${i === program.recordDay}" aria-label="${escape(niceDate(day))}${st === "done" ? " · completo" : st === "part" ? " · pendiente" : " · sin registro"}"><small>${l}</small><b>${Number(day.slice(8))}</b><i></i></button>`;
+          })
+          .join("")}<button type="button" class="wk-arrow" data-wk-shift="1" ${w >= 8 ? "disabled" : ""} aria-label="Semana siguiente">›</button></span><span class="wk-meta"><span>Semana ${w} de 8 · <b>${escape(niceDate(dt))}</b></span>${canToday && dt !== today() ? ' <button type="button" class="go-today" data-go-today>Hoy</button>' : ""}${canYest && dt !== C.datePlus(today(), -1) ? ' <button type="button" class="go-today" data-go-yesterday>Ayer</button>' : ""}</span><span class="wk-legend"><span><i class="is-done"></i>Completo</span><span><i class="is-part"></i>Pendiente</span><span><i class="is-none"></i>Sin registro</span></span>`
+      : "";
     rd.innerHTML = dt
-      ? `Registrando para: <b>${escape(niceDate(dt))}</b> · Semana ${week()}${canToday ? ' <button type="button" class="go-today" data-go-today>Hoy</button>' : ""}${FitCalendar.position(program.start, C.datePlus(today(), -1)) ? ' <button type="button" class="go-today" data-go-yesterday>Ayer</button>' : ""}`
+      ? strip
       : 'Elige el inicio del programa. <button type="button" class="go-today" data-open-settings>Configurar programa</button>';
     rd.onclick = (e) => {
-      if (e.target.closest("[data-go-yesterday]")) goDate(C.datePlus(today(), -1));
+      const day = e.target.closest("[data-wk-day]"),
+        shift = e.target.closest("[data-wk-shift]");
+      if (day) goDate(FitCalendar.date(program.start, week(), Number(day.dataset.wkDay)));
+      else if (shift) {
+        const nw = Math.min(8, Math.max(1, week() + Number(shift.dataset.wkShift)));
+        goDate(FitCalendar.date(program.start, nw, program.recordDay));
+      } else if (e.target.closest("[data-go-yesterday]")) goDate(C.datePlus(today(), -1));
       else if (e.target.closest("[data-go-today]")) goDate(today());
       else if (e.target.closest("[data-open-settings]")) document.getElementById("backupBtn").click();
     };
@@ -343,11 +369,23 @@
       lost = avg !== null && initial ? initial - avg : 0,
       st = streak(dt);
     const progCard = `<article class="dash-card" id="dashWeight"><div class="dash-head"><span>📉 Progreso</span><strong>🔥 Racha: ${st} día${st === 1 ? "" : "s"}</strong></div><div class="dash-row"><div><span>Promedio S${wN}</span><strong>${avg !== null ? fmt(avg) + " kg" : "—"}</strong><small>${nWeigh} pesada${nWeigh === 1 ? "" : "s"}</small></div><div><span>${prevLabel || "Semana anterior"}</span><strong class="${diff === null ? "" : diff <= 0 ? "good" : "bad"}">${diff === null ? "—" : (diff > 0 ? "+" : "") + fmt(diff) + " kg"}</strong></div><div><span>Meta</span><strong>${target ? fmt(target) + " kg" : "—"}</strong></div></div>${target ? bar(Math.max(0, lost), C.GOAL_KG) + `<p class="tiny subtle">${fmt(Math.max(0, lost))} de ${C.GOAL_KG} kg bajados</p>` : ""}${wk ? `<label class="weight-day dash-weigh">Peso de hoy <input data-weight-metric="${wk}" type="number" min="20" max="400" step="0.1" inputmode="decimal" value="${escape(wv ?? "")}"><span>kg</span></label>` : '<p class="tiny subtle">Pesadas: de lunes a viernes.</p>'}</article>`;
-    // Retos principales
-    const goals = challenges.planProgress().slice(0, 4);
-    const retoCard = `<article class="dash-card"><div class="dash-head"><span>🎯 Retos</span><button type="button" class="dash-link" data-home-go="training" data-jump-after="sec-retos">Ver todos →</button></div>${goals.map((g) => `<div class="dash-goal"><div><span>${escape(g.name)} ${challenges.badge(g)}</span><small>${fmt(Math.round(g.completed * 10) / 10)} / ${fmt(g.target)} ${escape(g.unit)}</small></div>${bar(g.completed, g.target)}</div>`).join("")}</article>`;
-    const quick = `<nav class="dash-quick" aria-label="Accesos rápidos"><button type="button" data-quick-food>🍽<span>Comida</span></button><button type="button" data-jump="dashWeight">⚖️<span>Peso</span></button><button type="button" data-home-go="training">🏋️<span>Entrenar</span></button><button type="button" data-home-go="training" data-jump-after="cardioEntry">🏃<span>Actividad</span></button></nav>`;
-    return `<article id="sec-day" class="dash-top"><div class="eyebrow">HOY · SEMANA ${week()} DE 8 · META −${C.GOAL_KG} KG</div><h2>${escape(niceDate(dt))}</h2>${dt !== today() ? "<p><button data-go-today>↩ Volver a hoy</button></p>" : ""}${quick}</article><div class="dash-grid">${kcalCard}${actCard}${progCard}${retoCard}</div>${nutrition.renderQuick()}<div class="sec" id="sec-checkin">${coach.render()}</div>`;
+    // r90: «Tu día» — pendientes del día con acceso directo para registrar.
+    const meals = d.meals || [],
+      mk = ["Desayuno", "Almuerzo", "Cena"].filter((k) => meals.some((m) => m.kind === k)),
+      routineN = plan.day ? (window.fitRoutineIds ? window.fitRoutineIds(week()) : EXERCISES.map((x) => x.id)).filter((id) => (EXERCISES.find((x) => x.id === id) || {}).day === plan.day).length : 0;
+    const items = [
+      { ok: mk.length === 3 || (d.closed && meals.length > 0), icon: "🍽", name: "Comidas", info: mk.length ? mk.join(" · ") + ` · ${fmt(kcal)} kcal` : "Desayuno, almuerzo y cena", act: "data-quick-food", btn: "+ Comida" },
+    ];
+    if (wk) items.push({ ok: Number(wv) > 0, icon: "⚖️", name: "Peso", info: Number(wv) > 0 ? fmt(Number(wv)) + " kg" : "Pesada de lunes a viernes", act: 'data-jump="dashWeight" data-focus="weight"', btn: "Pesar" });
+    if (plan.day && plan.day !== 4)
+      items.push({ ok: routineN > 0 && todayEx >= routineN, icon: "🏋️", name: "Entreno", info: `${todayEx} de ${routineN || "—"} ejercicios`, act: 'data-home-go="training"', btn: "Entrenar" });
+    items.push({ ok: sessions.length > 0, icon: "🏃", name: plan.day === 4 ? "Cardio · natación" : plan.day ? "Cardio" : "Actividad", info: sessions.length ? sessions.map((s) => escape(s.mode)).join(" · ") : plan.day ? "Judo, natación o la que hagas" : "Fondo, hiking o recuperación", act: 'data-home-go="training" data-jump-after="cardioEntry"', btn: "Registrar" });
+    items.push({ ok: C.has(d.whoop), icon: "⌚", name: "Whoop", info: C.has(d.whoop) ? fmt(d.whoop) + " kcal gastadas" : "Calorías gastadas", act: 'data-jump="sec-quick" data-focus="whoop"', btn: "Anotar" });
+    items.push({ ok: C.has(d.steps), icon: "👣", name: "Pasos", info: C.has(d.steps) ? fmt(d.steps) : "Pasos del día", act: 'data-jump="sec-quick" data-focus="steps"', btn: "Anotar" });
+    items.push({ ok: !!d.closed, icon: "✅", name: "Cerrar día", info: d.closed ? "Día completo" : "Cuando tengas la comida y el Whoop final", act: 'data-jump="sec-quick" data-focus="closed"', btn: "Cerrar" });
+    const doneN = items.filter((x) => x.ok).length;
+    const todoCard = `<article class="dash-card todo-card"><div class="dash-head"><span>📋 Tu día</span><strong class="${doneN === items.length ? "good" : ""}">${doneN} de ${items.length} listos</strong></div>${bar(doneN, items.length)}<ul class="todo-list">${items.map((x) => `<li class="${x.ok ? "is-ok" : ""}"><span class="todo-check" aria-hidden="true">${x.ok ? "✓" : ""}</span><span class="todo-txt"><b>${x.icon} ${x.name}</b><small>${x.info}</small></span>${x.ok ? `<button type="button" class="todo-btn quiet" ${x.act}>Ver</button>` : `<button type="button" class="todo-btn" ${x.act}>${x.btn}</button>`}<span class="sr-only">${x.ok ? "Hecho" : "Pendiente"}</span></li>`).join("")}</ul></article>`;
+    return `<article id="sec-day" class="dash-top"><div class="eyebrow">HOY · SEMANA ${week()} DE 8 · META −${C.GOAL_KG} KG</div><h2>${escape(niceDate(dt))}</h2>${dt !== today() ? "<p><button data-go-today>↩ Volver a hoy</button></p>" : ""}</article>${todoCard}<div class="dash-grid">${kcalCard}${actCard}${progCard}</div>${nutrition.renderQuick()}<div class="sec" id="sec-checkin">${coach.render()}</div>`;
   }
   // ── Historial: todos los registros, día por día ──────────────────────────
   const HIST_FILTERS = [
@@ -1022,6 +1060,8 @@
     if (b.dataset.jump) {
       const el = document.getElementById(b.dataset.jump);
       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      const f = b.dataset.focus && el && el.querySelector(`[name="${b.dataset.focus}"],[data-weight-metric]`);
+      if (f) setTimeout(() => f.focus({ preventScroll: true }), 350);
       return;
     }
     if (b.hasAttribute("data-go-today")) {
