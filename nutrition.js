@@ -206,25 +206,58 @@ window.createFitNutrition = function ({
     const v = prog().shopping?.[week()]?.[row.id];
     return !!v && v.qty === row.qty && v.unit === row.unit && v.name === row.name;
   };
+  const big = (n) => (Math.round(n / 10) / 100).toLocaleString("es-CR", { maximumFractionDigits: 2 });
   const quantity = (row) =>
     row.unit === "g" && row.qty >= 1000
-      ? `${fmt(row.qty / 1000)} kg (${fmt(row.qty)} g)`
+      ? `${big(row.qty)} kg (${fmt(row.qty)} g)`
       : row.unit === "ml" && row.qty >= 1000
-        ? `${fmt(row.qty / 1000)} L (${fmt(row.qty)} ml)`
+        ? `${big(row.qty)} L (${fmt(row.qty)} ml)`
         : `${fmt(row.qty)} ${escape(row.unit)}`;
+  // Cocinado → compra: factor aproximado para pasar lo servido a lo que se compra.
+  const BUY = {
+    arroz: [1 / 2.6, "arroz seco"],
+    pasta: [1 / 2.25, "pasta seca"],
+    pollo: [1 / 0.75, "pechuga cruda"],
+    ribeye: [1 / 0.75, "rib eye crudo"],
+    salmon: [1 / 0.8, "salmón crudo"],
+    res: [1 / 0.75, "carne molida cruda"],
+    cerdo: [1 / 0.75, "carne molida cruda"],
+    pastor: [1 / 0.75, "carne cruda"],
+    cmvfrfku87diwxvqe30x: [1 / 0.75, "carne molida cruda"],
+  };
+  const haveOf = (row) => Number(prog().shoppingHave?.[week()]?.[row.id]) || 0;
+  const toBuy = (row) => Math.max(0, Math.round((row.qty - haveOf(row)) * 10) / 10);
+  const buyHint = (row) => {
+    const b = BUY[row.id],
+      n = toBuy(row);
+    return b && n > 0 ? ` · ≈ ${fmt(Math.round(n * b[0]))} g de ${b[1]}` : "";
+  };
   function renderShopping() {
     const rows = shoppingRows(),
       done = rows.filter(covered).length,
       categories = [...new Set(rows.map((r) => r.category))];
-    return `<article><div class="eyebrow">LISTA DEL SÚPER · SEMANA ${week()}</div><div class="card-head"><h2>Todo para tu menú</h2><span class="pill">${done}/${rows.length}</span></div><p>Marca lo que ya tienes o compraste en la cantidad indicada.</p><p class="tiny subtle">Se suman las recetas elegidas en «Semana», incluyendo tus cambios de porción. Si cambia la cantidad de un producto marcado, vuelve a quedar pendiente para que lo revises. Las comidas consumidas no se descuentan de esta lista.</p><button data-food-tab="week">Revisar menú semanal</button></article><article class="food-compact">${categories
+    return `<article><div class="eyebrow">LISTA DEL SÚPER · SEMANA ${week()}</div><div class="card-head"><h2>Todo para tu menú</h2><span class="pill">${done}/${rows.length}</span></div><p>Escribe en «Ya tengo» lo que hay en casa y verás cuánto falta comprar. Marca la casilla cuando lo compres.</p><p class="tiny subtle">Se suman las recetas elegidas en «Semana», incluyendo tus cambios de porción. Si cambia la cantidad de un producto marcado, vuelve a quedar pendiente para que lo revises. Las comidas consumidas no se descuentan de esta lista.</p><button data-food-tab="week">Revisar menú semanal</button></article><article class="food-compact">${categories
       .map((category) => {
         const list = rows.filter((r) => r.category === category);
-        return `<details open><summary><span>${escape(category)}</span><small>${list.filter(covered).length}/${list.length}</small></summary>${list.map((r) => `<div class="shop-row${covered(r) ? " is-done" : ""}"><label><input type="checkbox" data-shopping-item="${escape(r.id)}" ${covered(r) ? "checked" : ""}><span><strong>${escape(r.name)}</strong><br>${quantity(r)}${r.id === "gnc" ? " · " + fmt(r.qty / 414) + " envases de 414 ml" : ""}<br></span></label></div>`).join("")}</details>`;
+        return `<details open><summary><span>${escape(category)}</span><small>${list.filter(covered).length}/${list.length}</small></summary>${list.map((r) => `<div class="shop-row${covered(r) ? " is-done" : ""}"><label><input type="checkbox" data-shopping-item="${escape(r.id)}" ${covered(r) ? "checked" : ""}><span><strong>${escape(r.name)}</strong><br>Menú: ${quantity(r)}${r.id === "gnc" ? " · " + fmt(r.qty / 414) + " envases de 414 ml" : ""}<br><b class="shop-buy">${toBuy(r) > 0 ? `Por comprar: ${quantity({ ...r, qty: toBuy(r) })}${buyHint(r)}` : "✓ Ya lo tienes"}</b></span></label><label class="shop-have">Ya tengo<input type="number" min="0" step="any" inputmode="decimal" data-shopping-have="${escape(r.id)}" value="${haveOf(r) || ""}" placeholder="0"><small>${escape(r.unit)}</small></label></div>`).join("")}</details>`;
       })
       .join(
         "",
       )}</article><article><h3>Cómo interpretar las cantidades</h3><p class="tiny subtle">Las cantidades del menú son listas para comer. Esta lista suma lo que servirás, no el peso crudo de compra: 1 kg de arroz cocido no significa comprar 1 kg de arroz seco. En el pastor se usa provisionalmente 100 g crudos → 75 g cocinados, conservando las kcal originales; no descuenta grasa descartada. Ajusta la porción base en Alimentos según lo que rinda tu preparación.</p></article>`;
   }
+  root.addEventListener("change", (e) => {
+    const hid = e.target.dataset.shoppingHave;
+    if (!hid) return;
+    const v = e.target.value === "" ? 0 : Number(e.target.value);
+    if (!Number.isFinite(v) || v < 0) return;
+    const p = prog();
+    p.shoppingHave ??= {};
+    p.shoppingHave[week()] ??= {};
+    if (v > 0) p.shoppingHave[week()][hid] = v;
+    else delete p.shoppingHave[week()][hid];
+    persist();
+    rerender();
+  });
   root.addEventListener("change", (e) => {
     const id = e.target.dataset.shoppingItem;
     if (!id) return;
@@ -663,6 +696,14 @@ window.createFitNutrition = function ({
     d.closed = fd.has("closed");
     if (d.closed && !has(d.whoop)) {
       notify("Introduce las calorías finales de Whoop para cerrar el día.");
+      return;
+    }
+    // Un día sin comidas no es «0 kcal confirmadas»: queda abierto hasta registrar lo que comiste.
+    if (d.closed && !(d.meals || []).length && !(Number(d.extras) > 0)) {
+      d.closed = false;
+      saveDay(d);
+      rerender();
+      notify("Guardado, pero el día sigue abierto: no tiene comidas registradas.");
       return;
     }
     saveDay(d);
