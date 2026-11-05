@@ -69,6 +69,8 @@
     document.body.appendChild(a);
     a.click();
     a.remove();
+    data.backupInfo = { lastRequested: now.toISOString() };
+    try { write(); } catch { mark(false); }
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   // Estado visible del guardado: solo dice «Guardado» si el almacenamiento funcionó.
