@@ -2819,3 +2819,29 @@ details.fold[open] > summary { margin-bottom: 10px; }
  #exerciseList .exercise-minimal .setrow, #exerciseList .setlabels { grid-template-rows: 20px 44px 44px 44px; }
  #exerciseList .exercise-minimal .setrow input, #exerciseList .exercise-minimal .setrow .setok, #exerciseList .exercise-minimal .controls button { height: 44px; min-height: 44px; }
 }
+
+/* r87: acceso rápido y controles compactos */
+.sheet-mode .hero { padding: 8px 12px; margin-bottom: 8px; }
+.sheet-mode .hero .weekbar { gap: 8px; }
+.sheet-mode #recordDate { margin: 5px 0 0; font-size: 12px; }
+.sheet-mode #sheetHead { padding: 10px 14px; margin-bottom: 8px; }
+.sheet-mode #sheetHead h2 { font-size: 18px; margin: 3px 0; }
+.sheet-mode #sheetHead p { margin: 3px 0; font-size: 12px; }
+.sheet-mode #days .day { padding: 8px 4px; min-height: 40px; }
+.sheet-mode .str-strip { padding: 6px 10px; gap: 4px; }
+.sheet-mode #appTabs { margin: 8px 0; }
+#exerciseList .exercise-photo { padding: 0; border: 0; background: transparent; flex: 0 0 56px; border-radius: 8px; }
+#exercisePhotoDialog { max-width: min(90vw,650px); border: 1px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--text); }
+#exercisePhotoDialog::backdrop { background: #000b; }
+#exercisePhotoDialog img { width: 100%; max-height: 70vh; object-fit: contain; }
+#exercisePhotoDialog form { text-align: right; }
+.recipe-search { display: grid; gap: 5px; margin: 10px 0; }
+.recipe-search input { width: 100%; }
+.recipe-portions { font-size: 12px; color: var(--muted); margin: 4px 0; }
+.recipe-portions p { white-space: normal; }
+.shop-have select { grid-column: 1 / -1; width: 100%; max-width: 160px; font-size: 12px; }
+.save-date { display: inline-block; font-size: 11px; color: var(--muted); margin: 3px 6px; }
+.recipe-row .rr-actions { flex-wrap: wrap; }
+@media(max-width: 600px) { .sheet-mode #sheetHead p { display: none; } .recipe-row { flex-wrap: wrap; } .shop-row { flex-wrap: wrap; } }
+
+#exerciseList .exercise-minimal .setrow .setok { font-size: 0; }
