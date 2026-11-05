@@ -1,4 +1,6 @@
-const DAYS = ["Piernas y glúteos", "Pecho y tríceps", "Espalda, hombros y bíceps", "Solo cardio", "Brazos y core"];
+const DAYS = ["Piernas y glúteos", "Pecho y tríceps", "Espalda, hombros y bíceps", "Solo cardio", "Brazos"];
+// Nombre de cada día de la rutina (lunes a viernes).
+const DAY_NAMES = ["BASE CAMP", "PUSH MODE", "PULL POWER", "ENGINE DAY", "ARM FORCE"];
 // Cardio de cada día de la rutina general (fuerza + cardio).
 const DAY_CARDIO = ["🥋 Judo", "🏊 Natación", "🥋 Judo", "🏊 Natación", "🥋 Judo"];
 let state = { day: 1, week: 1, weights: {}, completed: {} };
@@ -242,8 +244,8 @@ function renderNow() {
       (state.day === i + 1 ? "active" : "") +
       '" data-day="' +
       (i + 1) +
-      '"><b>DÍA ' +
-      (i + 1) +
+      '"><b>' +
+      DAY_NAMES[i] +
       "</b><span>" +
       d +
       "</span><small>+ " +
@@ -268,8 +270,8 @@ function renderNow() {
       state.week +
       "</div><h2>" +
       esc(nice.charAt(0).toUpperCase() + nice.slice(1)) +
-      "</h2><p>Rutina: <strong>Día " +
-      state.day +
+      "</h2><p>Rutina: <strong>" +
+      DAY_NAMES[state.day - 1] +
       " · " +
       DAYS[state.day - 1] +
       " + " +
@@ -299,7 +301,7 @@ function renderNow() {
     '<nav class="sheet-jumps" aria-label="Ir a"><button type="button" data-jump-to="exerciseList">💪 Fuerza</button><button type="button" data-jump-to="cardioEntry">🏃 Cardio</button><button type="button" data-jump-to="sec-retos">🔥 Retos</button></nav>' +
     (ex.length
       ? '<div class="str-strip"><div class="str-nums"><span><b>' +
-        esc(DAYS[state.day - 1]) +
+        esc(DAY_NAMES[state.day - 1] + " · " + DAYS[state.day - 1]) +
         "</b></span><span>Ejercicios <b>" +
         done +
         "/" +
