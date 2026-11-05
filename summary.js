@@ -80,11 +80,11 @@ window.createFitSummary = function ({
     ]
       .map((i) => {
         const v = lo + ((hi - lo) * i) / 3;
-        return `<line x1="42" x2="314" y1="${y(v)}" y2="${y(v)}" stroke="#41444b"/><text x="2" y="${y(v) + 4}" fill="#b8b8b8" font-size="12">${fmt(v)}</text>`;
+        return `<line x1="42" x2="314" y1="${y(v)}" y2="${y(v)}" stroke="#e3d4c1"/><text x="2" y="${y(v) + 4}" fill="#7b6a5b" font-size="12">${fmt(v)}</text>`;
       })
       .join(
         "",
-      )}<text x="5" y="18" fill="#b8b8b8" font-size="12">kg</text>${[0, 2, 4, 6, 8].map((w) => `<text x="${x(w)}" y="214" fill="#b8b8b8" font-size="12" text-anchor="middle">S${w}</text>`).join("")}<line x1="${x(0)}" y1="${y(m.initial)}" x2="${x(8)}" y2="${y(m.target)}" stroke="#a4a8b0" stroke-width="2" stroke-dasharray="6 4"/>${m.projection === null ? "" : `<line x1="${x(0)}" y1="${y(m.initial)}" x2="${x(8)}" y2="${y(m.projection)}" stroke="#7ac7bd" stroke-width="2" stroke-dasharray="2 4"/>`}${points.map((r) => `<circle cx="${x(r.week)}" cy="${y(r.actual)}" r="4" fill="#ffc33d"><title>Semana ${r.week}: ${fmt(r.actual)} kg</title></circle>`).join("")}<circle cx="${x(0)}" cy="${y(m.initial)}" r="4" fill="#ffc33d"/></svg><p class="tiny">● Amarillo: peso real · Línea gris: trayectoria objetivo · Línea verde punteada: estimación por balance (${m.count} días cerrados con Whoop)${m.count ? "" : " — datos insuficientes"}.</p>`;
+      )}<text x="5" y="18" fill="#7b6a5b" font-size="12">kg</text>${[0, 2, 4, 6, 8].map((w) => `<text x="${x(w)}" y="214" fill="#7b6a5b" font-size="12" text-anchor="middle">S${w}</text>`).join("")}<line x1="${x(0)}" y1="${y(m.initial)}" x2="${x(8)}" y2="${y(m.target)}" stroke="#a4a8b0" stroke-width="2" stroke-dasharray="6 4"/>${m.projection === null ? "" : `<line x1="${x(0)}" y1="${y(m.initial)}" x2="${x(8)}" y2="${y(m.projection)}" stroke="#7ac7bd" stroke-width="2" stroke-dasharray="2 4"/>`}${points.map((r) => `<circle cx="${x(r.week)}" cy="${y(r.actual)}" r="4" fill="#ffc33d"><title>Semana ${r.week}: ${fmt(r.actual)} kg</title></circle>`).join("")}<circle cx="${x(0)}" cy="${y(m.initial)}" r="4" fill="#ffc33d"/></svg><p class="tiny">● Amarillo: peso real · Línea gris: trayectoria objetivo · Línea verde punteada: estimación por balance (${m.count} días cerrados con Whoop)${m.count ? "" : " — datos insuficientes"}.</p>`;
   }
   function energyChart(m) {
     const p = getProgram(),
