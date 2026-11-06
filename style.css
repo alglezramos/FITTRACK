@@ -2901,3 +2901,5 @@ details.fold[open] > summary { margin-bottom: 10px; }
 #programView .todo-btn { padding: 8px 12px; border-radius: var(--r-pill); border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
 #programView .todo-btn.quiet { background: transparent; color: var(--accent); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.macro-line{font-size:.78rem;line-height:1.65;color:var(--muted,#858585);margin:.4rem 0;overflow-wrap:anywhere}
