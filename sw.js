@@ -1,4 +1,4 @@
-const CACHE = "fittrack-pages-v20261105r92-registros";
+const CACHE = "fittrack-pages-v20261105r93-peso";
 const FILES = [
   "./",
   "./index.html",
@@ -26,6 +26,7 @@ const FILES = [
   "./assets/remo_kettlebell.jpg",
   "./assets/curl_ez_scott.jpg",
   "./assets/trunk_extension.jpg",
+  "./assets/pallof_press.jpg",
   "./assets/press_inclinado_smith.jpg",
   "./assets/press_recto_mancuernas.jpg",
   "./assets/hip_thrust.jpg",
