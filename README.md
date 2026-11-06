@@ -54,3 +54,8 @@ Validación: sintaxis de todos los JS; exportación conserva los registros y añ
 - Peso: puntos reales, promedio de pesajes disponibles en siete días (mínimo dos), huecos sin registro y tabla semanal con número de pesajes.
 - Aviso de copia tras tres días con cambios desde la última descarga solicitada. Comprobar el archivo en Descargas; el navegador no permite confirmar que se conservó.
 - Antes de sustituir los archivos en GitHub, exportar los registros. Subir el contenido del ZIP a la carpeta que sirve GitHub Pages. Esta actualización no publica automáticamente.
+
+## r93
+- Gráfica de peso renovada: se dibuja al ancho real (números a tamaño normal), eje en pasos redondos, semanas S1–S8 marcadas, pesajes unidos con línea punteada, tendencia continua (promedio de 7 días con mínimo 2 pesajes) y último peso destacado.
+- En el teléfono, las cifras de peso se ven en 2×2 y el porcentaje de progreso alineado a la derecha.
+- Foto del Pallof press en polea.
