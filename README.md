@@ -59,3 +59,8 @@ Validación: sintaxis de todos los JS; exportación conserva los registros y añ
 - Gráfica de peso renovada: se dibuja al ancho real (números a tamaño normal), eje en pasos redondos, semanas S1–S8 marcadas, pesajes unidos con línea punteada, tendencia continua (promedio de 7 días con mínimo 2 pesajes) y último peso destacado.
 - En el teléfono, las cifras de peso se ven en 2×2 y el porcentaje de progreso alineado a la derecha.
 - Foto del Pallof press en polea.
+
+## r94
+- Fotos de catálogo: 116 alimentos muestran foto de empaque (y 30 de etiqueta) tomadas de Walmart CR (food-images.js). Se ven en todos los dispositivos; una foto propia del mismo espacio tiene prioridad.
+- «Descargar copia» incluye las fotos propias de alimentos y «Importar copia» las restaura (límite del archivo: 80 MB).
+- «Exportar fotos» e «Importar fotos» siguen disponibles.
