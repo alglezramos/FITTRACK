@@ -6,6 +6,17 @@
   const MAX = 1280;
   const key = (id, slot) => id + "|" + slot;
   const known = new Set();
+  // r94: fotos de catálogo (food-images.js). Un número es una imagen de producto de
+  // Walmart CR; un texto es una ruta dentro de la app. Se ven en todos los dispositivos;
+  // una foto propia del mismo espacio tiene prioridad.
+  const CAT = g.FIT_FOOD_IMAGES || {};
+  const catSrc = (k) => {
+    const [id, slot] = k.split("|");
+    const v = CAT[id] && CAT[id][slot];
+    if (typeof v === "number") return `https://walmartcr.vteximg.com.br/arquivos/ids/${v}-500-500/foto.jpg`;
+    return typeof v === "string" && v ? v : null;
+  };
+  const has = (k) => known.has(k) || !!catSrc(k);
   const urls = new Map();
   let pending = { editor: null, slots: {} };
   let dbp = null;
@@ -52,8 +63,9 @@
 
   async function url(k) {
     if (urls.has(k)) return urls.get(k);
+    if (!known.has(k)) return catSrc(k);
     const b = await getBlob(k);
-    if (!b) return null;
+    if (!b) return catSrc(k);
     const u = URL.createObjectURL(b);
     urls.set(k, u);
     return u;
@@ -94,13 +106,14 @@
         if (slot in pending.slots) {
           const b = pending.slots[slot];
           src = b ? (b._url ??= URL.createObjectURL(b)) : null;
-        } else if (id !== "new" && known.has(key(id, slot))) src = await url(key(id, slot));
-        return `<div class="fp-slot"><span class="fp-label">${label}</span>${
+        } else if (id !== "new" && has(key(id, slot))) src = await url(key(id, slot));
+        const fromCat = !(slot in pending.slots) && id !== "new" && !known.has(key(id, slot)) && !!src;
+        return `<div class="fp-slot"><span class="fp-label">${label}${fromCat ? ' <small>· catálogo</small>' : ""}</span>${
           src
             ? `<img src="${esc(src)}" alt="${label}" data-photo-preview>`
             : `<div class="fp-empty">Sin foto</div>`
         }<div class="fp-actions"><label class="fp-btn">${src ? "Cambiar" : "Agregar foto"}<input type="file" accept="image/*" data-photo-input="${slot}" hidden></label>${
-          src ? `<button type="button" class="fp-btn" data-photo-remove="${slot}">Quitar</button>` : ""
+          src && !fromCat ? `<button type="button" class="fp-btn" data-photo-remove="${slot}">Quitar</button>` : ""
         }</div></div>`;
       }),
     );
@@ -112,7 +125,7 @@
     const imgs = await Promise.all(
       SLOTS.map(async (label, slot) => {
         const k = key(id, slot);
-        if (!known.has(k)) return "";
+        if (!has(k)) return "";
         const u = await url(k);
         return u
           ? `<img class="fp-thumb" src="${esc(u)}" alt="${label}" data-photo-view="${esc(k)}" loading="lazy">`
@@ -163,13 +176,14 @@
 
   function lightbox(k) {
     const id = k.split("|")[0];
-    const list = SLOTS.map((_, s) => key(id, s)).filter((x) => known.has(x) && urls.has(x));
+    const list = SLOTS.map((_, s) => key(id, s)).filter((x) => (known.has(x) && urls.has(x)) || (!known.has(x) && catSrc(x)));
+    const src = (x) => (known.has(x) ? urls.get(x) : catSrc(x));
     const o = document.createElement("div");
     o.className = "fp-lightbox";
     o.setAttribute("role", "dialog");
     o.setAttribute("aria-label", "Fotos del alimento");
     o.innerHTML = `<button type="button" class="fp-close" aria-label="Cerrar">✕</button><div class="fp-strip">${list
-      .map((x) => `<figure data-k="${esc(x)}"><img src="${esc(urls.get(x))}" alt=""><figcaption>${SLOTS[x.split("|")[1]]}</figcaption></figure>`)
+      .map((x) => `<figure data-k="${esc(x)}"><img src="${esc(src(x))}" alt=""><figcaption>${SLOTS[x.split("|")[1]]}</figcaption></figure>`)
       .join("")}</div>`;
     document.body.append(o);
     o.querySelector(`[data-k="${CSS.escape(k)}"]`)?.scrollIntoView({ inline: "start", block: "nearest" });
@@ -213,14 +227,7 @@
         if (o.version !== "fittrack-photos-1" || !o.photos) throw Error("Archivo no válido");
         const entries = Object.entries(o.photos);
         if (!confirm(`¿Importar ${entries.length} fotos? Reemplaza las fotos con el mismo alimento.`)) return;
-        for (const [k, data] of entries) {
-          if (!/^[\w-]+\|[01]$/.test(k) || !String(data).startsWith("data:image/")) continue;
-          const b = await (await fetch(data)).blob();
-          forget(k);
-          await putBlob(k, b);
-          known.add(k);
-        }
-        refresh();
+        await importAll(o.photos);
         alert("Fotos importadas");
       } catch (err) {
         alert("No se pudieron importar las fotos: " + err.message);
@@ -282,7 +289,32 @@
 `;
   document.head.append(style);
 
-  g.FitPhotos = { commit, refresh };
+  // r94: las fotos propias viajan dentro de «Descargar copia».
+  async function exportAll() {
+    const photos = {};
+    for (const k of known) {
+      const b = await getBlob(k);
+      if (b) photos[k] = await toDataURL(b);
+    }
+    return photos;
+  }
+  async function importAll(photos) {
+    let n = 0;
+    for (const [k, data] of Object.entries(photos || {})) {
+      if (!/^[\w-]+\|[01]$/.test(k) || !String(data).startsWith("data:image/")) continue;
+      const b = await (await fetch(data)).blob();
+      forget(k);
+      await putBlob(k, b);
+      known.add(k);
+      n++;
+    }
+    refresh();
+    return n;
+  }
+  g.FitPhotos = { commit, refresh, exportAll, importAll };
+  // Las fotos de catálogo se muestran aunque el navegador no tenga IndexedDB.
+  new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
+  schedule();
   if (!("indexedDB" in g)) return;
   tx("readonly", (s) => s.getAllKeys())
     .then((keys) => {
@@ -290,6 +322,4 @@
       refresh();
     })
     .catch(() => {});
-  new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
-  schedule();
 })(window);
