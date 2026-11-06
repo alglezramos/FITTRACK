@@ -578,43 +578,63 @@
   }
   // Gráfico de línea SVG (escala propia; null = sin dato).
   function lineChart(days, lines, ref) {
-    const W = 320,
-      H = 130,
-      P = { l: 34, r: 8, t: 10, b: 20 };
+    // r93: se dibuja al ancho real de la tarjeta (texto a tamaño normal), eje en pasos redondos y semanas marcadas.
+    const host = document.getElementById("programView"),
+      W = Math.max(300, Math.min(960, (host && host.clientWidth ? host.clientWidth : 360) - 40)),
+      H = W < 480 ? 190 : 230,
+      P = { l: 40, r: 50, t: 14, b: 34 };
     const vals = lines.flatMap((l) => l.values.filter((v) => v != null));
     let lo = Math.min(...vals),
       hi = Math.max(...vals);
-    if (hi - lo < 1) (lo -= 0.5), (hi += 0.5);
-    const pad = (hi - lo) * 0.08;
-    (lo -= pad), (hi += pad);
+    const span = Math.max(hi - lo, 1.2),
+      step = span > 6 ? 2 : span > 3 ? 1 : 0.5;
+    lo = Math.floor((lo - span * 0.12) / step) * step;
+    hi = Math.ceil((hi + span * 0.12) / step) * step;
     const x = (i) => P.l + (days.length < 2 ? (W - P.l - P.r) / 2 : (i / (days.length - 1)) * (W - P.l - P.r));
     const y = (v) => P.t + (1 - (v - lo) / (hi - lo)) * (H - P.t - P.b);
-    const path = (vs) => {
-      let d = "",
-        pen = false;
-      vs.forEach((v, i) => {
-        if (v == null) { pen = false; return; }
-        d += (pen ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1);
-        pen = true;
-      });
+    const pts = (vs) => vs.map((v, i) => (v == null ? null : [x(i), y(v)])).filter(Boolean);
+    const smooth = (p) => {
+      if (!p.length) return "";
+      let d = `M${p[0][0].toFixed(1)} ${p[0][1].toFixed(1)}`;
+      for (let i = 1; i < p.length; i++) {
+        const [x1, y1] = p[i];
+        d += ` L${x1.toFixed(1)} ${y1.toFixed(1)}`;
+      }
       return d;
     };
-    const grid = [hi - pad, (hi + lo) / 2, lo + pad]
-      .map((v) => `<line x1="${P.l}" x2="${W - P.r}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" class="pc-grid"/><text x="${P.l - 4}" y="${(y(v) + 3).toFixed(1)}" text-anchor="end" class="pc-axis">${fmt(v)}</text>`)
-      .join("");
+    let grid = "";
+    for (let v = lo; v <= hi + 1e-9; v += step)
+      grid += `<line x1="${P.l}" x2="${W - P.r}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" class="pc-grid"/><text x="${P.l - 8}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end" class="pc-axis">${fmt(Math.round(v * 10) / 10)}</text>`;
+    // Separadores y etiquetas por semana del programa.
+    let weeksAx = "";
+    days.forEach((d, i) => {
+      const off = Math.round((new Date(d + "T12:00") - new Date(program.start + "T12:00")) / 864e5);
+      if (off % 7 !== 0) return;
+      const xx = x(i).toFixed(1);
+      weeksAx += `<line x1="${xx}" x2="${xx}" y1="${P.t}" y2="${H - P.b}" class="pc-week"/><text x="${xx}" y="${H - P.b + 15}" text-anchor="${i === 0 ? "start" : "middle"}" class="pc-axis pc-wk">S${off / 7 + 1}</text><text x="${xx}" y="${H - P.b + 28}" text-anchor="${i === 0 ? "start" : "middle"}" class="pc-axis">${d.slice(8)}/${d.slice(5, 7)}</text>`;
+    });
     const refLine =
       ref != null && ref >= lo && ref <= hi
-        ? `<line x1="${P.l}" x2="${W - P.r}" y1="${y(ref).toFixed(1)}" y2="${y(ref).toFixed(1)}" class="pc-ref"/><text x="${W - P.r}" y="${(y(ref) - 4).toFixed(1)}" text-anchor="end" class="pc-axis pc-ref-t">meta ${fmt(ref)}</text>`
+        ? `<line x1="${P.l}" x2="${W - P.r}" y1="${y(ref).toFixed(1)}" y2="${y(ref).toFixed(1)}" class="pc-ref"/><text x="${W - P.r}" y="${(y(ref) - 5).toFixed(1)}" text-anchor="end" class="pc-axis pc-ref-t">meta ${fmt(ref)}</text>`
         : "";
-    const body = lines
-      .map((l) =>
-        l.dots
-          ? l.values.map((v, i) => (v == null ? "" : `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3" class="${l.cls}"><title>${days[i]} · ${fmt(v)} kg</title></circle>`)).join("")
-          : `<path d="${path(l.values)}" class="${l.cls}"/>`,
-      )
-      .join("");
-    const lab = (i) => `<text x="${x(i).toFixed(1)}" y="${H - 5}" text-anchor="${i === 0 ? "start" : "end"}" class="pc-axis">${days[i].slice(8)}/${days[i].slice(5, 7)}</text>`;
-    return `<svg class="panel-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Gráfico">${grid}${refLine}${body}${lab(0)}${days.length > 1 ? lab(days.length - 1) : ""}</svg>`;
+    let body = "", last = null;
+    for (const l of lines) {
+      if (l.dots) {
+        const p = pts(l.values);
+        if (p.length > 1) body += `<polyline points="${p.map((q) => q.map((n) => n.toFixed(1)).join(",")).join(" ")}" class="pc-link"/>`;
+        body += l.values.map((v, i) => (v == null ? "" : `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="4" class="${l.cls}"><title>${days[i].slice(8)}/${days[i].slice(5, 7)} · ${fmt(v)} kg</title></circle>`)).join("");
+        const li = l.values.map((v, i) => (v == null ? -1 : i)).filter((i) => i >= 0).at(-1);
+        if (li != null) last = { i: li, v: l.values[li] };
+      } else {
+        const p = pts(l.values);
+        if (p.length > 1) body += `<path d="${smooth(p)}" class="${l.cls}"/>`;
+        else if (p.length === 1) body += `<circle cx="${p[0][0].toFixed(1)}" cy="${p[0][1].toFixed(1)}" r="3" class="pc-line-pt"/>`;
+      }
+    }
+    const lastLab = last
+      ? `<circle cx="${x(last.i).toFixed(1)}" cy="${y(last.v).toFixed(1)}" r="6.5" class="pc-last"/><text x="${(x(last.i) + 10).toFixed(1)}" y="${(y(last.v) + 4).toFixed(1)}" class="pc-last-t">${fmt(last.v)}</text>`
+      : "";
+    return `<svg class="panel-chart pc-weight" viewBox="0 0 ${W} ${H}" role="img" aria-label="Gráfico de peso diario y tendencia">${grid}${weeksAx}${refLine}${body}${lastLab}</svg>`;
   }
   // Barras horizontales simples (etiqueta · barra · valor).
   function bars(rows, unit = "", max) {
@@ -642,13 +662,13 @@
         const w = weightOn(C.datePlus(d, -k));
         if (w) v.push(w);
       }
-      return v.length >= 2 && daily[i] != null ? v.reduce((a, b) => a + b, 0) / v.length : null;
+      return v.length >= 2 && d <= today() ? v.reduce((a, b) => a + b, 0) / v.length : null;
     });
     const n = daily.filter((v) => v).length;
     const chart =
       n >= 1
         ? lineChart(days, [{ values: ma, cls: "pc-line" }, { values: daily, cls: "pc-dot", dots: true }], target) +
-          `<p class="panel-legend"><span class="lg-dot"></span>Pesada diaria <span class="lg-line"></span>Promedio de los pesajes disponibles en 7 días${daily.some((v) => v && v - target < 4) ? ' <span class="lg-ref"></span>Meta' : ""}</p>`
+          `<p class="panel-legend"><span class="lg-dot"></span>Pesada diaria <span class="lg-line"></span>Tendencia · promedio de 7 días${daily.some((v) => v && v - target < 4) ? ' <span class="lg-ref"></span>Meta' : ""}</p>`
         : note(n ? "Solo hay una pesada en este periodo. Con dos o más verás la curva y el promedio móvil." : "No hay pesadas en este periodo. Registra tu peso en Hoy → Registrar peso.");
     const weeks = rows.filter((r) => r.week > 0 && r.actual != null && days.some((d) => weekOf(d) === r.week));
     const weekly = weeks.length ? `<div class="scroll"><table class="weight-week-table"><thead><tr><th>Semana</th><th>Promedio</th><th>Pesajes</th><th>Cambio</th></tr></thead><tbody>${weeks.map((r,i)=>{
@@ -663,7 +683,7 @@
         cur && prev ? (prev.week ? "S" + prev.week : "peso inicial") : "",
       )}</div>
       <div class="dash-row"><span>Progreso hacia la meta</span><b>${Math.round(pct)} %</b></div>${bar(pct, 100)}
-      <h4 class="panel-sub">Evolución diaria · kg</h4>${chart}<p class="tiny subtle">${n} pesajes en ${days.length} días. Los huecos indican días sin registro. El promedio requiere al menos 2 pesajes en los últimos 7 días y se muestra en las fechas con registro.</p>${weekly ? `<h4 class="panel-sub">Promedio semanal</h4>${weekly}<p class="tiny subtle">Cambio respecto a la anterior semana con datos; la primera se compara con el peso inicial. Más pesajes hacen el promedio más representativo.</p>` : ""}</article>`;
+      <h4 class="panel-sub">Evolución diaria · kg</h4>${chart}<p class="tiny subtle">${n} pesajes en ${days.length} días. Los huecos indican días sin registro. La tendencia es el promedio de los pesajes de los últimos 7 días (mínimo 2) y suaviza las variaciones de agua y comida.</p>${weekly ? `<h4 class="panel-sub">Promedio semanal</h4>${weekly}<p class="tiny subtle">Cambio respecto a la anterior semana con datos; la primera se compara con el peso inicial. Más pesajes hacen el promedio más representativo.</p>` : ""}</article>`;
   }
   function panelTraining(days) {
     const set = new Set(days),
