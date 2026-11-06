@@ -57,7 +57,7 @@
     const object = (v) => v && typeof v === "object" && !Array.isArray(v);
     const number = (v, min, max) => typeof v === "number" && Number.isFinite(v) && v >= min && v <= max;
     // Macros opcionales del alimento (g por porción base).
-    const macrosOk = (f) => ["protein", "carbs", "fat", "fiber"].every((k) => f[k] === undefined || number(f[k], 0, 1000));
+    const macrosOk = (f) => ["protein", "carbs", "fat", "fiber"].every((k) => f[k] == null || number(f[k], 0, 1000));
     if (!object(p) || !object(p.weeks) || !Array.isArray(p.sessions))
       throw Error("Estructura de copia no válida");
     for (const key of ["diary", "meds", "foodKcal", "foodEdits", "recipeEdits", "menuPlan"])
@@ -80,6 +80,9 @@
         throw Error("Actividad no válida");
     for (const [date, d] of Object.entries(p.diary || {})) {
       if (!validDate(date) || !object(d) || !Array.isArray(d.meals)) throw Error("Diario no válido");
+      for (const meal of d.meals) {
+        if (!window.FitMacros.validate(meal.macros) || (meal.items || []).some(i => !window.FitMacros.validate(i.macros))) throw Error("Macros de comida inválidos");
+      }
       for (const k of ["whoop", "steps", "extras"])
         if (has(d[k]) && !number(Number(d[k]), 0, k === "steps" ? 200000 : 20000))
           throw Error("Valor diario no válido");
