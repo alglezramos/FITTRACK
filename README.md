@@ -45,3 +45,12 @@ Cambios:
 Datos: no se borran recetas ni alimentos, no cambian IDs ni claves de almacenamiento. Favoritos y estado de despensa se incluyen en las copias del programa. Fotos originales sin cambios.
 
 Validación: sintaxis de todos los JS; exportación conserva los registros y añade fecha; pruebas en Chromium de configuración, Hoy/Ayer, búsqueda, favoritos, recientes, conversión de existencias, ampliación de fotos, copia S1 y respeto de series completadas, ajuste de receta a 500 kcal. Datos ficticios en vista previa independiente. No se importó una copia privada ni se probó en un teléfono físico.
+
+
+## r92
+- Nutrientes diarios en Hoy y Comida → Registro; los totales incompletos se marcan parciales.
+- Editar y duplicar comidas con fecha, tiempo de comida y multiplicador de porción (0,5 = mitad). Conserva los nutrientes originales.
+- Flecha para deshacer la última edición o duplicado durante la sesión, siempre que no haya cambios posteriores en los días afectados.
+- Peso: puntos reales, promedio de pesajes disponibles en siete días (mínimo dos), huecos sin registro y tabla semanal con número de pesajes.
+- Aviso de copia tras tres días con cambios desde la última descarga solicitada. Comprobar el archivo en Descargas; el navegador no permite confirmar que se conservó.
+- Antes de sustituir los archivos en GitHub, exportar los registros. Subir el contenido del ZIP a la carpeta que sirve GitHub Pages. Esta actualización no publica automáticamente.
