@@ -2903,3 +2903,5 @@ details.fold[open] > summary { margin-bottom: 10px; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 .macro-line{font-size:.78rem;line-height:1.65;color:var(--muted,#858585);margin:.4rem 0;overflow-wrap:anywhere}
+
+.daily-macros{padding:16px;border:1px solid var(--border,#ddd);border-radius:16px;margin:12px 0}.daily-macros h3{margin:0 0 12px}.macro-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.macro-grid>div{display:flex;flex-direction:column;gap:5px}.macro-grid small{font-size:.75rem}.macro-grid strong{font-size:1.1rem}.backup-notice{padding:12px 16px;border:1px solid #b88739;border-radius:12px;margin:12px 0}.food-log .btn-row{flex-wrap:wrap;align-self:center}@media(max-width:600px){.macro-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.food-log{flex-wrap:wrap}}
