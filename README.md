@@ -64,3 +64,6 @@ Validación: sintaxis de todos los JS; exportación conserva los registros y añ
 - Fotos de catálogo: 116 alimentos muestran foto de empaque (y 30 de etiqueta) tomadas de Walmart CR (food-images.js). Se ven en todos los dispositivos; una foto propia del mismo espacio tiene prioridad.
 - «Descargar copia» incluye las fotos propias de alimentos y «Importar copia» las restaura (límite del archivo: 80 MB).
 - «Exportar fotos» e «Importar fotos» siguen disponibles.
+
+## r95
+- Día 1: «Hip thrust con barra» se reemplaza por «Aductores en máquina» (mismo lugar en la rutina; no tenía registros).
