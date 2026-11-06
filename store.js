@@ -62,12 +62,15 @@
     throw Error("Formato de copia no reconocido");
   };
   // Única forma de exportar: «💾 Guardar» y «Exportar todo» usan esta función.
-  const exportBackup = () => {
+  const exportBackup = async () => {
     const now = new Date();
+    // r94: incluye las fotos propias de alimentos (guardadas en este navegador).
+    let photos = {};
+    try { photos = (await g.FitPhotos?.exportAll?.()) || {}; } catch {}
     const pad = (n) => String(n).padStart(2, "0");
     const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
     const body = JSON.stringify(
-      { version: BACKUP_VERSION, exported: now.toISOString(), program: data.program ?? null, strength: data.strength ?? null },
+      { version: BACKUP_VERSION, exported: now.toISOString(), program: data.program ?? null, strength: data.strength ?? null, photos },
       null,
       2,
     );
