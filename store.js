@@ -29,6 +29,15 @@
       migrated = true;
     }
   }
+  const recordSignature = (part,value) => JSON.stringify(part === 'program' ? [value?.diary,value?.weeks,value?.sessions,value?.meds,value?.wellbeing,value?.customFoods,value?.foodEdits,value?.customMenus,value?.recipeEdits] : value);
+  const signatures = {program:recordSignature('program',data.program),strength:recordSignature('strength',data.strength)};
+  const localDate = () => {const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);};
+  const backupNotice = () => {
+    const info=data.backupInfo||{},days=info.changedDays||[];
+    const last=info.lastRequested?new Date(info.lastRequested).toLocaleDateString('es-CR'):'ninguna todavía';
+    const due=days.length>=3;
+    return `<aside class="backup-notice" aria-label="Estado de copia de seguridad"><strong>${due?'Conviene descargar una copia':'Copia de seguridad'}</strong><p class="tiny">Última descarga solicitada: ${last}. ${days.length} días con cambios desde entonces.</p>${due?'<button type="button" data-open-backup>Guardar una copia</button>':''}<small>Comprueba que el archivo esté en Descargas.</small></aside>`;
+  };
   const write = () => localStorage.setItem(KEY, JSON.stringify(data));
   if (migrated) {
     try {
@@ -69,7 +78,8 @@
     document.body.appendChild(a);
     a.click();
     a.remove();
-    data.backupInfo = { lastRequested: now.toISOString() };
+    data.backupInfo = { lastRequested: now.toISOString(), changedDays: [] };
+    document.querySelectorAll(".backup-notice").forEach(el=>{el.outerHTML=backupNotice();});
     try { write(); } catch { mark(false); }
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
@@ -85,6 +95,14 @@
   g.FitStore = {
     get: (part) => data[part] ?? null,
     set(part, value) {
+      if (part === 'program' || part === 'strength') {
+        const signature=recordSignature(part,value);
+        if(signature!==signatures[part]) {
+          const info=data.backupInfo||{};
+          data.backupInfo={...info,changedDays:[...new Set([...(info.changedDays||[]),localDate()])]};
+          signatures[part]=signature;
+        }
+      }
       data[part] = value;
       try {
         write();
@@ -95,6 +113,7 @@
       mark(true);
     },
     exportBackup,
+    backupNotice,
     readBackup,
   };
 })(window);
