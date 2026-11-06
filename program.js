@@ -1180,7 +1180,7 @@
       try {
         const file = t.files[0];
         if (!file) return;
-        if (file.size > 5000000) throw Error("La copia supera 5 MB");
+        if (file.size > 80000000) throw Error("La copia supera 80 MB");
         let o;
         try {
           o = JSON.parse(await file.text());
@@ -1219,7 +1219,12 @@
         render();
         pendingJump = "sec-backup";
         show();
-        alert("Copia importada");
+        // r94: restaura también las fotos propias de alimentos si la copia las trae.
+        let nPhotos = 0;
+        if (o.photos && typeof o.photos === "object" && window.FitPhotos?.importAll) {
+          try { nPhotos = await window.FitPhotos.importAll(o.photos); } catch {}
+        }
+        alert(nPhotos ? `Copia importada (incluye ${nPhotos} fotos)` : "Copia importada");
       } catch (err) {
         alert("No se pudo importar: " + err.message);
       } finally {
