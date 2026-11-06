@@ -64,6 +64,7 @@ window.createFitNutrition = function ({
   const daily = () =>
     prog().diary[selectedDate()] || { meals: [], whoop: "", steps: "", extras: "", closed: false };
   const saveDay = (d) => {
+    mealUndo = null;
     prog().diary[selectedDate()] = d;
     persist();
   };
@@ -135,6 +136,12 @@ window.createFitNutrition = function ({
       renderEditor()
     );
   }
+  let mealEdit = null, mealUndo = null, mealUndoAfter = null;
+  function renderMealEditor() {
+    if (!mealEdit) return '';
+    const m = mealEdit.meal;
+    return `<article><h3>${mealEdit.copy ? 'Duplicar comida' : 'Editar registro'}</h3><p>${escape(m.name)} · ${fmt(m.kcal)} kcal originales</p><form id="mealEditForm"><div class="fields"><label>Nombre<input name="name" value="${escape(m.name)}" maxlength="120" required></label><label>Fecha<input name="date" type="date" value="${mealEdit.target}" max="${today()}" required></label><label>Comida<select name="kind">${kinds.map(k=>`<option ${k===m.kind?'selected':''}>${k}</option>`).join('')}</select></label><label>Porciones (1 = cantidad registrada)<input name="factor" type="number" min="0.01" max="100" step="any" value="1" required></label></div><p class="tiny subtle">0,5 registra la mitad; 2, el doble. Se ajustan cantidades, kcal y macros con los valores originales, sin reemplazarlos por el catálogo actual.</p><button class="primary">Guardar registro</button> <button type="button" data-cancel-meal>Cancelar</button></form></article>`;
+  }
   function renderLog() {
     const d = daily(),
       dt = selectedDate(),
@@ -142,15 +149,48 @@ window.createFitNutrition = function ({
       kcal = intake({ ...d, meals }),
       order = [...kinds, ...new Set(meals.map((m) => m.kind).filter((k) => !kinds.includes(k)))];
     const row = (m) =>
-      `<div class="food-log"><div><strong>${escape(m.name)}</strong><br><span class="subtle tiny">${fmt(m.kcal)} kcal</span>${macroHtml(m.macros)}${m.items && m.items.length ? `<details><summary>Porciones</summary><p class="tiny">${m.items.map((i) => `${fmt(i.qty)} ${escape(i.unit)} ${escape(i.name)}${has(i.kcal) ? " · " + fmt(i.kcal) + " kcal" : ""}`).join("<br>")}</p></details>` : ""}</div><button data-remove-meal="${escape(m.id)}">Eliminar</button></div>`;
+      `<div class="food-log"><div><strong>${escape(m.name)}</strong><br><span class="subtle tiny">${fmt(m.kcal)} kcal</span>${macroHtml(m.macros)}${m.items && m.items.length ? `<details><summary>Porciones</summary><p class="tiny">${m.items.map((i) => `${fmt(i.qty)} ${escape(i.unit)} ${escape(i.name)}${has(i.kcal) ? " · " + fmt(i.kcal) + " kcal" : ""}`).join("<br>")}</p></details>` : ""}</div><div class="btn-row"><button data-edit-meal="${escape(m.id)}">Editar</button><button data-copy-meal="${escape(m.id)}">Duplicar</button><button data-remove-meal="${escape(m.id)}">Eliminar</button></div></div>`;
     const groups = order
       .map((k) => {
         const list = meals.filter((m) => m.kind === k);
         return list.length ? `<h4 class="sub-title">${escape(k)}</h4>${list.map(row).join("")}` : "";
       })
       .join("");
-    return `<article><div class="card-head"><div><div class="eyebrow">REGISTRO DEL DÍA</div><h3>${escape(dt || "Selecciona el inicio")}</h3></div><span class="pill">${meals.length} · ${fmt(kcal)} kcal</span></div><p>${kcal <= FitCore.goals().kcal ? "Restan " + fmt(FitCore.goals().kcal - kcal) + " de " + fmt(FitCore.goals().kcal) + " kcal" : "Sobre " + fmt(FitCore.goals().kcal) + " por " + fmt(kcal - FitCore.goals().kcal) + " kcal"}${d.closed ? " · ✓ Día completo" : ""}</p>${groups || '<p class="subtle">Aún no hay comidas registradas este día.</p>'}<div class="btn-row"><button class="primary" data-quick-food>+ Alimento</button><button data-food-tab="menus">+ Receta</button><button data-food-tab="week">Ver plan</button></div></article>`;
+    return `<article><div class="card-head"><div><div class="eyebrow">REGISTRO DEL DÍA</div><h3>${escape(dt || "Selecciona el inicio")}</h3></div><span class="pill">${meals.length} · ${fmt(kcal)} kcal</span></div><p>${kcal <= FitCore.goals().kcal ? "Restan " + fmt(FitCore.goals().kcal - kcal) + " de " + fmt(FitCore.goals().kcal) + " kcal" : "Sobre " + fmt(FitCore.goals().kcal) + " por " + fmt(kcal - FitCore.goals().kcal) + " kcal"}${d.closed ? " · ✓ Día completo" : ""}</p>${M.dailyHtml(d)}${renderMealEditor()}${mealUndo ? '<button data-undo-meal aria-label="Deshacer edición o duplicado">↶</button>' : ""}${groups || '<p class="subtle">Aún no hay comidas registradas este día.</p>'}<div class="btn-row"><button class="primary" data-quick-food>+ Alimento</button><button data-food-tab="menus">+ Receta</button><button data-food-tab="week">Ver plan</button></div></article>`;
   }
+  root.addEventListener('click', e => {
+    const b=e.target.closest('button'); if(!b)return;
+    if(b.hasAttribute('data-cancel-meal')){mealEdit=null;rerender();return;}
+    if(b.hasAttribute('data-undo-meal') && mealUndo){
+      if(Object.entries(mealUndoAfter||{}).some(([dt,d])=>JSON.stringify(prog().diary[dt]||null)!==d)){mealUndo=null;rerender();notify('Hay cambios posteriores. Edita el registro para conservarlos.');return;}
+      for(const [dt,d] of Object.entries(mealUndo)) { if(d===null) delete prog().diary[dt]; else prog().diary[dt]=d; }
+      mealUndo=null;mealEdit=null;persist();rerender();notify('Cambio deshecho');return;
+    }
+    const id=b.dataset.editMeal || b.dataset.copyMeal;
+    if(!id)return;
+    const m=(daily().meals||[]).find(x=>x.id===id);if(!m)return;
+    mealEdit={meal:JSON.parse(JSON.stringify(m)),source:selectedDate(),target:b.dataset.copyMeal?today():selectedDate(),copy:!!b.dataset.copyMeal};
+    rerender();document.getElementById('mealEditForm')?.scrollIntoView({behavior:'smooth',block:'center'});
+  });
+  root.addEventListener('submit',e=>{
+    if(e.target.id!=='mealEditForm')return;e.preventDefault();if(!mealEdit||!e.target.checkValidity())return;
+    const fd=new FormData(e.target), dt=fd.get('date'),factor=Number(fd.get('factor')),p=prog();
+    if(!FitCore.validDate(dt)||dt>today()||!Number.isFinite(factor)||factor<=0)return;
+    const original=mealEdit.meal;
+    if(original.kcal*factor>20000){notify('La cantidad supera el límite del registro.');return;}
+    const scale=v=>Object.fromEntries(M.fields.map(([k])=>[k,M.known(v?.[k])?v[k]*factor:null]));
+    const m={...original,name:fd.get('name').trim(),kind:fd.get('kind'),kcal:original.kcal*factor,macros:scale(original.macros),items:(original.items||[]).map(i=>({...i,qty:i.qty*factor,kcal:has(i.kcal)?i.kcal*factor:undefined,macros:scale(i.macros)}))};
+    if(!m.name||m.items.some(i=>i.qty>100000))return;
+    mealUndo=Object.fromEntries([...new Set([dt,mealEdit.source])].map(d=>[d,p.diary[d]?JSON.parse(JSON.stringify(p.diary[d])):null]));
+    if(mealEdit.copy)m.id=stamp();
+    else p.diary[mealEdit.source].meals=p.diary[mealEdit.source].meals.filter(x=>x.id!==original.id);
+    delete m.slot;
+    if(!mealEdit.copy && p.diary[mealEdit.source])p.diary[mealEdit.source].closed=false;
+    p.diary[dt] ||= {meals:[],whoop:'',steps:'',extras:'',closed:false};
+    p.diary[dt].meals.push(m);p.diary[dt].closed=false;
+    mealUndoAfter=Object.fromEntries(Object.keys(mealUndo).map(d=>[d,JSON.stringify(p.diary[d]||null)]));
+    mealEdit=null;persist();if(window.FitCalendar.position(p.start,dt))goDate(dt);rerender();notify('Registro guardado. Puedes deshacerlo con ↶.');
+  });
   let recipeSearch = "";
   let recipeScope = "all";
   const normalizeSearch = (s) => String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
