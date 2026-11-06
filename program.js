@@ -385,7 +385,7 @@
     items.push({ ok: !!d.closed, icon: "✅", name: "Cerrar día", info: d.closed ? "Día completo" : "Cuando tengas la comida y el Whoop final", act: 'data-jump="sec-quick" data-focus="closed"', btn: "Cerrar" });
     const doneN = items.filter((x) => x.ok).length;
     const todoCard = `<article class="dash-card todo-card"><div class="dash-head"><span>📋 Tu día</span><strong class="${doneN === items.length ? "good" : ""}">${doneN} de ${items.length} listos</strong></div>${bar(doneN, items.length)}<ul class="todo-list">${items.map((x) => `<li class="${x.ok ? "is-ok" : ""}"><span class="todo-check" aria-hidden="true">${x.ok ? "✓" : ""}</span><span class="todo-txt"><b>${x.icon} ${x.name}</b><small>${x.info}</small></span>${x.ok ? `<button type="button" class="todo-btn quiet" ${x.act}>Ver</button>` : `<button type="button" class="todo-btn" ${x.act}>${x.btn}</button>`}<span class="sr-only">${x.ok ? "Hecho" : "Pendiente"}</span></li>`).join("")}</ul></article>`;
-    return `<article id="sec-day" class="dash-top"><div class="eyebrow">HOY · SEMANA ${week()} DE 8 · META −${C.GOAL_KG} KG</div><h2>${escape(niceDate(dt))}</h2>${dt !== today() ? "<p><button data-go-today>↩ Volver a hoy</button></p>" : ""}</article>${todoCard}<div class="dash-grid">${kcalCard}${actCard}${progCard}</div>${nutrition.renderQuick()}<div class="sec" id="sec-checkin">${coach.render()}</div>`;
+    return `<article id="sec-day" class="dash-top"><div class="eyebrow">HOY · SEMANA ${week()} DE 8 · META −${C.GOAL_KG} KG</div><h2>${escape(niceDate(dt))}</h2>${dt !== today() ? "<p><button data-go-today>↩ Volver a hoy</button></p>" : ""}</article>${FitStore.backupNotice()}${todoCard}${window.FitMacros.dailyHtml(d)}<div class="dash-grid">${kcalCard}${actCard}${progCard}</div>${nutrition.renderQuick()}<div class="sec" id="sec-checkin">${coach.render()}</div>`;
   }
   // ── Historial: todos los registros, día por día ──────────────────────────
   const HIST_FILTERS = [
@@ -593,7 +593,7 @@
       let d = "",
         pen = false;
       vs.forEach((v, i) => {
-        if (v == null) return;
+        if (v == null) { pen = false; return; }
         d += (pen ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1);
         pen = true;
       });
@@ -609,7 +609,7 @@
     const body = lines
       .map((l) =>
         l.dots
-          ? l.values.map((v, i) => (v == null ? "" : `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3" class="${l.cls}"/>`)).join("")
+          ? l.values.map((v, i) => (v == null ? "" : `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3" class="${l.cls}"><title>${days[i]} · ${fmt(v)} kg</title></circle>`)).join("")
           : `<path d="${path(l.values)}" class="${l.cls}"/>`,
       )
       .join("");
@@ -642,25 +642,20 @@
         const w = weightOn(C.datePlus(d, -k));
         if (w) v.push(w);
       }
-      return v.length && daily.slice(0, i + 1).some((x) => x) ? v.reduce((a, b) => a + b, 0) / v.length : null;
+      return v.length >= 2 && daily[i] != null ? v.reduce((a, b) => a + b, 0) / v.length : null;
     });
     const n = daily.filter((v) => v).length;
     const chart =
-      n >= 2
+      n >= 1
         ? lineChart(days, [{ values: ma, cls: "pc-line" }, { values: daily, cls: "pc-dot", dots: true }], target) +
-          `<p class="panel-legend"><span class="lg-dot"></span>Pesada diaria <span class="lg-line"></span>Promedio móvil 7 días${daily.some((v) => v && v - target < 4) ? ' <span class="lg-ref"></span>Meta' : ""}</p>`
-        : note(n ? "Solo hay una pesada en este periodo. Con dos o más verás la curva y el promedio móvil." : "No hay pesadas en este periodo. Regístralas de lunes a viernes en Hoy → Registrar peso.");
+          `<p class="panel-legend"><span class="lg-dot"></span>Pesada diaria <span class="lg-line"></span>Promedio de los pesajes disponibles en 7 días${daily.some((v) => v && v - target < 4) ? ' <span class="lg-ref"></span>Meta' : ""}</p>`
+        : note(n ? "Solo hay una pesada en este periodo. Con dos o más verás la curva y el promedio móvil." : "No hay pesadas en este periodo. Registra tu peso en Hoy → Registrar peso.");
     const weeks = rows.filter((r) => r.week > 0 && r.actual != null && days.some((d) => weekOf(d) === r.week));
-    const weekly = weeks.length
-      ? bars(
-          weeks.map((r, i) => {
-            const before = i ? weeks[i - 1].actual : initial;
-            return { label: "S" + r.week, value: Math.max(0, initial - r.actual), text: `${fmt(r.actual)} kg <em class="${r.actual <= before ? "good" : "bad"}">${signed(r.actual - before)}</em>` };
-          }),
-          "",
-          initial - target,
-        )
-      : "";
+    const weekly = weeks.length ? `<div class="scroll"><table class="weight-week-table"><thead><tr><th>Semana</th><th>Promedio</th><th>Pesajes</th><th>Cambio</th></tr></thead><tbody>${weeks.map((r,i)=>{
+      const before=i?weeks[i-1].actual:initial;
+      const count=Array.from({length:7},(_,j)=>weightOn(C.datePlus(program.start,(r.week-1)*7+j))).filter(v=>v!=null).length;
+      return `<tr><td>S${r.week}</td><td>${fmt(r.actual)} kg</td><td>${count}</td><td>${signed(r.actual-before,' kg')}</td></tr>`;
+    }).join('')}</tbody></table></div>` : '';
     return `<article class="panel-card"><div class="dash-head"><span>⚖️ Peso corporal</span><strong>${cur ? "Promedio S" + cur.week : "Inicio"}</strong></div>
       <div class="panel-stats">${stat("Inicial", fmt(initial) + " kg")}${stat("Actual", fmt(current) + " kg", cur ? "promedio semanal" : "")}${stat("Meta", fmt(target) + " kg")}${stat(
         "vs. semana anterior",
@@ -668,7 +663,7 @@
         cur && prev ? (prev.week ? "S" + prev.week : "peso inicial") : "",
       )}</div>
       <div class="dash-row"><span>Progreso hacia la meta</span><b>${Math.round(pct)} %</b></div>${bar(pct, 100)}
-      <h4 class="panel-sub">Evolución diaria</h4>${chart}${weekly ? `<h4 class="panel-sub">Promedio semanal</h4>${weekly}<p class="tiny subtle">La barra muestra lo perdido respecto al inicio, sobre los ${fmt(C.GOAL_KG)} kg de la meta.</p>` : ""}</article>`;
+      <h4 class="panel-sub">Evolución diaria · kg</h4>${chart}<p class="tiny subtle">${n} pesajes en ${days.length} días. Los huecos indican días sin registro. El promedio requiere al menos 2 pesajes en los últimos 7 días y se muestra en las fechas con registro.</p>${weekly ? `<h4 class="panel-sub">Promedio semanal</h4>${weekly}<p class="tiny subtle">Cambio respecto a la anterior semana con datos; la primera se compara con el peso inicial. Más pesajes hacen el promedio más representativo.</p>` : ""}</article>`;
   }
   function panelTraining(days) {
     const set = new Set(days),
