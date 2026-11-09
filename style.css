@@ -2922,3 +2922,8 @@ details.fold[open] > summary { margin-bottom: 10px; }
 .pc-weight .pc-line { stroke-linejoin: round; stroke-linecap: round; }
 @media (max-width: 600px) { .panel-card .panel-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .panel-card .dash-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+
+.week-progress-head { margin-top: 14px; }
+.week-progress-parts { margin: 8px 0 4px; padding-left: 10px; border-left: 2px solid var(--line, rgba(0,0,0,.08)); }
+.week-progress-parts .dash-row { font-size: .85em; margin-top: 6px; }
+.dash-bar.thin { height: 6px; }
