@@ -665,6 +665,8 @@
       const rounded = Math.round(minutes), h = Math.floor(rounded / 60), m = rounded % 60;
       return h ? `${h} h${m ? ` ${m} min` : ""}` : `${m} min`;
     };
+    const stepsGoal = Math.round((C.goals().steps || 800000) / 8),
+      steps = Array.from({ length: 7 }, (_, i) => program.diary[C.datePlus(start, i)]).reduce((n, d) => n + (d && C.has(d.steps) ? Number(d.steps) || 0 : 0), 0);
     const completeDays = Array.from({ length: 7 }, (_, i) => program.diary[C.datePlus(start, i)]).filter((d) => d && C.confirmed(d) !== null).length;
     const goal = C.NEEDED * 7,
       cap = (v) => Math.max(0, Math.min(100, v));
@@ -673,11 +675,12 @@
       { name: "🏋️ Fuerza", pct: r.strengthTotal ? cap((r.strengthDone / r.strengthTotal) * 100) : 0, txt: `${r.strengthDone} / ${r.strengthTotal} ejercicios` },
       { name: "🏃 Cardio", pct: cap((cardioMinutes / 180) * 100), txt: `${hoursText(cardioMinutes)} / 3 h` },
       { name: "🥋 Judo", pct: cap((judoDays / 3) * 100), txt: `${judoDays} / 3 días` },
+      { name: "👣 Pasos", pct: stepsGoal ? cap((steps / stepsGoal) * 100) : 0, txt: `${fmt(steps)} / ${fmt(stepsGoal)}` },
     ];
     const total = parts.reduce((a, x) => a + x.pct, 0) / parts.length;
     return `<div class="dash-row week-progress-head"><span>Progreso semana ${w}</span><b>${Math.round(total)} %</b></div>${bar(total, 100, "week-progress")}
       <div class="week-progress-parts">${parts.map((x) => `<div class="dash-row"><span>${x.name} <small class="subtle">${x.txt}</small></span><b>${Math.round(x.pct)} %</b></div>${bar(x.pct, 100, "thin")}`).join("")}</div>
-      <p class="tiny subtle">Cada pilar vale 25 %. Cardio suma minutos registrados, sin incluir judo: meta de 3 horas semanales. Déficit neto: ${completeDays} de 7 días completos${completeDays < 7 ? " · balance parcial" : ""}. Los superávits restan; superar una meta no aporta puntos adicionales.</p>`;
+      <p class="tiny subtle">Cada pilar vale 20 %. Cardio suma minutos registrados, sin incluir judo: meta de 3 horas semanales. Pasos: la meta total del reto repartida en 8 semanas. Déficit neto: ${completeDays} de 7 días completos${completeDays < 7 ? " · balance parcial" : ""}. Los superávits restan; superar una meta no aporta puntos adicionales.</p>`;
   }
   function panelWeight(days) {
     const initial = Number(program.initialWeight) || 85,
