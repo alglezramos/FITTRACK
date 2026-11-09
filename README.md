@@ -71,3 +71,6 @@ Validación: sintaxis de todos los JS; exportación conserva los registros y añ
 
 ## r97 · Cardio por tiempo
 El progreso semanal de cardio suma los minutos de las actividades registradas que no son judo, dentro de la semana seleccionada. Meta: 180 minutos (3 h). Varias sesiones en un mismo día se suman. El aporte máximo es 25 puntos de la barra semanal, aunque el tiempo real puede superar 3 h. Judo mantiene su meta de 3 días distintos. El déficit conserva el balance neto de días completos; se indica cuántos días cuentan. No se modifican los registros guardados ni la rutina.
+
+## r98 · Pasos en el progreso semanal
+La barra semanal pasa a 5 pilares de 20 % cada uno: déficit, fuerza, cardio, judo y pasos. La meta semanal de pasos es la meta total del reto (Opciones) dividida entre 8 semanas; con el valor por defecto, 100.000 pasos por semana.
