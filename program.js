@@ -646,7 +646,24 @@
       )
       .join("")}</div>`;
   }
-  // Progreso semanal: 4 pilares con el mismo peso (déficit, fuerza, cardio, judo).
+  // Progreso semanal (r99): tarjeta compacta con 5 pilares de 20 %.
+  const WP_ICONS = {
+    deficit: '<path d="M12 3c.5 3.2 4.5 5.6 4.5 10a4.5 4.5 0 0 1-9 0c0-2.2 1.2-3.6 2.3-4.8.4 1.4 1.1 2.3 2 2.6C11.4 8.6 11 5.6 12 3z"/>',
+    strength: '<path d="M2.5 10v4M5.5 7v10M18.5 7v10M21.5 10v4M5.5 12h13"/>',
+    cardio: '<circle cx="12" cy="13.5" r="7"/><path d="M12 13.5V9.5M10 2.5h4M18.4 6.6l1.4-1.4"/>',
+    judo: '<path d="M4 4l16 16M20 4L4 20M6 11l-2 2M18 11l2 2M11 6l2-2M11 18l2 2"/>',
+    steps: '<path d="M8 3.5c1.8 0 2.8 2 2.8 4.6 0 2.3-.9 3.4-2.8 3.4S5.2 10.4 5.2 8.1C5.2 5.5 6.2 3.5 8 3.5zM6 14h4v2a2 2 0 0 1-4 0zM16 7.5c1.8 0 2.8 2 2.8 4.6 0 2.3-.9 3.4-2.8 3.4s-2.8-1.1-2.8-3.4c0-2.6 1-4.6 2.8-4.6zM14 18h4v.5a2 2 0 0 1-4 0z"/>',
+    check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  };
+  const wpIcon = (k, cls = "wp-ico") => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${WP_ICONS[k]}</svg>`;
+  const wpPrev = {};
+  // Barra animada: parte del valor anterior y crece hasta el nuevo (sin animación si se pide movimiento reducido).
+  const wpBar = (key, pct, label, cls = "") => {
+    const to = Math.max(0, Math.min(100, pct)),
+      from = wpPrev[key] ?? 0;
+    wpPrev[key] = to;
+    return `<div class="wp-track ${cls}" role="progressbar" aria-label="${escape(label)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(to)}" aria-valuetext="${Math.round(to)} %"><div class="wp-fill" style="--wp-from:${(from / 100).toFixed(4)};--wp-to:${(to / 100).toFixed(4)}"></div></div>`;
+  };
   function weeklyProgress() {
     if (!C.validDate(program.start)) return "";
     const w = week();
@@ -665,22 +682,40 @@
       const rounded = Math.round(minutes), h = Math.floor(rounded / 60), m = rounded % 60;
       return h ? `${h} h${m ? ` ${m} min` : ""}` : `${m} min`;
     };
+    const weekDays = Array.from({ length: 7 }, (_, i) => program.diary[C.datePlus(start, i)]);
     const stepsGoal = Math.round((C.goals().steps || 800000) / 8),
-      steps = Array.from({ length: 7 }, (_, i) => program.diary[C.datePlus(start, i)]).reduce((n, d) => n + (d && C.has(d.steps) ? Number(d.steps) || 0 : 0), 0);
-    const completeDays = Array.from({ length: 7 }, (_, i) => program.diary[C.datePlus(start, i)]).filter((d) => d && C.confirmed(d) !== null).length;
+      steps = weekDays.reduce((n, d) => n + (d && C.has(d.steps) ? Number(d.steps) || 0 : 0), 0);
+    const completeDays = weekDays.filter((d) => d && C.confirmed(d) !== null).length;
     const goal = C.NEEDED * 7,
       cap = (v) => Math.max(0, Math.min(100, v));
     const parts = [
-      { name: "🔥 Déficit", pct: goal ? cap((r.defSum / goal) * 100) : 0, txt: `${fmt(Math.round(r.defSum))} / ${fmt(goal)} kcal` },
-      { name: "🏋️ Fuerza", pct: r.strengthTotal ? cap((r.strengthDone / r.strengthTotal) * 100) : 0, txt: `${r.strengthDone} / ${r.strengthTotal} ejercicios` },
-      { name: "🏃 Cardio", pct: cap((cardioMinutes / 180) * 100), txt: `${hoursText(cardioMinutes)} / 3 h` },
-      { name: "🥋 Judo", pct: cap((judoDays / 3) * 100), txt: `${judoDays} / 3 días` },
-      { name: "👣 Pasos", pct: stepsGoal ? cap((steps / stepsGoal) * 100) : 0, txt: `${fmt(steps)} / ${fmt(stepsGoal)}` },
+      { key: "deficit", name: "Déficit", pct: goal ? cap((r.defSum / goal) * 100) : 0, done: `${fmt(Math.round(r.defSum))} / ${fmt(goal)} kcal` },
+      { key: "strength", name: "Fuerza", pct: r.strengthTotal ? cap((r.strengthDone / r.strengthTotal) * 100) : 0, done: `${r.strengthDone} / ${r.strengthTotal} ejercicios` },
+      { key: "cardio", name: "Cardio", pct: cap((cardioMinutes / 180) * 100), done: `${hoursText(cardioMinutes)} / 3 h` },
+      { key: "judo", name: "Judo", pct: cap((judoDays / 3) * 100), done: `${judoDays} / 3 días` },
+      { key: "steps", name: "Pasos", pct: stepsGoal ? cap((steps / stepsGoal) * 100) : 0, done: `${fmt(steps)} / ${fmt(stepsGoal)} pasos` },
     ];
     const total = parts.reduce((a, x) => a + x.pct, 0) / parts.length;
-    return `<div class="dash-row week-progress-head"><span>Progreso semana ${w}</span><b>${Math.round(total)} %</b></div>${bar(total, 100, "week-progress")}
-      <div class="week-progress-parts">${parts.map((x) => `<div class="dash-row"><span>${x.name} <small class="subtle">${x.txt}</small></span><b>${Math.round(x.pct)} %</b></div>${bar(x.pct, 100, "thin")}`).join("")}</div>
-      <p class="tiny subtle">Cada pilar vale 20 %. Cardio suma minutos registrados, sin incluir judo: meta de 3 horas semanales. Pasos: la meta total del reto repartida en 8 semanas. Déficit neto: ${completeDays} de 7 días completos${completeDays < 7 ? " · balance parcial" : ""}. Los superávits restan; superar una meta no aporta puntos adicionales.</p>`;
+    // Meta de peso: misma fórmula que la tarjeta de peso (promedio semanal más reciente).
+    const initial = Number(program.initialWeight) || 85,
+      target = initial - C.GOAL_KG,
+      rows = C.series(program),
+      curW = rows[w] && rows[w].actual != null ? rows[w] : rows.filter((x) => x.week > 0 && x.actual != null).at(-1),
+      current = curW ? curW.actual : initial,
+      weightPct = Math.max(0, Math.min(100, ((initial - current) / (initial - target)) * 100));
+    const pad = (n) => String(n).padStart(2, "0");
+    const cards = parts
+      .map((x) => {
+        const ok = x.pct >= 100;
+        return `<li class="wp-card${ok ? " is-done" : ""}${x.key === "steps" ? " wp-wide" : ""}" aria-label="${x.name}: ${Math.round(x.pct)} %, ${escape(x.done)}${ok ? ", completado" : ""}"><div class="wp-card-head">${wpIcon(x.key)}<span>${x.name}</span></div><div class="wp-pct"><b>${Math.round(x.pct)}</b><small>%</small></div><p class="wp-done">${escape(x.done)}</p>${ok ? `<p class="wp-ok">${wpIcon("check", "wp-ico wp-check")}Completado</p>` : ""}${wpBar(x.key, x.pct, x.name + ": progreso semanal", "wp-thin")}</li>`;
+      })
+      .join("");
+    const rules = `<details class="wp-how"><summary>Cómo se calcula</summary><ul class="tiny subtle"><li>Cada pilar aporta 20 % al avance semanal; su aporte se limita a 100 %, aunque se muestra la cantidad real.</li><li>Déficit: balance neto (Whoop − comidas) de los días cerrados con todas las comidas y el Whoop final; los superávits restan. Meta: ${fmt(goal)} kcal por semana.</li><li>Fuerza: ejercicios completados de la rutina de la semana.</li><li>Cardio: minutos de actividades registradas sin judo; varias sesiones del mismo día se suman. Meta: 3 h.</li><li>Judo: días distintos con judo. Meta: 3 días.</li><li>Pasos: suma de los pasos diarios. Meta: el reto total de pasos repartido en 8 semanas.</li></ul></details>`;
+    return `<article class="wp" aria-labelledby="wpTitle"><header class="wp-top"><span class="wp-brand">EVÓ</span><div class="wp-goal"><span>Meta de peso</span><b>${Math.round(weightPct)} %</b>${wpBar("weight", weightPct, "Progreso hacia la meta de peso", "wp-mini")}</div></header>
+      <div class="wp-body"><div class="wp-title"><div><p class="wp-eyebrow">TU AVANCE</p><h3 id="wpTitle">Semana ${pad(w)} <small>/ ${pad(8)}</small></h3></div><p class="wp-total" aria-label="Avance semanal ${Math.round(total)} %"><b>${Math.round(total)}</b><small>%</small></p></div>
+      ${wpBar("total", total, `Avance de la semana ${w}`, "wp-main")}
+      <ul class="wp-grid">${cards}</ul>
+      <footer class="wp-foot"><p><span class="wp-dot${completeDays >= 7 ? " is-full" : ""}" aria-hidden="true"></span>${completeDays >= 7 ? "Balance completo · 7/7 días" : `Balance parcial · ${completeDays}/7 días completos`}</p>${rules}</footer></div></article>`;
   }
   function panelWeight(days) {
     const initial = Number(program.initialWeight) || 85,
@@ -719,7 +754,6 @@
         cur && prev ? (prev.week ? "S" + prev.week : "peso inicial") : "",
       )}</div>
       <div class="dash-row"><span>Progreso hacia la meta</span><b>${Math.round(pct)} %</b></div>${bar(pct, 100)}
-      ${weeklyProgress()}
       <h4 class="panel-sub">Evolución diaria · kg</h4>${chart}<p class="tiny subtle">${n} pesajes en ${days.length} días. Los huecos indican días sin registro. La tendencia es el promedio de los pesajes de los últimos 7 días (mínimo 2) y suaviza las variaciones de agua y comida.</p>${weekly ? `<h4 class="panel-sub">Promedio semanal</h4>${weekly}<p class="tiny subtle">Cambio respecto a la anterior semana con datos; la primera se compara con el peso inicial. Más pesajes hacen el promedio más representativo.</p>` : ""}</article>`;
   }
   function panelTraining(days) {
@@ -847,7 +881,7 @@
       days = rangeDays(n);
     const filter = `<nav class="subtabs panel-range" aria-label="Periodo">${RANGES.map((r) => `<button data-insight-range="${r}" aria-pressed="${r === n}">${r} días</button>`).join("")}</nav>`;
     const span = `<p class="tiny subtle">${days[0]} → ${days.at(-1)} · ${days.length} día${days.length > 1 ? "s" : ""}${days.length < n ? " (desde el inicio del programa)" : ""}</p>`;
-    return `<div class="panel">${filter}${span}${panelWeight(days)}${panelTraining(days)}${panelFood(days)}${panelConsistency(days)}</div>`;
+    return `<div class="panel">${weeklyProgress()}${filter}${span}${panelWeight(days)}${panelTraining(days)}${panelFood(days)}${panelConsistency(days)}</div>`;
   }
   function progress() {
     const initial = Number(program.initialWeight) || 85,
