@@ -646,6 +646,31 @@
       )
       .join("")}</div>`;
   }
+  // Progreso semanal: 4 pilares con el mismo peso (déficit, fuerza, cardio, judo).
+  function weeklyProgress() {
+    if (!C.validDate(program.start)) return "";
+    const w = week();
+    if (!w) return "";
+    const r = weekReview(w);
+    if (!r) return "";
+    const start = C.datePlus(program.start, (w - 1) * 7),
+      end = C.datePlus(program.start, w * 7 - 1);
+    const sess = program.sessions.filter((x) => x.date >= start && x.date <= end);
+    const judoDays = new Set(sess.filter((x) => x.mode === "Judo").map((x) => x.date)).size,
+      cardioDays = new Set(sess.filter((x) => x.mode !== "Judo").map((x) => x.date)).size;
+    const goal = C.NEEDED * 7,
+      cap = (v) => Math.max(0, Math.min(100, v));
+    const parts = [
+      { name: "🔥 Déficit", pct: goal ? cap((r.defSum / goal) * 100) : 0, txt: `${fmt(Math.max(0, Math.round(r.defSum)))} / ${fmt(goal)} kcal` },
+      { name: "🏋️ Fuerza", pct: r.strengthTotal ? cap((r.strengthDone / r.strengthTotal) * 100) : 0, txt: `${r.strengthDone} / ${r.strengthTotal} ejercicios` },
+      { name: "🏃 Cardio", pct: cap((cardioDays / 3) * 100), txt: `${cardioDays} / 3 días` },
+      { name: "🥋 Judo", pct: cap((judoDays / 3) * 100), txt: `${judoDays} / 3 días` },
+    ];
+    const total = parts.reduce((a, x) => a + x.pct, 0) / parts.length;
+    return `<div class="dash-row week-progress-head"><span>Progreso semana ${w}</span><b>${Math.round(total)} %</b></div>${bar(total, 100, "week-progress")}
+      <div class="week-progress-parts">${parts.map((x) => `<div class="dash-row"><span>${x.name} <small class="subtle">${x.txt}</small></span><b>${Math.round(x.pct)} %</b></div>${bar(x.pct, 100, "thin")}`).join("")}</div>
+      <p class="tiny subtle">Cada pilar vale 25 %. Cardio cuenta días distintos con cualquier actividad que no sea judo.</p>`;
+  }
   function panelWeight(days) {
     const initial = Number(program.initialWeight) || 85,
       target = initial - C.GOAL_KG;
@@ -683,6 +708,7 @@
         cur && prev ? (prev.week ? "S" + prev.week : "peso inicial") : "",
       )}</div>
       <div class="dash-row"><span>Progreso hacia la meta</span><b>${Math.round(pct)} %</b></div>${bar(pct, 100)}
+      ${weeklyProgress()}
       <h4 class="panel-sub">Evolución diaria · kg</h4>${chart}<p class="tiny subtle">${n} pesajes en ${days.length} días. Los huecos indican días sin registro. La tendencia es el promedio de los pesajes de los últimos 7 días (mínimo 2) y suaviza las variaciones de agua y comida.</p>${weekly ? `<h4 class="panel-sub">Promedio semanal</h4>${weekly}<p class="tiny subtle">Cambio respecto a la anterior semana con datos; la primera se compara con el peso inicial. Más pesajes hacen el promedio más representativo.</p>` : ""}</article>`;
   }
   function panelTraining(days) {
