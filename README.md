@@ -67,3 +67,7 @@ Validación: sintaxis de todos los JS; exportación conserva los registros y añ
 
 ## r95
 - Día 1: «Hip thrust con barra» se reemplaza por «Aductores en máquina» (mismo lugar en la rutina; no tenía registros).
+
+
+## r97 · Cardio por tiempo
+El progreso semanal de cardio suma los minutos de las actividades registradas que no son judo, dentro de la semana seleccionada. Meta: 180 minutos (3 h). Varias sesiones en un mismo día se suman. El aporte máximo es 25 puntos de la barra semanal, aunque el tiempo real puede superar 3 h. Judo mantiene su meta de 3 días distintos. El déficit conserva el balance neto de días completos; se indica cuántos días cuentan. No se modifican los registros guardados ni la rutina.
