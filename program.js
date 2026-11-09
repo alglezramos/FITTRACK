@@ -657,19 +657,27 @@
       end = C.datePlus(program.start, w * 7 - 1);
     const sess = program.sessions.filter((x) => x.date >= start && x.date <= end);
     const judoDays = new Set(sess.filter((x) => x.mode === "Judo").map((x) => x.date)).size,
-      cardioDays = new Set(sess.filter((x) => x.mode !== "Judo").map((x) => x.date)).size;
+      cardioMinutes = sess.filter((x) => x.mode !== "Judo").reduce((sum, x) => {
+        const minutes = Number(x.minutes);
+        return sum + (Number.isFinite(minutes) && minutes > 0 ? minutes : 0);
+      }, 0);
+    const hoursText = (minutes) => {
+      const rounded = Math.round(minutes), h = Math.floor(rounded / 60), m = rounded % 60;
+      return h ? `${h} h${m ? ` ${m} min` : ""}` : `${m} min`;
+    };
+    const completeDays = Array.from({ length: 7 }, (_, i) => program.diary[C.datePlus(start, i)]).filter((d) => d && C.confirmed(d) !== null).length;
     const goal = C.NEEDED * 7,
       cap = (v) => Math.max(0, Math.min(100, v));
     const parts = [
-      { name: "🔥 Déficit", pct: goal ? cap((r.defSum / goal) * 100) : 0, txt: `${fmt(Math.max(0, Math.round(r.defSum)))} / ${fmt(goal)} kcal` },
+      { name: "🔥 Déficit", pct: goal ? cap((r.defSum / goal) * 100) : 0, txt: `${fmt(Math.round(r.defSum))} / ${fmt(goal)} kcal` },
       { name: "🏋️ Fuerza", pct: r.strengthTotal ? cap((r.strengthDone / r.strengthTotal) * 100) : 0, txt: `${r.strengthDone} / ${r.strengthTotal} ejercicios` },
-      { name: "🏃 Cardio", pct: cap((cardioDays / 3) * 100), txt: `${cardioDays} / 3 días` },
+      { name: "🏃 Cardio", pct: cap((cardioMinutes / 180) * 100), txt: `${hoursText(cardioMinutes)} / 3 h` },
       { name: "🥋 Judo", pct: cap((judoDays / 3) * 100), txt: `${judoDays} / 3 días` },
     ];
     const total = parts.reduce((a, x) => a + x.pct, 0) / parts.length;
     return `<div class="dash-row week-progress-head"><span>Progreso semana ${w}</span><b>${Math.round(total)} %</b></div>${bar(total, 100, "week-progress")}
       <div class="week-progress-parts">${parts.map((x) => `<div class="dash-row"><span>${x.name} <small class="subtle">${x.txt}</small></span><b>${Math.round(x.pct)} %</b></div>${bar(x.pct, 100, "thin")}`).join("")}</div>
-      <p class="tiny subtle">Cada pilar vale 25 %. Cardio cuenta días distintos con cualquier actividad que no sea judo.</p>`;
+      <p class="tiny subtle">Cada pilar vale 25 %. Cardio suma minutos registrados, sin incluir judo: meta de 3 horas semanales. Déficit neto: ${completeDays} de 7 días completos${completeDays < 7 ? " · balance parcial" : ""}. Los superávits restan; superar una meta no aporta puntos adicionales.</p>`;
   }
   function panelWeight(days) {
     const initial = Number(program.initialWeight) || 85,
