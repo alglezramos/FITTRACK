@@ -74,3 +74,6 @@ El progreso semanal de cardio suma los minutos de las actividades registradas qu
 
 ## r98 · Pasos en el progreso semanal
 La barra semanal pasa a 5 pilares de 20 % cada uno: déficit, fuerza, cardio, judo y pasos. La meta semanal de pasos es la meta total del reto (Opciones) dividida entre 8 semanas; con el valor por defecto, 100.000 pasos por semana.
+
+## r99 · Diseño del progreso semanal
+El progreso semanal pasa a una tarjeta propia al inicio de Progreso › Panel: encabezado con EVÓ y meta de peso, «Semana NN / 08» con el porcentaje semanal y cinco indicadores (déficit, fuerza, cardio, judo y pasos) con iconos lineales, cifra destacada, cantidad real / meta y barra de 4 px. Fórmulas sin cambios. Pie con el estado del balance y las reglas en «Cómo se calcula». Barras animadas al cambiar los registros; sin animación con movimiento reducido.
