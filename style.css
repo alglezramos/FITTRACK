@@ -2923,7 +2923,51 @@ details.fold[open] > summary { margin-bottom: 10px; }
 @media (max-width: 600px) { .panel-card .panel-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .panel-card .dash-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 
-.week-progress-head { margin-top: 14px; }
-.week-progress-parts { margin: 8px 0 4px; padding-left: 10px; border-left: 2px solid var(--line, rgba(0,0,0,.08)); }
-.week-progress-parts .dash-row { font-size: .85em; margin-top: 6px; }
-.dash-bar.thin { height: 6px; }
+/* r99 · Progreso semanal compacto */
+.wp { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 0; overflow: hidden; box-shadow: none; color: var(--text); }
+.wp-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--line); }
+.wp-brand { font-weight: 700; letter-spacing: .22em; font-size: .95rem; }
+.wp-goal { display: flex; align-items: center; gap: 10px; font-size: .86rem; color: var(--muted); }
+.wp-goal b { color: var(--text); font-variant-numeric: tabular-nums; }
+.wp-body { padding: 18px 20px 16px; }
+.wp-title { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.wp-eyebrow { margin: 0 0 6px; font-size: .74rem; letter-spacing: .16em; color: var(--muted); }
+.wp-title h3 { margin: 0; font-size: clamp(1.6rem, 4.2vw, 2.2rem); font-weight: 700; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+.wp-title h3 small { font-size: .5em; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+.wp-total { margin: 0; line-height: .85; font-variant-numeric: tabular-nums; }
+.wp-total b { font-size: clamp(2.6rem, 8vw, 3.8rem); font-weight: 500; letter-spacing: -.03em; }
+.wp-total small { font-size: 1.1rem; color: var(--muted); margin-left: 2px; }
+.wp-track { background: var(--surface-3); border-radius: 999px; overflow: hidden; }
+.wp-fill { height: 100%; width: 100%; background: var(--accent); border-radius: 999px; transform-origin: left center; transform: scaleX(var(--wp-to)); animation: wp-grow .7s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes wp-grow { from { transform: scaleX(var(--wp-from)); } to { transform: scaleX(var(--wp-to)); } }
+.wp-main { height: 10px; margin: 16px 0 18px; }
+.wp-mini { width: 96px; height: 4px; }
+.wp-thin { height: 4px; margin-top: auto; }
+.wp-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.wp-card { display: flex; flex-direction: column; gap: 6px; min-width: 0; min-height: 150px; padding: 14px; border-radius: 14px; background: var(--surface-2); }
+.wp-card.is-done { background: var(--accent-soft); }
+.wp-card-head { display: flex; align-items: center; gap: 8px; font-size: .92rem; color: var(--text); }
+.wp-ico { width: 20px; height: 20px; flex: none; color: var(--muted); }
+.wp-pct { line-height: 1; margin-top: 8px; font-variant-numeric: tabular-nums; }
+.wp-pct b { font-size: 2rem; font-weight: 500; letter-spacing: -.02em; }
+.wp-pct small { font-size: .9rem; color: var(--muted); margin-left: 1px; }
+.wp-done { margin: 0; font-size: .82rem; color: var(--muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.wp-ok { display: flex; align-items: center; gap: 4px; margin: 0; font-size: .78rem; font-weight: 600; color: var(--good); }
+.wp-check { width: 15px; height: 15px; color: var(--good); }
+.wp-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 14px; font-size: .84rem; color: var(--muted); }
+.wp-foot > p { margin: 0; display: flex; align-items: center; gap: 8px; }
+.wp-dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--accent); background: transparent; }
+.wp-dot.is-full { background: var(--accent); }
+.wp-how { margin-left: auto; }
+.wp-how summary { cursor: pointer; color: var(--text); }
+.wp-how ul { margin: 8px 0 0; padding-left: 18px; max-width: 46ch; }
+@media (max-width: 720px) {
+  .wp-top, .wp-body { padding-left: 16px; padding-right: 16px; }
+  .wp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .wp-card.wp-wide { grid-column: 1 / -1; min-height: 0; }
+  .wp-card { min-height: 132px; padding: 12px; }
+  .wp-goal { gap: 8px; font-size: .8rem; }
+  .wp-mini { width: 56px; }
+  .wp-how { margin-left: 0; width: 100%; text-align: left; }
+}
+@media (prefers-reduced-motion: reduce) { .wp-fill { animation: none; } }
