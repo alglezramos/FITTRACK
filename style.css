@@ -2971,3 +2971,5 @@ details.fold[open] > summary { margin-bottom: 10px; }
   .wp-how { margin-left: 0; width: 100%; text-align: left; }
 }
 @media (prefers-reduced-motion: reduce) { .wp-fill { animation: none; } }
+
+.flex-calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin:16px 0}.flex-calendar>b{text-align:center;font-size:12px}.flex-day{min-height:52px;padding:6px 2px;border-radius:8px;background:#f0e7dc;border:1px solid transparent;color:#705d4e}.flex-day b,.flex-day small{display:block}.flex-day small{font-size:11px;margin-top:4px}.flex-day.has-activity{background:#dbab8d;color:#3d3026}.flex-day.selected{border-color:#70503c}.flex-detail{padding:14px 0;border-top:1px solid #dfd0bd}.flex-detail form{margin-top:12px}@media(max-width:450px){.flex-calendar{gap:3px}.flex-day small{font-size:10px}.flex-day{min-height:48px}}

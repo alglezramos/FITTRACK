@@ -237,12 +237,7 @@
   function calendar() {
     const letters = ["L", "M", "X", "J", "V", "S", "D"],
       names = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-    const plan = (i) =>
-      i < 5
-        ? "Pesas · día " + (i + 1) + " + " + ([0, 2, 4].includes(i) ? "Judo" : "Natación")
-        : i === 5
-          ? "Fondo o hiking"
-          : "Recuperación";
+    const plan = (i) => ['BASE CAMP + Judo','Cardio + PUSH MODE','PULL POWER + Judo','Cardio','ARM FORCE + Judo','Hiking o fondo','Descanso'][i];
     const icon = (i) => (i < 5 ? ([0, 2, 4].includes(i) ? "🥋" : "🏊") : i === 5 ? "🥾" : "😴");
     const cur = C.validDate(date()) ? (new Date(date() + "T12:00:00Z").getUTCDay() + 6) % 7 : -1;
     const dayDate = (i) => {
@@ -293,13 +288,16 @@
   function planFor(dt) {
     const i = (new Date(dt + "T12:00:00Z").getUTCDay() + 6) % 7;
     const names = ["BASE CAMP", "PUSH MODE", "PULL POWER", "ENGINE DAY", "ARM FORCE", "WILD MILES", "RESET & RECHARGE"];
-    return i < 5
-      ? i === 3
-        ? { label: names[i] + " · Solo cardio · Natación", day: 4 }
-        : { label: names[i] + " · Pesas + " + ([0, 2, 4].includes(i) ? "Judo" : "Natación"), day: i + 1 }
-      : i === 5
-        ? { label: names[i] + " · Fondo o hiking", day: 0 }
-        : { label: names[i] + " · Recuperación", day: 0 };
+    const defaults = [
+      {label:'BASE CAMP · Fuerza + Judo',day:1,judo:true,minutes:0},
+      {label:'PUSH MODE · Fuerza + Cardio',day:2,judo:false,minutes:60},
+      {label:'PULL POWER · Fuerza + Judo',day:3,judo:true,minutes:0},
+      {label:'ENGINE DAY · Cardio',day:0,judo:false,minutes:60},
+      {label:'ARM FORCE · Fuerza + Judo',day:5,judo:true,minutes:0},
+      {label:'WILD MILES · Hiking o fondo',day:0,judo:false,minutes:60},
+      {label:'RESET & RECHARGE · Descanso',day:0,judo:false,minutes:0,rest:true}
+    ];
+    return {...defaults[i],...(program.dayPlans || {})[dt]};
   }
   // Pesada de una fecha (lunes a viernes), en kg.
   function weightOn(day) {
@@ -842,39 +840,55 @@
       )}</div>${closed.length ? bar(inside, closed.length) : ""}
       <h4 class="panel-sub">Balance energético semanal</h4>${bal.length ? bars(bal) + `<p class="tiny subtle">Positivo = déficit (gasto Whoop − consumo). Solo días cerrados con Whoop.</p>` : note("Datos insuficientes: el balance necesita días cerrados con Whoop.")}</article>`;
   }
-  function panelConsistency(days) {
-    const sDates = strengthDates(),
-      active = days.filter((d) => activeOn(d)).length,
-      weekdays = days.filter(isWeekday),
-      // Días con pesas según la rutina vigente (un día sin ejercicios es solo cardio).
-      liftDays = [1, 2, 3, 4, 5].filter((n) => EXERCISES.some((e) => e.day === n)),
-      // Mismo plan que «Hoy» (planFor) y solo desde la fecha de inicio del programa.
-      planned = days.filter((d) => d >= program.start && planFor(d).day && liftDays.includes(planFor(d).day)),
-      inRange = new Set(days),
-      liftDone = [...sDates].filter((d) => inRange.has(d)).length,
-      doneW = Math.min(planned.length, routineDates(days).length),
-      cardioPlanned = weekdays.length,
-      cardioDone = Math.min(cardioPlanned, new Set(program.sessions.filter((s) => inRange.has(s.date)).map((s) => s.date)).size);
-    const lead = (new Date(days[0] + "T12:00:00Z").getUTCDay() + 6) % 7;
-    const cells =
-      DOW.map((d) => `<b>${d}</b>`).join("") +
-      "<i></i>".repeat(lead) +
-      days
-        .map((d) => {
-          const st = sDates.has(d),
-            ca = program.sessions.some((s) => s.date === d),
-            any = activeOn(d),
-            food = (program.diary[d]?.meals || []).length > 0,
-            lv = st && ca ? 3 : st || ca ? 2 : any ? 1 : 0;
-          return `<span class="lv${lv}${d === today() ? " now" : ""}" title="${d}${st ? " · pesas" : ""}${ca ? " · cardio" : ""}${food ? " · comidas" : ""}">${Number(d.slice(8))}</span>`;
-        })
-        .join("");
-    return `<article class="panel-card"><div class="dash-head"><span>📅 Consistencia</span><strong>Racha ${streak(today())} d</strong></div>
-      <div class="panel-stats">${stat("Días con actividad", `${active}/${days.length}`)}${stat("Rutinas completas", `${doneW}/${planned.length}`, `${liftDone} días con fuerza · ${liftDays.length} por semana`)}${stat("Cardio vs. programado", `${cardioDone}/${cardioPlanned}`, "días con cardio")}</div>
-      ${bar(doneW, planned.length || 1)}
-      <h4 class="panel-sub">Calendario de actividad</h4><div class="panel-cal">${cells}</div>
-      <p class="panel-legend"><span class="lg-c lv1"></span>Reto <span class="lg-c lv2"></span>Pesas o cardio <span class="lg-c lv3"></span>Pesas + cardio</p></article>`;
+  let consistencyDate = null;
+  const routineName = n => ({1:'BASE CAMP',2:'PUSH MODE',3:'PULL POWER',5:'ARM FORCE'}[n] || 'Sin fuerza');
+  function completedOn(dt) {
+    const ids = new Set();
+    for(const [key,d] of Object.entries(state.completedDates || {})) if(d===dt && state.completed?.[key]) ids.add(key.replace(/-w\d+$/, ''));
+    for(const a of state.archive || []) if(a.date===dt && a.sets?.length && a.sets.every(z=>z.done)) ids.add(a.id);
+    return ids;
   }
+  function dayActivity(dt) {
+    const plan=planFor(dt), ids=completedOn(dt), sessions=program.sessions.filter(x=>x.date===dt);
+    const minutes=sessions.filter(x=>x.mode!=='Judo').reduce((n,x)=>n+Math.max(0,Number(x.minutes)||0),0);
+    const judo=sessions.some(x=>x.mode==='Judo');
+    const exercises=EXERCISES.filter(e=>e.day===Number(plan.day));
+    const done=exercises.filter(e=>ids.has(e.id)).length;
+    const parts=[];
+    if(exercises.length)parts.push(done/exercises.length);
+    if(Number(plan.minutes)>0)parts.push(Math.min(1,minutes/Number(plan.minutes)));
+    if(plan.judo)parts.push(judo?1:0);
+    return {plan,ids,minutes,judo,exercises,done,pct:parts.length?Math.round(parts.reduce((a,b)=>a+b,0)/parts.length*100):null};
+  }
+  function panelConsistency(days) {
+    if(!days.length)return '';
+    const elapsedDays=days.length;
+    days=[...days];
+    const selectedEnd=C.datePlus(program.start,Math.min(55,week()*7-1));
+    for(let next=C.datePlus(days.at(-1),1);next<=selectedEnd;next=C.datePlus(next,1))days.push(next);
+    if(!consistencyDate || !days.includes(consistencyDate))consistencyDate=days.includes(date())?date():days.at(-1);
+    const dt=consistencyDate,a=dayActivity(dt),active=days.filter(d=>activeOn(d)).length;
+    const lead=(new Date(days[0]+'T12:00:00Z').getUTCDay()+6)%7;
+    const cells=DOW.map(d=>`<b>${d}</b>`).join('')+'<i></i>'.repeat(lead)+days.map(d=>{
+      const v=dayActivity(d),label=d>today()?'Plan':v.plan.rest?'Descanso':v.pct===null?'Sin plan':v.pct+' %';
+      return `<button type="button" class="flex-day ${activeOn(d)?'has-activity':''} ${d===dt?'selected':''}" data-consistency-day="${d}" aria-pressed="${d===dt}" aria-label="${d}: ${label}"><b>${Number(d.slice(8))}</b><small>${label}</small></button>`;
+    }).join('');
+    return `<article class="panel-card flex-consistency"><div class="dash-head"><span>Constancia</span><strong>${active} días activos / ${elapsedDays}</strong></div><p class="tiny subtle">${days[0]} → ${days.at(-1)} · Sesiones flexibles</p><div class="flex-calendar">${cells}</div><div class="flex-detail"><div class="dash-head"><strong>${escape(niceDate(dt))}</strong><span>${a.plan.rest?'Recuperación':a.pct===null?'Sin plan':a.pct+' % del plan del día'}</span></div><p>${a.exercises.length?`${routineName(a.plan.day)} · ${a.done}/${a.exercises.length} ejercicios · `:''}Cardio: ${fmt(a.minutes)} min${a.plan.minutes?' / '+a.plan.minutes+' min':''}${a.plan.judo?' · Judo: '+(a.judo?'✓':'pendiente'):''}</p><details><summary>Elegir sesión de este día</summary><form id="flexDayForm"><input type="hidden" name="date" value="${dt}"><div class="fields"><label>Fuerza<select name="routine">${[0,1,2,3,5].map(n=>`<option value="${n}" ${Number(a.plan.day)===n?'selected':''}>${routineName(n)}</option>`).join('')}</select></label><label>Cardio previsto (min)<input type="number" name="minutes" min="0" max="600" step="1" value="${a.plan.minutes||0}" required></label><label><input type="checkbox" name="judo" ${a.plan.judo?'checked':''}> Judo</label><label><input type="checkbox" name="rest" ${a.plan.rest?'checked':''}> Descanso</label></div><button class="primary">Guardar plan del día</button><button type="button" data-reset-day-plan="${dt}">Volver al plan original</button></form></details></div><details><summary>Cómo cuenta el avance</summary><p class="tiny subtle">La fecha real del registro se conserva. Cada ejercicio completo aporta una sola vez a fuerza semanal, independientemente del día y del peso levantado. Cardio suma minutos hacia 3 horas semanales; judo se cuenta aparte. El porcentaje diario compara solo la sesión elegida; no se promedia para obtener el semanal. Descanso no añade ejercicios ni minutos y no se penaliza.</p></details></article>`;
+  }
+  root.addEventListener('click',e=>{
+    const b=e.target.closest('button');if(!b)return;
+    if(b.dataset.consistencyDay){consistencyDate=b.dataset.consistencyDay;show();}
+    if(b.dataset.resetDayPlan){delete (program.dayPlans||{})[b.dataset.resetDayPlan];persist();show();}
+  });
+  root.addEventListener('submit',e=>{
+    if(e.target.id!=='flexDayForm')return;e.preventDefault();if(!e.target.checkValidity())return;
+    const fd=new FormData(e.target),dt=fd.get('date'),rest=fd.has('rest');
+    if(!C.validDate(dt))return;
+    program.dayPlans ||= {};
+    program.dayPlans[dt]={day:rest?0:Number(fd.get('routine')),minutes:rest?0:Number(fd.get('minutes')),judo:rest?false:fd.has('judo'),rest};
+    program.dayPlans[dt].label=rest?'RESET & RECHARGE · Descanso':routineName(program.dayPlans[dt].day)+(program.dayPlans[dt].minutes?' · Cardio':'')+(program.dayPlans[dt].judo?' · Judo':'');
+    persist();show();
+  });
   function panel() {
     if (!C.validDate(program.start)) return note("Elige la fecha de inicio del programa para ver el panel.");
     const n = RANGES.includes(Number(program.insightRange)) ? Number(program.insightRange) : 30,

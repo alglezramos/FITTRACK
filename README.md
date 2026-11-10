@@ -77,3 +77,7 @@ La barra semanal pasa a 5 pilares de 20 % cada uno: déficit, fuerza, cardio, ju
 
 ## r99 · Diseño del progreso semanal
 El progreso semanal pasa a una tarjeta propia al inicio de Progreso › Panel: encabezado con EVÓ y meta de peso, «Semana NN / 08» con el porcentaje semanal y cinco indicadores (déficit, fuerza, cardio, judo y pasos) con iconos lineales, cifra destacada, cantidad real / meta y barra de 4 px. Fórmulas sin cambios. Pie con el estado del balance y las reglas en «Cómo se calcula». Barras animadas al cambiar los registros; sin animación con movimiento reducido.
+
+
+## r101 · Calendario flexible
+Programación de referencia: lunes BASE CAMP + judo; martes cardio + PUSH MODE; miércoles PULL POWER + judo; jueves cardio; viernes ARM FORCE + judo; sábado hiking o fondo; domingo descanso. En Progreso → Panel → Constancia, selecciona una fecha y abre «Elegir sesión de este día» para cambiar fuerza, minutos de cardio, judo o descanso. Los cambios del plan no mueven ni borran los registros. El porcentaje diario compara ejercicios completos de la rutina elegida, minutos previstos y judo cuando corresponda. Descanso no suma puntos de actividad. Las metas semanales siguen independientes del orden diario. Los planes por fecha se incluyen en las copias de seguridad.

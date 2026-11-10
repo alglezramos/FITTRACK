@@ -60,6 +60,11 @@
     const macrosOk = (f) => ["protein", "carbs", "fat", "fiber"].every((k) => f[k] == null || number(f[k], 0, 1000));
     if (!object(p) || !object(p.weeks) || !Array.isArray(p.sessions))
       throw Error("Estructura de copia no válida");
+    if (p.dayPlans !== undefined) {
+      if (!object(p.dayPlans)) throw Error('Plan diario inválido');
+      for (const [dt, plan] of Object.entries(p.dayPlans))
+        if (!validDate(dt) || !object(plan) || ![0,1,2,3,5].includes(plan.day) || !number(plan.minutes,0,600) || typeof plan.judo !== 'boolean' || typeof plan.rest !== 'boolean') throw Error('Sesión planificada inválida');
+    }
     for (const key of ["diary", "meds", "foodKcal", "foodEdits", "recipeEdits", "menuPlan"])
       if (p[key] !== undefined && !object(p[key])) throw Error("Datos inválidos: " + key);
     if (p.medStart && !validDate(p.medStart)) throw Error("Inicio de medicación inválido");
