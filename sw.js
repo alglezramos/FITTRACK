@@ -1,4 +1,4 @@
-const CACHE = "fittrack-r102-sin-constancia";
+const CACHE = "fittrack-r103-guardado-seguro";
 const FILES = [
   "./",
   "./index.html",
@@ -72,12 +72,23 @@ const FILES = [
   "./assets/kettlebell_swing.jpg",
   "./assets/face_pull.jpg",
 ];
+// r103: la versión nueva solo se instala si bajaron todos los archivos de la app;
+// si falla alguno, sigue funcionando la versión anterior. Las fotos de ejercicios son opcionales.
+const CORE = FILES.filter((f) => !f.startsWith("./assets/"));
+const ASSETS = FILES.filter((f) => f.startsWith("./assets/"));
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches
-      .open(CACHE)
-      .then((cache) => Promise.allSettled(FILES.map((f) => cache.add(new Request(f, { cache: "reload" })))))
-      .then(() => self.skipWaiting()),
+    (async () => {
+      const cache = await caches.open(CACHE);
+      try {
+        await cache.addAll(CORE.map((f) => new Request(f, { cache: "reload" })));
+      } catch (error) {
+        await caches.delete(CACHE);
+        throw error;
+      }
+      await Promise.allSettled(ASSETS.map((f) => cache.add(new Request(f, { cache: "reload" }))));
+      await self.skipWaiting();
+    })(),
   );
 });
 self.addEventListener("activate", (event) => {
@@ -88,7 +99,8 @@ self.addEventListener("activate", (event) => {
         Promise.all(
           keys
             .filter(
-              (key) => key !== CACHE && (key === "fittrack-v20261019r2" || key.startsWith("fittrack-pages-")),
+              // r103: borra todas las versiones anteriores de la app.
+              (key) => key !== CACHE && key.startsWith("fittrack-"),
             )
             .map((key) => caches.delete(key)),
         ),
@@ -110,8 +122,13 @@ self.addEventListener("fetch", (event) => {
       try {
         // "no-cache": revalida con el servidor para no servir archivos viejos de la caché HTTP.
         const response = await fetch(event.request.url, { cache: "no-cache", credentials: "same-origin" });
-        if (response.ok && response.type === "basic") await cache.put(event.request, response.clone());
-        return response;
+        if (response.ok && response.type === "basic") {
+          await cache.put(event.request, response.clone());
+          return response;
+        }
+        // r103: si el servidor responde con error, usa la copia guardada.
+        const cached = await cache.match(event.request);
+        return cached || response;
       } catch (error) {
         const cached = await cache.match(event.request);
         if (cached) return cached;

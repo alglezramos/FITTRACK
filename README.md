@@ -84,3 +84,12 @@ Programación de referencia: lunes BASE CAMP + judo; martes cardio + PUSH MODE; 
 
 ## r102 · Sin tarjeta de constancia
 Se quita la tarjeta «Constancia» (calendario flexible y plan por día) del Panel de Progreso. Los registros no cambian.
+
+## r103 · Guardado seguro
+- Detecta cambios hechos desde otra pestaña: no los pisa; avisa y recarga.
+- «Registrado» solo aparece si el guardado funcionó; si los datos no se pueden leer, no se escribe nada encima (copia en cuarentena).
+- Importar: valida todo antes, guarda una copia de lo actual, escribe todo de una vez y reporta las fotos.
+- Exportar: espera a leer todas las fotos y avisa si fallan.
+- La trayectoria de peso usa la meta de kg configurada.
+- Las recetas se registran en la comida elegida («Registrar en»).
+- Service worker: instala solo si bajaron todos los archivos, borra versiones viejas y usa la copia guardada si el servidor falla.

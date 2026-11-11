@@ -41,10 +41,10 @@ window.createFitWellbeing = function ({ getProgram, persist, date, today, escape
     p.wellbeing[date()] ??= {};
     if (p.wellbeing[date()][id] === v) delete p.wellbeing[date()][id];
     else p.wellbeing[date()][id] = v;
-    persist();
+    const saved = persist() !== false;
     rerender();
     const status = document.getElementById("wellbeingStatus");
-    if (status) status.textContent = "Registro guardado para " + date() + ".";
+    if (status) status.textContent = saved ? "Registro guardado para " + date() + "." : "⚠️ No se guardó. Revisa el aviso de arriba.";
   });
   return { render };
 };

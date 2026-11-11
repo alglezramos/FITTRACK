@@ -205,9 +205,9 @@ window.createFitNutrition = function ({
       const duplicates = menus.filter(m => normalizeSearch(m.name) === normalizeSearch(r.name));
       const variant = duplicates.length > 1 ? ` · Porción ${duplicates.findIndex(m => m.id === r.id) + 1}` : "";
       const portion = items(r).map(i => `${fmt(i.qty)} ${fById(i.food).unit} ${fById(i.food).name}`).join(" · ");
-      return `<div class="recipe-row" data-recipe-row="${escape(r.id)}"><div class="rr-main"><strong>${escape(r.name)}${variant}</strong><small><span class="${kcal > 500 ? "over-limit" : "rr-kcal"}">${fmt(kcal)} kcal${kcal > 500 ? " · supera 500" : ""}</span> · ${items(r).length} ingredientes</small>${macroHtml(recipeMacros(items(r)))}<details class="recipe-portions"><summary>Ver porción e ingredientes</summary><p>${escape(portion)}</p></details></div><div class="rr-actions"><button data-recipe-favorite="${r.id}" aria-pressed="${!!prog().recipeFavorites?.includes(r.id)}" aria-label="Favorito: ${escape(r.name)}">${prog().recipeFavorites?.includes(r.id) ? "★" : "☆"}</button><button data-edit-recipe="${r.id}" aria-label="Ajustar ${escape(r.name)}" title="Ajustar porciones">✎</button><button data-log-recipe="${r.id}" class="primary" aria-label="Registrar ${escape(r.name)}">+ Registrar</button></div></div>`;
+      return `<div class="recipe-row" data-recipe-row="${escape(r.id)}"><div class="rr-main"><strong>${escape(r.name)}${variant}</strong><small><span class="${kcal > 500 ? "over-limit" : "rr-kcal"}">${fmt(kcal)} kcal${kcal > 500 ? " · supera 500" : ""}</span> · ${items(r).length} ingredientes</small>${macroHtml(recipeMacros(items(r)))}<details class="recipe-portions"><summary>Ver porción e ingredientes</summary><p>${escape(portion)}</p></details></div><div class="rr-actions"><button data-recipe-favorite="${escape(r.id)}" aria-pressed="${!!prog().recipeFavorites?.includes(r.id)}" aria-label="Favorito: ${escape(r.name)}">${prog().recipeFavorites?.includes(r.id) ? "★" : "☆"}</button><button data-edit-recipe="${escape(r.id)}" aria-label="Ajustar ${escape(r.name)}" title="Ajustar porciones">✎</button><button data-log-recipe="${escape(r.id)}" class="primary" aria-label="Registrar ${escape(r.name)}">+ Registrar</button></div></div>`;
     };
-    return `<article class="catalog-head"><div class="card-head"><h3>${menus.length} recetas</h3><span>Se registran en ${selectedDate() || "—"}</span></div><p class="tiny subtle">Macros estimados según los ingredientes y sus porciones. Los datos pendientes aparecen como «sin datos».</p><label class="recipe-search">Buscar receta<input type="search" id="recipeSearch" value="${escape(recipeSearch)}" placeholder="Nombre o ingrediente"></label><div class="cat-chips">${[["all","Todas"],["favorites","Favoritos"],["recent","Recientes"]].map(([id,label]) => `<button data-recipe-scope="${id}" aria-pressed="${recipeScope === id}">${label}</button>`).join("")}</div><div class="cat-chips">${["Todos", "Desayuno", "Almuerzo", "Cena", "Merienda"].map((k) => `<button data-menu-filter="${k}" aria-pressed="${k === selected}">${k}</button>`).join("")}</div></article><article class="food-compact">${groups
+    return `<article class="catalog-head"><div class="card-head"><h3>${menus.length} recetas</h3><span>Se registran en ${selectedDate() || "—"}</span></div><p class="tiny subtle">Macros estimados según los ingredientes y sus porciones. Los datos pendientes aparecen como «sin datos».</p><label class="recipe-search">Registrar en<select id="recipeLogKind"><option value="auto" ${!kinds.includes(prog().recipeLogKind) ? "selected" : ""}>Según la hora (${defaultKind()})</option>${kinds.map((k) => `<option ${prog().recipeLogKind === k ? "selected" : ""}>${k}</option>`).join("")}</select></label><label class="recipe-search">Buscar receta<input type="search" id="recipeSearch" value="${escape(recipeSearch)}" placeholder="Nombre o ingrediente"></label><div class="cat-chips">${[["all","Todas"],["favorites","Favoritos"],["recent","Recientes"]].map(([id,label]) => `<button data-recipe-scope="${id}" aria-pressed="${recipeScope === id}">${label}</button>`).join("")}</div><div class="cat-chips">${["Todos", "Desayuno", "Almuerzo", "Cena", "Merienda"].map((k) => `<button data-menu-filter="${k}" aria-pressed="${k === selected}">${k}</button>`).join("")}</div></article><article class="food-compact">${groups
       .map((k) => {
         const list = menus.filter(
           (r) => (r.kind === k || (selected !== "Todos" && matches(r, k) && r.kind !== k)) &&
@@ -234,7 +234,7 @@ window.createFitNutrition = function ({
                 .filter((r) => matches(r, k))
                 .map(
                   (r) =>
-                    `<option value="${r.id}" ${r.id === cur.id ? "selected" : ""}>${escape(r.name)} · ${fmt(calories(items(r)))} kcal</option>`,
+                    `<option value="${escape(r.id)}" ${r.id === cur.id ? "selected" : ""}>${escape(r.name)} · ${fmt(calories(items(r)))} kcal</option>`,
                 )
                 .join("")}</select></td>`;
             })
@@ -307,7 +307,7 @@ window.createFitNutrition = function ({
     return `<article><div class="eyebrow">LISTA DEL SÚPER · SEMANA ${week()}</div><div class="card-head"><h2>Todo para tu menú</h2><span class="pill">${done}/${rows.length}</span></div><p>Escribe en «Ya tengo» lo que hay en casa. Para arroz, pasta y carnes, selecciona si lo pesaste cocinado o crudo/seco; las equivalencias son aproximadas. Marca la casilla cuando lo compres.</p><p class="tiny subtle">Se suman las recetas elegidas en «Plan», incluyendo tus cambios de porción. Si cambia la cantidad de un producto marcado, vuelve a quedar pendiente para que lo revises. Las comidas consumidas no se descuentan de esta lista.</p><button data-food-tab="week">Revisar menú semanal</button></article><article class="food-compact">${categories
       .map((category) => {
         const list = rows.filter((r) => r.category === category);
-        return `<details open><summary><span>${escape(category)}</span><small>${list.filter(covered).length}/${list.length}</small></summary>${list.map((r) => `<div class="shop-row${covered(r) ? " is-done" : ""}"><label><input type="checkbox" data-shopping-item="${escape(r.id)}" ${covered(r) ? "checked" : ""}><span><strong>${escape(r.name)}</strong><br>Menú: ${quantity(r)}${r.id === "gnc" ? " · " + fmt(r.qty / 414) + " envases de 414 ml" : ""}<br><b class="shop-buy">${toBuy(r) > 0 ? `Por comprar: ${quantity({ ...r, qty: toBuy(r) })}${buyHint(r)}` : "✓ Ya lo tienes"}</b></span></label><label class="shop-have">Ya tengo<input type="number" min="0" step="any" inputmode="decimal" data-shopping-have="${escape(r.id)}" value="${haveOf(r) || ""}" placeholder="0"><small>${haveMode(r.id) === "raw" ? "g crudos/secos" : escape(r.unit)}</small>${BUY[r.id] ? `<select data-have-mode="${r.id}" aria-label="Estado de ${escape(r.name)}"><option value="cooked" ${haveMode(r.id) === "cooked" ? "selected" : ""}>Cocinado</option><option value="raw" ${haveMode(r.id) === "raw" ? "selected" : ""}>Crudo / seco</option></select>` : ""}</label></div>`).join("")}</details>`;
+        return `<details open><summary><span>${escape(category)}</span><small>${list.filter(covered).length}/${list.length}</small></summary>${list.map((r) => `<div class="shop-row${covered(r) ? " is-done" : ""}"><label><input type="checkbox" data-shopping-item="${escape(r.id)}" ${covered(r) ? "checked" : ""}><span><strong>${escape(r.name)}</strong><br>Menú: ${quantity(r)}${r.id === "gnc" ? " · " + fmt(r.qty / 414) + " envases de 414 ml" : ""}<br><b class="shop-buy">${toBuy(r) > 0 ? `Por comprar: ${quantity({ ...r, qty: toBuy(r) })}${buyHint(r)}` : "✓ Ya lo tienes"}</b></span></label><label class="shop-have">Ya tengo<input type="number" min="0" step="any" inputmode="decimal" data-shopping-have="${escape(r.id)}" value="${haveOf(r) || ""}" placeholder="0"><small>${haveMode(r.id) === "raw" ? "g crudos/secos" : escape(r.unit)}</small>${BUY[r.id] ? `<select data-have-mode="${escape(r.id)}" aria-label="Estado de ${escape(r.name)}"><option value="cooked" ${haveMode(r.id) === "cooked" ? "selected" : ""}>Cocinado</option><option value="raw" ${haveMode(r.id) === "raw" ? "selected" : ""}>Crudo / seco</option></select>` : ""}</label></div>`).join("")}</details>`;
       })
       .join(
         "",
@@ -350,6 +350,12 @@ window.createFitNutrition = function ({
       persist(); rerender();
       notify("Porción ajustada. Las comidas ya registradas no cambian.");
     }
+  });
+  // r103: comida donde se registran las recetas (antes siempre la de la receta).
+  root.addEventListener("change", (e) => {
+    if (e.target.id !== "recipeLogKind") return;
+    prog().recipeLogKind = e.target.value;
+    persist();
   });
   root.addEventListener("change", (e) => {
     const hid = e.target.dataset.shoppingHave;
@@ -400,7 +406,7 @@ window.createFitNutrition = function ({
       `<article class="catalog-head"><div class="challenge-heading"><h3>${foods.length} alimentos</h3><button id="newFood" class="primary">+ Agregar</button></div><input id="foodSearch" type="search" placeholder="Buscar: pollo, tortilla, yogurt…" aria-label="Buscar alimento"><div class="cat-chips">${["Todas", ...cats].map((c) => `<button data-cat-filter="${escape(c)}" aria-pressed="${c === cat}">${escape(c)}</button>`).join("")}</div></article><article class="food-compact">${shown
         .map((c) => {
           const list = foods.filter((f) => f.category === c);
-          return `<details open data-food-cat><summary><span>${escape(c)}</span><small>${list.length}</small></summary><ul class="food-rows">${list.map((f) => `<li data-food-row="${escape(f.name.toLowerCase())}"><div class="fr-main"><strong>${escape(f.name)}</strong><small>${fmt(f.base)} ${escape(f.unit)}${f.pending ? ' · <span class="food-badge">Por confirmar</span>' : ""}</small><small class="fr-macros">${macroLine(f)}</small><span class="fr-photos" data-food-photos="${escape(f.id)}" hidden></span></div><label class="fr-kcal"><input data-food-kcal="${f.id}" type="number" min="0" max="5000" step="0.1" value="${unitKcal(f)}" aria-label="Kcal de ${escape(f.name)}"><span>kcal</span></label><button class="fr-log" data-log-food="${f.id}" aria-label="Registrar ${escape(f.name)}" title="Registrar en el día">＋</button><button class="fr-edit" data-edit-food="${f.id}" aria-label="Editar ${escape(f.name)}">✎</button></li>`).join("")}</ul></details>`;
+          return `<details open data-food-cat><summary><span>${escape(c)}</span><small>${list.length}</small></summary><ul class="food-rows">${list.map((f) => `<li data-food-row="${escape(f.name.toLowerCase())}"><div class="fr-main"><strong>${escape(f.name)}</strong><small>${fmt(f.base)} ${escape(f.unit)}${f.pending ? ' · <span class="food-badge">Por confirmar</span>' : ""}</small><small class="fr-macros">${macroLine(f)}</small><span class="fr-photos" data-food-photos="${escape(f.id)}" hidden></span></div><label class="fr-kcal"><input data-food-kcal="${escape(f.id)}" type="number" min="0" max="5000" step="0.1" value="${unitKcal(f)}" aria-label="Kcal de ${escape(f.name)}"><span>kcal</span></label><button class="fr-log" data-log-food="${escape(f.id)}" aria-label="Registrar ${escape(f.name)}" title="Registrar en el día">＋</button><button class="fr-edit" data-edit-food="${escape(f.id)}" aria-label="Editar ${escape(f.name)}">✎</button></li>`).join("")}</ul></details>`;
         })
         .join(
           "",
@@ -419,7 +425,7 @@ window.createFitNutrition = function ({
       })
       .join(
         "",
-      )}</div><form id="addRecipeIngredient"><div class="fields"><label>Añadir alimento <select name="food">${foods.map((f) => `<option value="${f.id}">${escape(f.name)} · ${escape(f.unit)}</option>`).join("")}</select></label><label>Cantidad <input name="quantity" type="number" min="0.01" max="5000" step="any" required></label><button>Añadir ingrediente</button></div></form><p class="meal-kcal" id="recipeTotal" aria-live="polite">${fmt(kcal)} kcal · ${kcal <= 500 ? "dentro de 500 kcal" : "supera 500 kcal"}</p><div id="recipeMacros" aria-live="polite">${macroHtml(recipeMacros(rows))}</div>${kcal > 500 ? `<button type="button" data-fit-limit="${r.id}">Ajustar porción a 500 kcal</button>` : ""}<p class="tiny subtle">Las cantidades se guardan automáticamente. Puedes añadir aceite u otros ingredientes arriba; todos cuentan en el total. El total es estimado.</p><button data-log-recipe="${r.id}" class="primary">Registrar en ${escape(selectedDate())}</button> <button data-reset-recipe="${r.id}">Restaurar porciones</button> <button id="closeRecipe">Cerrar</button></article>`;
+      )}</div><form id="addRecipeIngredient"><div class="fields"><label>Añadir alimento <select name="food">${foods.map((f) => `<option value="${escape(f.id)}">${escape(f.name)} · ${escape(f.unit)}</option>`).join("")}</select></label><label>Cantidad <input name="quantity" type="number" min="0.01" max="5000" step="any" required></label><button>Añadir ingrediente</button></div></form><p class="meal-kcal" id="recipeTotal" aria-live="polite">${fmt(kcal)} kcal · ${kcal <= 500 ? "dentro de 500 kcal" : "supera 500 kcal"}</p><div id="recipeMacros" aria-live="polite">${macroHtml(recipeMacros(rows))}</div>${kcal > 500 ? `<button type="button" data-fit-limit="${escape(r.id)}">Ajustar porción a 500 kcal</button>` : ""}<p class="tiny subtle">Las cantidades se guardan automáticamente. Puedes añadir aceite u otros ingredientes arriba; todos cuentan en el total. El total es estimado.</p><button data-log-recipe="${escape(r.id)}" class="primary">Registrar en ${escape(selectedDate())}</button> <button data-reset-recipe="${escape(r.id)}">Restaurar porciones</button> <button id="closeRecipe">Cerrar</button></article>`;
   }
   function renderQuick() {
     sync();
@@ -450,6 +456,9 @@ window.createFitNutrition = function ({
     return `<article><h3>Registrar otra comida</h3><form id="manualMealForm"><div class="fields"><label>Comida<input name="name" required maxlength="120"></label><label>Tipo<select name="kind">${kinds.map((k) => `<option>${k}</option>`).join("")}</select></label><label>Calorías<input name="kcal" type="number" min="0" max="20000" step="0.1" required></label></div><button class="primary">Guardar comida</button></form></article>`;
   }
   function notify(message) {
+    // r103: nunca confirmar un registro si el guardado falló.
+    if (window.FitStore && !FitStore.ok() && !String(message).startsWith("⚠️"))
+      message = "⚠️ No se guardó: " + (FitStore.isLocked() ? "el guardado está bloqueado (mira el aviso arriba)." : "revisa el aviso de arriba y vuelve a intentarlo.");
     let box = document.getElementById("nutritionStatus");
     if (!box) {
       box = document.createElement("p");
@@ -469,7 +478,7 @@ window.createFitNutrition = function ({
   }
   function renderCreate() {
     const draft = prog().recipeDraft || { items: [] };
-    return `<article><h3>Crear una receta</h3><form id="recipeBuilder"><label>Nombre <input name="name" maxlength="120" value="${escape(draft.name || "")}" required></label><label>Tipo <select name="kind">${["Desayuno", "Almuerzo", "Cena", "Merienda"].map((k) => `<option ${draft.kind === k ? "selected" : ""}>${k}</option>`).join("")}</select></label><div class="fields"><label>Ingrediente <select name="ingredient">${foods.map((f) => `<option value="${f.id}">${escape(f.name)} · ${escape(f.unit)}</option>`).join("")}</select></label><label>Cantidad <input name="quantity" type="number" min="0.01" max="5000" step="any"></label><button id="draftAdd" type="button">Añadir ingrediente</button></div><ul>${draft.items.map((i, n) => `<li>${fmt(i.qty)} ${escape(fById(i.food).unit)} ${escape(fById(i.food).name)} <button type="button" data-draft-remove="${n}">Quitar</button></li>`).join("")}</ul><p class="meal-kcal">${fmt(calories(draft.items))} kcal</p>${macroHtml(recipeMacros(draft.items))}<p class="tiny subtle">La receta se guarda en el catálogo de recetas si tiene entre 0 y 500 kcal. Después puedes ajustar cantidades.</p><button class="primary">Guardar receta</button></form></article>`;
+    return `<article><h3>Crear una receta</h3><form id="recipeBuilder"><label>Nombre <input name="name" maxlength="120" value="${escape(draft.name || "")}" required></label><label>Tipo <select name="kind">${["Desayuno", "Almuerzo", "Cena", "Merienda"].map((k) => `<option ${draft.kind === k ? "selected" : ""}>${k}</option>`).join("")}</select></label><div class="fields"><label>Ingrediente <select name="ingredient">${foods.map((f) => `<option value="${escape(f.id)}">${escape(f.name)} · ${escape(f.unit)}</option>`).join("")}</select></label><label>Cantidad <input name="quantity" type="number" min="0.01" max="5000" step="any"></label><button id="draftAdd" type="button">Añadir ingrediente</button></div><ul>${draft.items.map((i, n) => `<li>${fmt(i.qty)} ${escape(fById(i.food).unit)} ${escape(fById(i.food).name)} <button type="button" data-draft-remove="${n}">Quitar</button></li>`).join("")}</ul><p class="meal-kcal">${fmt(calories(draft.items))} kcal</p>${macroHtml(recipeMacros(draft.items))}<p class="tiny subtle">La receta se guarda en el catálogo de recetas si tiene entre 0 y 500 kcal. Después puedes ajustar cantidades.</p><button class="primary">Guardar receta</button></form></article>`;
   }
   root.addEventListener("click", (e) => {
     const b = e.target.closest("button");
@@ -695,11 +704,13 @@ window.createFitNutrition = function ({
         return;
       }
       const d = daily();
+      const chosen = prog().recipeLogKind;
+      const kind = kinds.includes(chosen) ? chosen : defaultKind();
       d.meals.push({
         id: stamp(),
         name: r.name,
         recipeId: r.id,
-        kind: r.kind,
+        kind,
         kcal: calories(rows),
         macros: recipeMacros(rows),
         items: rows.map((i) => {
@@ -709,7 +720,7 @@ window.createFitNutrition = function ({
       });
       d.closed = false;
       saveDay(d);
-      notify("Receta o Alimento registrado");
+      notify(`Registrado en ${kind}: ${r.name}`);
     }
     if (b.dataset.removeMeal) {
       const d = daily();

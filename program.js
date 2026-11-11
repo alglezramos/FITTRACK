@@ -30,11 +30,8 @@
       program = { ...program, ...migrated };
     }
   } catch (err) {
-    alert(
-      "No se pudo leer la copia guardada: " +
-        err.message +
-        ". Los datos originales se conservan; importa una copia desde Opciones.",
-    );
+    // r103: bloquea el guardado para no reemplazar los datos originales con valores vacíos.
+    FitStore.lock("No se pudieron leer los registros (" + err.message + "). Se conservan intactos; importa una copia desde Opciones.");
   }
   program.recordDay ??= 0;
   let pendingJump = null;
@@ -141,11 +138,14 @@
       else if (e.target.closest("[data-open-settings]")) document.getElementById("backupBtn").click();
     };
   }
+  // r103: devuelve true solo si de verdad se guardó.
   const persist = () => {
     try {
       FitStore.set("program", program);
-    } catch {
-      alert("No se pudieron guardar los datos. Exporta una copia antes de cerrar.");
+      return true;
+    } catch (e) {
+      if (!e.conflict && !e.locked) alert("No se pudieron guardar los datos. Exporta una copia antes de cerrar.");
+      return false;
     }
   };
   const nutrition = window.createFitNutrition({
@@ -1277,20 +1277,14 @@
         if (!backup.program) throw Error("La copia no contiene el programa");
         const incoming = C.validate(FitCalendar.migrate(backup.program));
         const s = backup.strength;
-        if (
-          !s ||
-          !s.weights ||
-          !s.completed ||
-          !Number.isInteger(s.day) ||
-          s.day < 1 ||
-          s.day > 5 ||
-          !Number.isInteger(s.week) ||
-          s.week < 1 ||
-          s.week > 8
-        )
-          throw Error("Fuerza no válida");
+        C.validateStrength(s);
         if (!confirm("¿Reemplazar todos los registros con esta copia?")) return;
-        program = {
+        // r103: guarda lo actual antes de reemplazar; si no cabe, lo descarga como archivo.
+        if (!FitStore.snapshotBeforeImport()) {
+          if (!confirm("No hay espacio para guardar una copia de lo actual dentro del navegador. Se descargará primero un respaldo de lo actual. ¿Continuar?")) return;
+          await FitStore.exportBackup();
+        }
+        const nextProgram = {
           ...defaults,
           ...incoming,
           medFrequency: "daily",
@@ -1298,18 +1292,25 @@
           progressTab: "weight",
         };
         // Las copias antiguas guardaban los pesos en kg: se pasan a libras.
-        state = normalizeStrengthUnits({ ...s });
-        save();
-        persist();
+        const nextState = normalizeStrengthUnits({ ...s });
+        // Una sola escritura: o entra todo o no entra nada.
+        FitStore.replaceAll({ program: nextProgram, strength: nextState });
+        program = nextProgram;
+        state = nextState;
         render();
         pendingJump = "sec-backup";
         show();
         // r94: restaura también las fotos propias de alimentos si la copia las trae.
-        let nPhotos = 0;
-        if (o.photos && typeof o.photos === "object" && window.FitPhotos?.importAll) {
-          try { nPhotos = await window.FitPhotos.importAll(o.photos); } catch {}
+        let photoMsg = "";
+        if (o.photos && typeof o.photos === "object" && Object.keys(o.photos).length && window.FitPhotos?.importAll) {
+          try {
+            const r = await window.FitPhotos.importAll(o.photos);
+            photoMsg = ` Fotos: ${r.n} importadas${r.failed ? `, ${r.failed} con error` : ""}.`;
+          } catch (err) {
+            photoMsg = " ⚠️ Las fotos no se pudieron importar: " + err.message;
+          }
         }
-        alert(nPhotos ? `Copia importada (incluye ${nPhotos} fotos)` : "Copia importada");
+        alert("Copia importada." + photoMsg);
       } catch (err) {
         alert("No se pudo importar: " + err.message);
       } finally {

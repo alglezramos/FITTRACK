@@ -227,8 +227,8 @@
         if (o.version !== "fittrack-photos-1" || !o.photos) throw Error("Archivo no válido");
         const entries = Object.entries(o.photos);
         if (!confirm(`¿Importar ${entries.length} fotos? Reemplaza las fotos con el mismo alimento.`)) return;
-        await importAll(o.photos);
-        alert("Fotos importadas");
+        const r = await importAll(o.photos);
+        alert(r.failed ? `Se importaron ${r.n} fotos; ${r.failed} no se pudieron importar.` : `Fotos importadas: ${r.n}.`);
       } catch (err) {
         alert("No se pudieron importar las fotos: " + err.message);
       }
@@ -250,11 +250,8 @@
     }
     if (e.target.closest("#closeFood")) pending = { editor: null, slots: {} };
     if (e.target.closest("#exportPhotos")) {
-      const photos = {};
-      for (const k of known) {
-        const b = await getBlob(k);
-        if (b) photos[k] = await toDataURL(b);
-      }
+      let photos = {};
+      try { photos = await exportAll(); } catch (err) { return alert("No se pudieron leer las fotos: " + err.message); }
       if (!Object.keys(photos).length) return alert("Todavía no hay fotos guardadas.");
       const blob = new Blob([JSON.stringify({ version: "fittrack-photos-1", exported: new Date().toISOString(), photos })], {
         type: "application/json",
@@ -290,26 +287,31 @@
   document.head.append(style);
 
   // r94: las fotos propias viajan dentro de «Descargar copia».
+  // r103: espera a conocer todas las fotos guardadas y lee directo de IndexedDB.
   async function exportAll() {
     const photos = {};
+    if ("indexedDB" in g) (await tx("readonly", (s) => s.getAllKeys())).forEach((k) => known.add(k));
     for (const k of known) {
       const b = await getBlob(k);
       if (b) photos[k] = await toDataURL(b);
     }
     return photos;
   }
+  // r103: devuelve cuántas fotos entraron y cuántas fallaron.
   async function importAll(photos) {
-    let n = 0;
+    let n = 0, failed = 0;
     for (const [k, data] of Object.entries(photos || {})) {
-      if (!/^[\w-]+\|[01]$/.test(k) || !String(data).startsWith("data:image/")) continue;
-      const b = await (await fetch(data)).blob();
-      forget(k);
-      await putBlob(k, b);
-      known.add(k);
-      n++;
+      if (!/^[\w-]+\|[01]$/.test(k) || !/^data:image\/(png|jpe?g|webp|gif);base64,/.test(String(data))) { failed++; continue; }
+      try {
+        const b = await (await fetch(data)).blob();
+        forget(k);
+        await putBlob(k, b);
+        known.add(k);
+        n++;
+      } catch { failed++; }
     }
     refresh();
-    return n;
+    return { n, failed };
   }
   g.FitPhotos = { commit, refresh, exportAll, importAll };
   // Las fotos de catálogo se muestran aunque el navegador no tenga IndexedDB.

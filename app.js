@@ -14,8 +14,10 @@ const $ = (id) => document.getElementById(id);
 const save = () => {
   try {
     FitStore.set("strength", state);
+    return true;
   } catch (e) {
-    alert("No se pudieron guardar los datos. Revisa el almacenamiento del navegador.");
+    if (!e.conflict && !e.locked) alert("No se pudieron guardar los datos. Revisa el almacenamiento del navegador.");
+    return false;
   }
 };
 const weightKey = (id) => id + "-w" + state.week;

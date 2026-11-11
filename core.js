@@ -15,6 +15,9 @@
   // Balance confirmado: solo días cerrados con Whoop (un día abierto o sin comidas no cuenta como consumo cero).
   const confirmed = (d) =>
     d && d.closed && has(d.whoop) && ((d.meals || []).length || Number(d.extras) > 0) ? balance(d) : null;
+  const goalKg = (p) => (Number(p && p.goals && p.goals.kg) > 0 ? Number(p.goals.kg) : 10);
+  // r103: los IDs se usan dentro del HTML; solo letras, números, guion y guion bajo.
+  const safeId = (v) => typeof v === "string" && /^[\w-]{1,80}$/.test(v);
   function series(p) {
     if (!validDate(p.start) || !has(p.initialWeight)) return [];
     let total = 0,
@@ -44,7 +47,8 @@
         .map(Number);
       rows.push({
         week: w,
-        target: Number(p.initialWeight) - (10 * w) / 8,
+        // r103: usa la meta de kg configurada (10 kg solo si no hay otra).
+        target: Number(p.initialWeight) - (goalKg(p) * w) / 8,
         actual: values.length ? values.reduce((a, b) => a + b, 0) / values.length : null,
         projected: count ? Number(p.initialWeight) - total / 7700 : null,
         count,
@@ -88,8 +92,9 @@
       for (const meal of d.meals) {
         if (!window.FitMacros.validate(meal.macros) || (meal.items || []).some(i => !window.FitMacros.validate(i.macros))) throw Error("Macros de comida inválidos");
       }
+      // r103: un valor presente debe ser un número válido (antes «basura» pasaba).
       for (const k of ["whoop", "steps", "extras"])
-        if (has(d[k]) && !number(Number(d[k]), 0, k === "steps" ? 200000 : 20000))
+        if (d[k] != null && d[k] !== "" && !number(Number(d[k]), 0, k === "steps" ? 200000 : 20000))
           throw Error("Valor diario no válido");
       for (const m of d.meals)
         if (
@@ -113,7 +118,7 @@
         p.customFoods.some(
           (f) =>
             !object(f) ||
-            typeof f.id !== "string" ||
+            !safeId(f.id) ||
             typeof f.name !== "string" ||
             typeof f.category !== "string" ||
             typeof f.unit !== "string" ||
@@ -129,7 +134,7 @@
         p.customMenus.some(
           (m) =>
             !object(m) ||
-            typeof m.id !== "string" ||
+            !safeId(m.id) ||
             typeof m.name !== "string" ||
             !["Desayuno", "Almuerzo", "Cena", "Merienda"].includes(m.kind) ||
             !Array.isArray(m.items),
@@ -162,7 +167,7 @@
         for (const g of d.goals) {
           if (
             !object(g) ||
-            typeof g.id !== "string" ||
+            !safeId(g.id) ||
             ids.has(g.id) ||
             typeof g.name !== "string" ||
             !g.name.trim() ||
@@ -245,6 +250,29 @@
     }
     return p;
   }
+  // r103: validación completa de la parte de fuerza de una copia.
+  function validateStrength(s) {
+    const object = (v) => v && typeof v === "object" && !Array.isArray(v);
+    const num = (v) => v === "" || v == null || Number.isFinite(Number(v));
+    if (!object(s) || !object(s.weights) || !object(s.completed)) throw Error("Fuerza no válida");
+    if (!Number.isInteger(s.day) || s.day < 1 || s.day > 5 || !Number.isInteger(s.week) || s.week < 1 || s.week > 8)
+      throw Error("Fuerza no válida: día o semana");
+    for (const v of Object.values(s.weights))
+      if (!num(v) || (v !== "" && v != null && (Number(v) < 0 || Number(v) > 2000))) throw Error("Peso de fuerza no válido");
+    for (const v of Object.values(s.completed)) if (typeof v !== "boolean" && v != null) throw Error("Ejercicio completado no válido");
+    if (s.completedDates !== undefined) {
+      if (!object(s.completedDates)) throw Error("Fechas de fuerza no válidas");
+      for (const d of Object.values(s.completedDates)) if (d != null && d !== "" && !validDate(d)) throw Error("Fecha de fuerza no válida");
+    }
+    if (s.sets !== undefined) {
+      if (!object(s.sets)) throw Error("Series no válidas");
+      for (const rows of Object.values(s.sets))
+        if (!Array.isArray(rows) || rows.some((z) => z != null && (!object(z) || !num(z.w) || !num(z.r))))
+          throw Error("Serie no válida");
+    }
+    if (s.archive !== undefined && !Array.isArray(s.archive)) throw Error("Historial de fuerza no válido");
+    return s;
+  }
   // Metas del programa: valores por defecto que el usuario puede cambiar en Opciones.
   const DEFAULT_GOALS = {
     kg: 10,
@@ -274,6 +302,8 @@
     confirmed,
     series,
     validate,
+    validateStrength,
+    safeId,
     goals,
     DEFAULT_GOALS,
     get GOAL_KG() {
