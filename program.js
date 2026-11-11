@@ -895,7 +895,7 @@
       days = rangeDays(n);
     const filter = `<nav class="subtabs panel-range" aria-label="Periodo">${RANGES.map((r) => `<button data-insight-range="${r}" aria-pressed="${r === n}">${r} días</button>`).join("")}</nav>`;
     const span = `<p class="tiny subtle">${days[0]} → ${days.at(-1)} · ${days.length} día${days.length > 1 ? "s" : ""}${days.length < n ? " (desde el inicio del programa)" : ""}</p>`;
-    return `<div class="panel">${weeklyProgress()}${filter}${span}${panelWeight(days)}${panelTraining(days)}${panelFood(days)}${panelConsistency(days)}</div>`;
+    return `<div class="panel">${weeklyProgress()}${filter}${span}${panelWeight(days)}${panelTraining(days)}${panelFood(days)}</div>`;
   }
   function progress() {
     const initial = Number(program.initialWeight) || 85,

@@ -1,4 +1,4 @@
-const CACHE = "fittrack-r101-calendario-flexible";
+const CACHE = "fittrack-r102-sin-constancia";
 const FILES = [
   "./",
   "./index.html",

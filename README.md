@@ -81,3 +81,6 @@ El progreso semanal pasa a una tarjeta propia al inicio de Progreso › Panel: e
 
 ## r101 · Calendario flexible
 Programación de referencia: lunes BASE CAMP + judo; martes cardio + PUSH MODE; miércoles PULL POWER + judo; jueves cardio; viernes ARM FORCE + judo; sábado hiking o fondo; domingo descanso. En Progreso → Panel → Constancia, selecciona una fecha y abre «Elegir sesión de este día» para cambiar fuerza, minutos de cardio, judo o descanso. Los cambios del plan no mueven ni borran los registros. El porcentaje diario compara ejercicios completos de la rutina elegida, minutos previstos y judo cuando corresponda. Descanso no suma puntos de actividad. Las metas semanales siguen independientes del orden diario. Los planes por fecha se incluyen en las copias de seguridad.
+
+## r102 · Sin tarjeta de constancia
+Se quita la tarjeta «Constancia» (calendario flexible y plan por día) del Panel de Progreso. Los registros no cambian.
