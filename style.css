@@ -2973,3 +2973,11 @@ details.fold[open] > summary { margin-bottom: 10px; }
 @media (prefers-reduced-motion: reduce) { .wp-fill { animation: none; } }
 
 .flex-calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin:16px 0}.flex-calendar>b{text-align:center;font-size:12px}.flex-day{min-height:52px;padding:6px 2px;border-radius:8px;background:#f0e7dc;border:1px solid transparent;color:#705d4e}.flex-day b,.flex-day small{display:block}.flex-day small{font-size:11px;margin-top:4px}.flex-day.has-activity{background:#dbab8d;color:#3d3026}.flex-day.selected{border-color:#70503c}.flex-detail{padding:14px 0;border-top:1px solid #dfd0bd}.flex-detail form{margin-top:12px}@media(max-width:450px){.flex-calendar{gap:3px}.flex-day small{font-size:10px}.flex-day{min-height:48px}}
+/* r104: registro rápido */
+.quick-repeat .card-head{gap:12px;flex-wrap:wrap;align-items:flex-end}
+.quick-repeat .qr-kind{display:flex;flex-direction:column;font-size:13px;min-width:180px}
+.qr-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:6px 0 10px}
+.qr-item{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;min-height:56px;padding:10px 34px 10px 12px;border-radius:12px;line-height:1.25}
+.qr-item span{font-weight:600;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.qr-item small{opacity:.75;font-size:12px}
+.qr-item b{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:18px}

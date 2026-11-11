@@ -28,6 +28,8 @@
     if (v) {
       const migrated = C.validate(FitCalendar.migrate(v));
       program = { ...program, ...migrated };
+      // r104: los datos se leyeron bien: se guarda la copia buena del día.
+      FitStore.keepGood?.();
     }
   } catch (err) {
     // r103: bloquea el guardado para no reemplazar los datos originales con valores vacíos.
@@ -93,9 +95,33 @@
     persist();
     show();
   }
+  // r104: con registros, la fecha de inicio queda fija (cada módulo cuenta semanas a su manera
+  // y moverla reasignaría el historial a semanas distintas).
+  function startLocked() {
+    if (!program.start) return false;
+    const st = typeof state === "object" ? state : {};
+    return (
+      Object.values(program.diary || {}).some((d) => (d.meals || []).length || C.has(d.whoop) || C.has(d.steps)) ||
+      (program.sessions || []).length > 0 ||
+      Object.values(program.weeks || {}).some((w) => Object.values(w || {}).some((v) => C.has(v) && Number(v) > 0)) ||
+      Object.values(st.completed || {}).some(Boolean)
+    );
+  }
   function syncCalendar() {
     program.menuDay = program.recordDay;
-    document.getElementById("programStart").value = program.start;
+    const startInput = document.getElementById("programStart");
+    startInput.value = program.start;
+    const locked = startLocked();
+    startInput.disabled = locked;
+    let note = document.getElementById("startLockNote");
+    if (locked && !note) {
+      note = document.createElement("small");
+      note.id = "startLockNote";
+      note.className = "tiny subtle";
+      note.style.display = "block";
+      note.textContent = "Fija: el programa ya tiene registros. Cambiarla movería tu historial entre semanas.";
+      startInput.closest("label").after(note);
+    } else if (!locked && note) note.remove();
     document.getElementById("recordDay").innerHTML = Array.from(
       { length: 7 },
       (_, i) => `<option value="${i}" ${i === program.recordDay ? "selected" : ""}>${dayLabel(i)}</option>`,
@@ -1117,6 +1143,7 @@
     if (view === "training") render();
     chart();
     for (const button of root.querySelectorAll('button[data-log-recipe], button[data-quick-log], form button:not([type="button"])')) {
+      if (button.closest('.quick-repeat')) continue;
       if (!button.closest('#cardioForm,#dailyForm,#manualMealForm,#foodLogForm') && !button.matches('[data-log-recipe],[data-quick-log]')) continue;
       const label = document.createElement('small'); label.className = 'save-date';
       label.textContent = date() ? 'Para ' + niceDate(date()) : 'Configura la fecha de inicio';
@@ -1244,7 +1271,7 @@
   });
   root.addEventListener("change", async (e) => {
     const t = e.target;
-    if (t.id === "programStart" && C.validDate(t.value)) program.start = t.value;
+    if (t.id === "programStart" && C.validDate(t.value) && !startLocked()) program.start = t.value;
     if (t.id === "initialWeight") {
       if (!t.checkValidity()) return;
       t.value === "" ? (program.initialWeight = "") : (program.initialWeight = Number(t.value));
@@ -1417,7 +1444,7 @@
     show();
   });
   document.getElementById("programStart").addEventListener("change", (e) => {
-    if (!C.validDate(e.target.value)) {
+    if (!C.validDate(e.target.value) || startLocked()) {
       syncCalendar();
       return;
     }
@@ -1456,7 +1483,7 @@
           e.target.id,
         ) || e.target.hasAttribute("data-challenge-log");
         else if (e.type === "click")
-      write = !!e.target.closest("[data-log-recipe],[data-quick-log],[data-quick-undo],#medTaken,[data-wellbeing]");
+      write = !!e.target.closest("[data-log-recipe],[data-repeat-meal],[data-quick-log],[data-quick-undo],#medTaken,[data-wellbeing]");
     if (write && (!C.validDate(date()) || date() > today())) {
       e.preventDefault();
       e.stopImmediatePropagation();

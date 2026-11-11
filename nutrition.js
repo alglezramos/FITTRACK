@@ -82,6 +82,40 @@ window.createFitNutrition = function ({
   const balance = (d) => (has(d.whoop) ? Number(d.whoop) - intake(d) : null);
   const stamp = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
   const planKey = (day, kind) => `${week()}-${day}-${kind}`;
+  // r104: últimas comidas distintas registradas (más reciente primero) para repetirlas con un toque.
+  const recentMeals = (limit = 8) => {
+    const seen = new Set(), out = [];
+    for (const [, d] of Object.entries(prog().diary || {}).sort(([a], [b]) => b.localeCompare(a)))
+      for (const m of [...(d.meals || [])].reverse()) {
+        const key = String(m.name || "").trim().toLowerCase();
+        if (!key || seen.has(key) || !(m.kcal >= 0)) continue;
+        seen.add(key);
+        out.push(m);
+        if (out.length >= limit) return out;
+      }
+    return out;
+  };
+  // r104: última cantidad usada de un alimento (si se registró solo).
+  const lastQty = (foodId) => {
+    for (const [, d] of Object.entries(prog().diary || {}).sort(([a], [b]) => b.localeCompare(a)))
+      for (const m of [...(d.meals || [])].reverse())
+        if ((m.items || []).length === 1 && m.items[0].foodId === foodId && m.items[0].qty > 0) return m.items[0].qty;
+    return null;
+  };
+  const quickKind = () => (kinds.includes(prog().recipeLogKind) ? prog().recipeLogKind : defaultKind());
+  function renderRepeat() {
+    const recent = recentMeals();
+    const favs = (prog().recipeFavorites || []).map((id) => menus.find((r) => r.id === id)).filter(Boolean);
+    if (!recent.length && !favs.length) return "";
+    const kindSel = `<label class="qr-kind">Registrar en<select id="recipeLogKind"><option value="auto" ${!kinds.includes(prog().recipeLogKind) ? "selected" : ""}>Según la hora (${defaultKind()})</option>${kinds.map((k) => `<option ${prog().recipeLogKind === k ? "selected" : ""}>${k}</option>`).join("")}</select></label>`;
+    const rec = recent
+      .map((m, i) => `<button type="button" class="qr-item" data-repeat-meal="${i}" aria-label="Repetir ${escape(m.name)}"><span>${escape(m.name)}</span><small>${fmt(m.kcal)} kcal${(m.items || []).length === 1 ? ` · ${fmt(m.items[0].qty)} ${escape(m.items[0].unit)}` : ""}</small><b aria-hidden="true">＋</b></button>`)
+      .join("");
+    const fav = favs
+      .map((r) => `<button type="button" class="qr-item" data-log-recipe="${escape(r.id)}" aria-label="Registrar ${escape(r.name)}"><span>★ ${escape(r.name)}</span><small>${fmt(calories(items(r)))} kcal</small><b aria-hidden="true">＋</b></button>`)
+      .join("");
+    return `<article class="quick-repeat"><div class="card-head"><h3>Registro rápido</h3>${kindSel}</div><p class="tiny subtle">Un toque registra la misma porción. Para cambiarla, usa Editar en el registro.</p>${rec ? `<h4 class="sub-title">Recientes</h4><div class="qr-list">${rec}</div>` : ""}${fav ? `<h4 class="sub-title">Recetas favoritas</h4><div class="qr-list">${fav}</div>` : ""}</article>`;
+  }
   const planRecipe = (day, kind) => {
     const group = menus.filter((r) => matches(r, kind));
     return (
@@ -123,7 +157,7 @@ window.createFitNutrition = function ({
         )
         .join("")}</nav>` +
       (tab === "log"
-        ? renderLog() + renderDiary()
+        ? renderFoodLog() + renderRepeat() + renderLog() + renderDiary()
         : tab === "shopping"
         ? renderShopping()
         : tab === "catalog"
@@ -392,8 +426,9 @@ window.createFitNutrition = function ({
       f = p.loggingFood && fById(p.loggingFood);
     if (!f) return "";
     const kind = kinds.includes(p.loggingKind) ? p.loggingKind : defaultKind(),
-      dt = selectedDate();
-    return `<article id="foodLogPanel" class="food-log-panel"><div class="card-head"><div><div class="eyebrow">REGISTRAR ALIMENTO</div><h3>${escape(f.name)}</h3></div><button type="button" id="closeFoodLog" aria-label="Cerrar">✕</button></div><p class="tiny subtle">Porción base: ${fmt(f.base)} ${escape(f.unit)} = ${fmt(unitKcal(f))} kcal</p><form id="foodLogForm" class="quick-day"><label>Cantidad (${escape(f.unit)})<input name="qty" type="number" min="0.01" max="100000" step="any" inputmode="decimal" value="${f.base}" required></label><label>Comida<select name="kind">${kinds.map((k) => `<option ${k === kind ? "selected" : ""}>${k}</option>`).join("")}</select></label><button class="primary" type="submit">Registrar</button><p class="fl-total"><strong id="foodLogKcal">${fmt(unitKcal(f))}</strong> kcal · se registra en ${escape(dt || "—")}</p><div id="foodLogMacros">${macroHtml(M.scaled(f, f.base))}</div></form></article>`;
+      dt = selectedDate(),
+      q0 = lastQty(f.id) ?? f.base;
+    return `<article id="foodLogPanel" class="food-log-panel"><div class="card-head"><div><div class="eyebrow">REGISTRAR ALIMENTO</div><h3>${escape(f.name)}</h3></div><button type="button" id="closeFoodLog" aria-label="Cerrar">✕</button></div><p class="tiny subtle">Porción base: ${fmt(f.base)} ${escape(f.unit)} = ${fmt(unitKcal(f))} kcal</p><form id="foodLogForm" class="quick-day"><label>Cantidad (${escape(f.unit)})<input name="qty" type="number" min="0.01" max="100000" step="any" inputmode="decimal" value="${q0}" required></label><label>Comida<select name="kind">${kinds.map((k) => `<option ${k === kind ? "selected" : ""}>${k}</option>`).join("")}</select></label><button class="primary" type="submit">Registrar</button><p class="fl-total"><strong id="foodLogKcal">${fmt((unitKcal(f) * q0) / f.base)}</strong> kcal · se registra en ${escape(dt || "—")}${q0 !== f.base ? " · cantidad de la última vez" : ""}</p><div id="foodLogMacros">${macroHtml(M.scaled(f, q0))}</div></form></article>`;
   }
   function renderCatalog() {
     const p = prog(),
@@ -696,6 +731,21 @@ window.createFitNutrition = function ({
       persist();
       rerender();
     }
+    if (b.dataset.repeatMeal !== undefined) {
+      const src = recentMeals()[Number(b.dataset.repeatMeal)];
+      if (!src) return;
+      const kind = quickKind();
+      const copy = JSON.parse(JSON.stringify(src));
+      delete copy.slot;
+      const d = daily();
+      d.meals = d.meals || [];
+      d.meals.push({ ...copy, id: stamp(), kind });
+      d.closed = false;
+      saveDay(d);
+      rerender();
+      notify(`Registrado en ${kind}: ${src.name} · ${fmt(src.kcal)} kcal`);
+      return;
+    }
     if (b.dataset.logRecipe) {
       const r = menus.find((m) => m.id === b.dataset.logRecipe);
       const rows = items(r);
@@ -704,8 +754,7 @@ window.createFitNutrition = function ({
         return;
       }
       const d = daily();
-      const chosen = prog().recipeLogKind;
-      const kind = kinds.includes(chosen) ? chosen : defaultKind();
+      const kind = quickKind();
       d.meals.push({
         id: stamp(),
         name: r.name,
@@ -720,6 +769,7 @@ window.createFitNutrition = function ({
       });
       d.closed = false;
       saveDay(d);
+      rerender();
       notify(`Registrado en ${kind}: ${r.name}`);
     }
     if (b.dataset.removeMeal) {

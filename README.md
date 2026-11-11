@@ -93,3 +93,9 @@ Se quita la tarjeta «Constancia» (calendario flexible y plan por día) del Pan
 - La trayectoria de peso usa la meta de kg configurada.
 - Las recetas se registran en la comida elegida («Registrar en»).
 - Service worker: instala solo si bajaron todos los archivos, borra versiones viejas y usa la copia guardada si el servidor falla.
+
+## r104 · Registro rápido
+- Comida → Registro: tarjeta «Registro rápido» con las últimas comidas distintas y las recetas favoritas; un toque registra la misma porción en la comida elegida.
+- Al registrar un alimento se propone la cantidad de la última vez.
+- La fecha de inicio queda fija cuando el programa ya tiene registros.
+- Copia buena automática cada vez que la app abre bien; si los datos se dañan, el aviso permite restaurarla.

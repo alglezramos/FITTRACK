@@ -163,7 +163,40 @@
       el.append(b);
     }
   };
-  const showLocked = () => locked && banner("⚠️ " + locked + " No se guardará nada hasta resolverlo.", false);
+  // r104: última copia buena (la de la última vez que la app abrió sin problemas).
+  const GOOD = KEY + ".ultima-buena", GOOD_DATE = KEY + ".ultima-buena-fecha";
+  const goodDate = () => { try { return localStorage.getItem(GOOD_DATE) || ""; } catch { return ""; } };
+  const keepGood = () => {
+    if (locked || !raw) return;
+    try {
+      localStorage.setItem(GOOD, raw);
+      localStorage.setItem(GOOD_DATE, new Date().toLocaleString("es-CR", { dateStyle: "short", timeStyle: "short" }));
+    } catch {}
+  };
+  const restoreGood = () => {
+    const good = localStorage.getItem(GOOD);
+    if (!good || !parse(good)) return alert("No hay una copia buena guardada en este navegador.");
+    if (!confirm(`¿Restaurar la copia del ${goodDate()}? Lo registrado después de esa fecha se perderá; los datos dañados quedan guardados aparte.`)) return;
+    try { localStorage.setItem(KEY + ".cuarentena", localStorage.getItem(KEY) || ""); } catch {}
+    localStorage.setItem(KEY, good);
+    location.reload();
+  };
+  const showLocked = () => {
+    if (!locked) return;
+    banner("⚠️ " + locked + " No se guardará nada hasta resolverlo.", false);
+    let has = false;
+    try { has = !!localStorage.getItem(GOOD); } catch {}
+    const el = document.getElementById("storeBanner");
+    if (has && el && !el.querySelector("[data-restore-good]")) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.dataset.restoreGood = "1";
+      b.textContent = `Restaurar copia del ${goodDate()}`;
+      b.style.cssText = "background:#fff;color:#7a2e1f;border:0;border-radius:8px;padding:8px 14px;font-weight:700";
+      b.onclick = restoreGood;
+      el.append(b);
+    }
+  };
   if (typeof document !== "undefined") {
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", showLocked);
     else showLocked();
@@ -227,6 +260,8 @@
       showLocked();
     },
     isLocked: () => !!locked,
+    // Llamar solo después de validar que los datos cargados están bien.
+    keepGood,
     // r103: importar una copia reemplaza todo en una sola escritura.
     // Guarda antes una copia de lo actual («antes de importar») y desbloquea.
     snapshotBeforeImport() {
