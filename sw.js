@@ -1,4 +1,4 @@
-const CACHE = "fittrack-r104-registro-rapido";
+const CACHE = "fittrack-r105-accesible";
 const FILES = [
   "./",
   "./index.html",
@@ -108,8 +108,28 @@ self.addEventListener("activate", (event) => {
       .then(() => self.clients.claim()),
   );
 });
+// r105: fotos de catálogo (Walmart CR). Se guardan la primera vez que se ven para que
+// funcionen sin conexión; se piden sin cookies ni referencia a la app.
+const PHOTO_CACHE = "evo-fotos-catalogo";
+const PHOTO_HOST = "walmartcr.vteximg.com.br";
+async function catalogPhoto(request) {
+  const cache = await caches.open(PHOTO_CACHE);
+  const hit = await cache.match(request.url);
+  if (hit) return hit;
+  try {
+    const response = await fetch(request.url, { mode: "cors", credentials: "omit", referrerPolicy: "no-referrer" });
+    if (response.ok) await cache.put(request.url, response.clone());
+    return response;
+  } catch (error) {
+    return Response.error();
+  }
+}
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
+  if (event.request.method === "GET" && url.hostname === PHOTO_HOST) {
+    event.respondWith(catalogPhoto(event.request));
+    return;
+  }
   if (
     event.request.method !== "GET" ||
     url.origin !== self.location.origin ||

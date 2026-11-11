@@ -110,7 +110,7 @@
         const fromCat = !(slot in pending.slots) && id !== "new" && !known.has(key(id, slot)) && !!src;
         return `<div class="fp-slot"><span class="fp-label">${label}${fromCat ? ' <small>· catálogo</small>' : ""}</span>${
           src
-            ? `<img src="${esc(src)}" alt="${label}" data-photo-preview>`
+            ? `<img src="${esc(src)}" alt="${label}" data-photo-preview referrerpolicy="no-referrer">`
             : `<div class="fp-empty">Sin foto</div>`
         }<div class="fp-actions"><label class="fp-btn">${src ? "Cambiar" : "Agregar foto"}<input type="file" accept="image/*" data-photo-input="${slot}" hidden></label>${
           src && !fromCat ? `<button type="button" class="fp-btn" data-photo-remove="${slot}">Quitar</button>` : ""
@@ -128,7 +128,7 @@
         if (!has(k)) return "";
         const u = await url(k);
         return u
-          ? `<img class="fp-thumb" src="${esc(u)}" alt="${label}" data-photo-view="${esc(k)}" loading="lazy">`
+          ? `<button type="button" class="fp-thumb-btn" data-photo-view="${esc(k)}" aria-label="Ver foto: ${label}"><img class="fp-thumb" src="${esc(u)}" alt="" loading="lazy" referrerpolicy="no-referrer"></button>`
           : "";
       }),
     );
@@ -183,11 +183,17 @@
     o.setAttribute("role", "dialog");
     o.setAttribute("aria-label", "Fotos del alimento");
     o.innerHTML = `<button type="button" class="fp-close" aria-label="Cerrar">✕</button><div class="fp-strip">${list
-      .map((x) => `<figure data-k="${esc(x)}"><img src="${esc(src(x))}" alt=""><figcaption>${SLOTS[x.split("|")[1]]}</figcaption></figure>`)
+      .map((x) => `<figure data-k="${esc(x)}"><img src="${esc(src(x))}" alt="${SLOTS[x.split("|")[1]]}" referrerpolicy="no-referrer"><figcaption>${SLOTS[x.split("|")[1]]}</figcaption></figure>`)
       .join("")}</div>`;
+    const opener = document.activeElement;
     document.body.append(o);
     o.querySelector(`[data-k="${CSS.escape(k)}"]`)?.scrollIntoView({ inline: "start", block: "nearest" });
-    const close = () => o.remove();
+    // r105: el foco va al botón de cerrar y vuelve a la miniatura al cerrar.
+    o.querySelector(".fp-close").focus();
+    const close = () => {
+      o.remove();
+      opener?.focus?.();
+    };
     o.addEventListener("click", (e) => {
       if (e.target === o || e.target.closest(".fp-close")) close();
     });
@@ -276,7 +282,8 @@
 .fp-btn,.food-photos button.fp-btn{display:inline-flex!important;align-items:center;justify-content:center;padding:.4rem .7rem!important;min-height:0!important;min-width:0!important;height:auto!important;aspect-ratio:auto!important;line-height:1.2!important;border-radius:999px!important;border:1px solid rgba(255,255,255,.18)!important;font-size:.8rem!important;font-weight:400!important;cursor:pointer;background:transparent!important;color:inherit!important;width:auto!important}
 .fr-photos{display:flex;gap:.3rem;margin-top:.3rem}
 .fr-photos[hidden]{display:none}
-.fp-thumb{width:34px;height:34px;object-fit:cover;border-radius:6px;cursor:zoom-in;border:1px solid rgba(255,255,255,.15)}
+.fp-thumb-btn{padding:0;border:0;background:none;min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;cursor:zoom-in;border-radius:8px}
+.fp-thumb{width:34px;height:34px;object-fit:cover;border-radius:6px;border:1px solid rgba(255,255,255,.15);pointer-events:none}
 .fp-lightbox{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.88);display:flex;align-items:center}
 .fp-strip{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;width:100%}
 .fp-strip figure{flex:0 0 100%;scroll-snap-align:start;margin:0;padding:16px;box-sizing:border-box;text-align:center}

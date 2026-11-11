@@ -99,3 +99,9 @@ Se quita la tarjeta «Constancia» (calendario flexible y plan por día) del Pan
 - Al registrar un alimento se propone la cantidad de la última vez.
 - La fecha de inicio queda fija cuando el programa ya tiene registros.
 - Copia buena automática cada vez que la app abre bien; si los datos se dañan, el aviso permite restaurarla.
+
+## r105 · Accesibilidad y limpieza
+- Las miniaturas de fotos son botones (teclado y lector de pantalla); el visor enfoca «Cerrar» y devuelve el foco.
+- Foco visible en botones y campos; botones de borrar del historial de 44 px.
+- Fotos de catálogo: se guardan en el dispositivo la primera vez que se ven (funcionan sin conexión) y se piden sin referencia a la app.
+- Se eliminó el código sin uso de la tarjeta Constancia.
