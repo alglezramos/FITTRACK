@@ -5,7 +5,7 @@ window.FitCalendar = {
   position(start, date) {
     if (!FitCore.validDate(start) || !FitCore.validDate(date)) return null;
     const n = Math.round((Date.parse(date + "T12:00:00Z") - Date.parse(start + "T12:00:00Z")) / 86400000);
-    return n >= 0 && n < 56 ? { week: Math.floor(n / 7) + 1, day: n % 7 } : null;
+    return n >= 0 && n < FitStore.weeks() * 7 ? { week: Math.floor(n / 7) + 1, day: n % 7 } : null;
   },
   migrate(input) {
     const p = JSON.parse(JSON.stringify(input));

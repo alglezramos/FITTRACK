@@ -60,11 +60,82 @@
     const cur = parse(localStorage.getItem(KEY));
     return cur && typeof cur === "object" ? Number(cur.rev) || 0 : 0;
   };
+  // r106: combinación de tres vías (base = lo último que esta pestaña leyó o escribió).
+  // Objetos: clave por clave. Listas de objetos con «id» (comidas, sesiones, alimentos): elemento por elemento.
+  // Si las dos pestañas cambiaron el mismo dato de forma distinta, no se combina.
+  const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+  const stable = (v) =>
+    Array.isArray(v) ? "[" + v.map(stable).join(",") + "]"
+    : isObj(v) ? "{" + Object.keys(v).sort().filter((k) => v[k] !== undefined).map((k) => JSON.stringify(k) + ":" + stable(v[k])).join(",") + "}"
+    : v === undefined ? "~" : JSON.stringify(v);
+  const byId = (a) => Array.isArray(a) && a.every((x) => isObj(x) && typeof x.id === "string") && new Set(a.map((x) => x.id)).size === a.length;
+  const merge3 = (base, ours, theirs, path = "") => {
+    const so = stable(ours), st = stable(theirs);
+    if (so === st) return { ok: true, value: ours };
+    const sb = stable(base);
+    if (sb === so) return { ok: true, value: theirs };
+    if (sb === st) return { ok: true, value: ours };
+    if (isObj(ours) && isObj(theirs)) {
+      const b = isObj(base) ? base : {}, out = {};
+      for (const k of new Set([...Object.keys(b), ...Object.keys(theirs), ...Object.keys(ours)])) {
+        const r = merge3(b[k], ours[k], theirs[k], path + "/" + k);
+        if (!r.ok) return r;
+        if (r.value !== undefined) out[k] = r.value;
+      }
+      return { ok: true, value: out };
+    }
+    if (byId(ours) && byId(theirs) && (base === undefined || byId(base))) {
+      const map = (a) => Object.fromEntries((a || []).map((x) => [x.id, x]));
+      const r = merge3(map(base), map(ours), map(theirs), path);
+      if (!r.ok) return r;
+      const order = [...theirs.map((x) => x.id), ...ours.map((x) => x.id).filter((id) => !theirs.some((x) => x.id === id))];
+      return { ok: true, value: order.filter((id) => r.value[id] !== undefined).map((id) => r.value[id]) };
+    }
+    return { ok: false, path: path || "/" };
+  };
+  // Intenta combinar lo de esta pestaña con lo que otra pestaña guardó. Devuelve el objeto combinado o null.
+  const rebase = (cur) => {
+    if (!isObj(cur)) return null;
+    const next = { ...cur };
+    for (const part of ["program", "strength"]) {
+      if (written[part] === undefined && data[part] == null) continue;
+      const base = written[part] === undefined ? undefined : parse(written[part]);
+      const r = merge3(base, data[part] ?? undefined, cur[part] ?? undefined);
+      if (!r.ok) return null;
+      next[part] = r.value;
+    }
+    const a = data.backupInfo || {}, b = cur.backupInfo || {};
+    next.backupInfo = {
+      lastRequested: [a.lastRequested, b.lastRequested].filter(Boolean).sort().at(-1),
+      changedDays: [...new Set([...(a.changedDays || []), ...(b.changedDays || [])])],
+    };
+    return next;
+  };
+  const FLASH = KEY + ".aviso";
+  let merging = false;
   const write = () => {
     if (locked) throw Object.assign(Error(locked), { locked: true });
-    if (stale || storedRev() !== rev) {
+    if (merging) throw conflictError();
+    let cur = null, curRev = 0;
+    try {
+      cur = parse(localStorage.getItem(KEY));
+      curRev = isObj(cur) ? Number(cur.rev) || 0 : 0;
+    } catch {}
+    if (curRev !== rev) {
+      // r106: otra pestaña guardó antes. Si los cambios no chocan, se guardan los dos y la app recarga
+      // para mostrar lo de la otra pestaña.
+      const next = rebase(cur);
+      if (!next) {
+        stale = true;
+        throw conflictError();
+      }
+      next.rev = curRev + 1;
+      localStorage.setItem(KEY, JSON.stringify(next));
+      merging = true;
       stale = true;
-      throw conflictError();
+      try { sessionStorage.setItem(FLASH, "✓ Guardado. Se combinó con lo registrado en otra pestaña."); } catch {}
+      setTimeout(() => location.reload(), 60);
+      return;
     }
     data.rev = rev + 1;
     try {
@@ -213,7 +284,27 @@
   document.addEventListener?.("visibilitychange", () => {
     if (!document.hidden && stale) location.reload();
   });
+  const showFlash = () => {
+    let msg = "";
+    try { msg = sessionStorage.getItem(FLASH) || ""; sessionStorage.removeItem(FLASH); } catch {}
+    const el = msg && document.getElementById("saveState");
+    if (el) { el.className = "save-state ok"; el.textContent = msg; }
+  };
+  if (typeof document !== "undefined") {
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", showFlash);
+    else showFlash();
+  }
+  // r106: duración del programa en semanas (4 a 16; 8 si no se configuró).
+  const MIN_WEEKS = 4, MAX_WEEKS = 16;
+  const weeks = () => {
+    const n = Number(data.program && data.program.weeksCount);
+    return Number.isInteger(n) && n >= MIN_WEEKS && n <= MAX_WEEKS ? n : 8;
+  };
   g.FitStore = {
+    weeks,
+    MIN_WEEKS,
+    MAX_WEEKS,
+    _merge3: merge3,
     get: (part) => data[part] ?? null,
     set(part, value) {
       // r103: si no cambió nada, no se escribe (así abrir la app no deja desactualizadas a otras pestañas).
@@ -241,7 +332,7 @@
         signatures[part] = prevSig;
         if (e.conflict) {
           data[part] = prevValue;
-          banner("⚠️ No se guardó tu último cambio: otra pestaña guardó antes. Se recargará la app; repítelo después.", true);
+          banner("⚠️ No se guardó tu último cambio: otra pestaña cambió el mismo dato. Se recargará la app; repítelo después.", true);
           setTimeout(() => location.reload(), 3500);
         } else if (e.locked) showLocked();
         mark(false);

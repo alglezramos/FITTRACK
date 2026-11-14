@@ -11,10 +11,10 @@ window.createFitWellbeing = function ({ getProgram, persist, date, today, escape
       n = habits.filter(([id]) => d[id] === "done").length,
       p = getProgram(),
       locked = date() > today();
-    return `<article><div class="card-head"><div><div class="eyebrow">BIENESTAR · ${escape(date())}</div><h3>Pequeños hábitos</h3></div><span class="pill">${n}/${habits.length}</span></div><ul class="habit-list">${habits.map(([id, name, detail]) => `<li class="${d[id] === "done" ? "is-done" : d[id] === "skip" ? "is-skip" : ""}"><div><strong>${name}</strong><small>${detail}</small></div><div class="habit-actions"><button data-wellbeing="${id}" data-wellbeing-value="done" aria-pressed="${d[id] === "done"}" aria-label="${name}: hecho" ${locked ? "disabled" : ""}>✓</button><button data-wellbeing="${id}" data-wellbeing-value="skip" aria-pressed="${d[id] === "skip"}" aria-label="${name}: omitir hoy" ${locked ? "disabled" : ""}>Omitir</button></div></li>`).join("")}</ul><p class="tiny subtle">Opcionales. Toca de nuevo para desmarcar; no añaden gasto calórico.</p><details><summary>Historial de bienestar · 8 semanas</summary>${
+    return `<article><div class="card-head"><div><div class="eyebrow">BIENESTAR · ${escape(date())}</div><h3>Pequeños hábitos</h3></div><span class="pill">${n}/${habits.length}</span></div><ul class="habit-list">${habits.map(([id, name, detail]) => `<li class="${d[id] === "done" ? "is-done" : d[id] === "skip" ? "is-skip" : ""}"><div><strong>${name}</strong><small>${detail}</small></div><div class="habit-actions"><button data-wellbeing="${id}" data-wellbeing-value="done" aria-pressed="${d[id] === "done"}" aria-label="${name}: hecho" ${locked ? "disabled" : ""}>✓</button><button data-wellbeing="${id}" data-wellbeing-value="skip" aria-pressed="${d[id] === "skip"}" aria-label="${name}: omitir hoy" ${locked ? "disabled" : ""}>Omitir</button></div></li>`).join("")}</ul><p class="tiny subtle">Opcionales. Toca de nuevo para desmarcar; no añaden gasto calórico.</p><details><summary>Historial de bienestar · ${FitStore.weeks()} semanas</summary>${
       FitCore.validDate(p.start)
         ? `<div class="scroll"><table><thead><tr><th>Fecha</th>${habits.map(([, name]) => `<th>${name}</th>`).join("")}</tr></thead><tbody>${Array.from(
-            { length: 56 },
+            { length: FitStore.weeks() * 7 },
             (_, i) => {
               const day = FitCore.datePlus(p.start, i),
                 row = p.wellbeing?.[day] || {};

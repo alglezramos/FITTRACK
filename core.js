@@ -17,9 +17,16 @@
     d && d.closed && has(d.whoop) && ((d.meals || []).length || Number(d.extras) > 0) ? balance(d) : null;
   const goalKg = (p) => (Number(p && p.goals && p.goals.kg) > 0 ? Number(p.goals.kg) : 10);
   // r103: los IDs se usan dentro del HTML; solo letras, números, guion y guion bajo.
+  const weekKey = (w) => /^([1-9]|1[0-6])$/.test(String(w));
   const safeId = (v) => typeof v === "string" && /^[\w-]{1,80}$/.test(v);
+  // r106: duración del programa (semanas). Sin dato: 8.
+  const weeksOf = (p) => {
+    const n = Number(p && p.weeksCount);
+    return Number.isInteger(n) && n >= 4 && n <= 16 ? n : 8;
+  };
   function series(p) {
     if (!validDate(p.start) || !has(p.initialWeight)) return [];
+    const W = weeksOf(p);
     let total = 0,
       count = 0;
     const rows = [
@@ -32,7 +39,7 @@
         deficit: 0,
       },
     ];
-    for (let w = 1; w <= 8; w++) {
+    for (let w = 1; w <= W; w++) {
       for (let i = (w - 1) * 7; i < w * 7; i++) {
         const d = (p.diary || {})[datePlus(p.start, i)];
         if (d && confirmed(d) !== null) {
@@ -48,7 +55,7 @@
       rows.push({
         week: w,
         // r103: usa la meta de kg configurada (10 kg solo si no hay otra).
-        target: Number(p.initialWeight) - (goalKg(p) * w) / 8,
+        target: Number(p.initialWeight) - (goalKg(p) * w) / W,
         actual: values.length ? values.reduce((a, b) => a + b, 0) / values.length : null,
         projected: count ? Number(p.initialWeight) - total / 7700 : null,
         count,
@@ -84,7 +91,7 @@
         !(s.effort == null || s.effort === "" || number(s.effort, 1, 10)) ||
         !Number.isInteger(s.week) ||
         s.week < 1 ||
-        s.week > 8
+        s.week > 16
       )
         throw Error("Actividad no válida");
     for (const [date, d] of Object.entries(p.diary || {})) {
@@ -161,7 +168,7 @@
     if (p.challenges !== undefined) {
       if (!object(p.challenges)) throw Error("Retos inválidos");
       for (const [w, d] of Object.entries(p.challenges)) {
-        if (!/^[1-8]$/.test(w) || !object(d) || !Array.isArray(d.goals) || !Array.isArray(d.logs))
+        if (!weekKey(w) || !object(d) || !Array.isArray(d.goals) || !Array.isArray(d.logs))
           throw Error("Semana de retos inválida");
         const ids = new Set();
         for (const g of d.goals) {
@@ -237,7 +244,7 @@
     if (p.shopping !== undefined) {
       if (!object(p.shopping)) throw Error("Lista del súper inválida");
       for (const [week, rows] of Object.entries(p.shopping)) {
-        if (!/^[1-8]$/.test(week) || !object(rows)) throw Error("Semana de compras inválida");
+        if (!weekKey(week) || !object(rows)) throw Error("Semana de compras inválida");
         for (const row of Object.values(rows))
           if (
             !object(row) ||
@@ -248,6 +255,31 @@
             throw Error("Producto de compras inválido");
       }
     }
+    // r106: duración, ciclos anteriores y suplemento configurable.
+    if (p.weeksCount !== undefined && !(Number.isInteger(p.weeksCount) && p.weeksCount >= 4 && p.weeksCount <= 16))
+      throw Error("Duración del programa no válida");
+    if (p.cycles !== undefined) {
+      if (!Array.isArray(p.cycles) || p.cycles.length > 60) throw Error("Ciclos no válidos");
+      for (const c of p.cycles)
+        if (
+          !object(c) ||
+          !safeId(c.id) ||
+          !validDate(c.start) ||
+          !validDate(c.end) ||
+          !(Number.isInteger(c.weeks) && c.weeks >= 4 && c.weeks <= 16) ||
+          !(c.initialWeight == null || c.initialWeight === "" || number(Number(c.initialWeight), 20, 400)) ||
+          !(c.finalWeight == null || number(c.finalWeight, 20, 400)) ||
+          !(c.summary === undefined || object(c.summary)) ||
+          !object(c.program) ||
+          !object(c.strength)
+        )
+          throw Error("Ciclo anterior no válido");
+    }
+    if (p.supplement !== undefined) {
+      const s = p.supplement;
+      if (!object(s) || typeof s.name !== "string" || s.name.length > 80 || typeof s.dose !== "string" || s.dose.length > 120 || typeof s.show !== "boolean")
+        throw Error("Suplemento no válido");
+    }
     return p;
   }
   // r103: validación completa de la parte de fuerza de una copia.
@@ -255,7 +287,7 @@
     const object = (v) => v && typeof v === "object" && !Array.isArray(v);
     const num = (v) => v === "" || v == null || Number.isFinite(Number(v));
     if (!object(s) || !object(s.weights) || !object(s.completed)) throw Error("Fuerza no válida");
-    if (!Number.isInteger(s.day) || s.day < 1 || s.day > 5 || !Number.isInteger(s.week) || s.week < 1 || s.week > 8)
+    if (!Number.isInteger(s.day) || s.day < 1 || s.day > 5 || !Number.isInteger(s.week) || s.week < 1 || s.week > 16)
       throw Error("Fuerza no válida: día o semana");
     for (const v of Object.values(s.weights))
       if (!num(v) || (v !== "" && v != null && (Number(v) < 0 || Number(v) > 2000))) throw Error("Peso de fuerza no válido");
@@ -277,6 +309,8 @@
   const DEFAULT_GOALS = {
     kg: 10,
     kcal: 1800,
+    // r106: proteína diaria en gramos; 0 = sin meta (opcional).
+    protein: 0,
     run: 50,
     swim: 25,
     hike: 50,
@@ -309,8 +343,13 @@
     get GOAL_KG() {
       return goals().kg;
     },
+    weeksOf,
+    // Semanas del programa actual.
+    get WEEKS() {
+      return weeksOf(g.FitStore && g.FitStore.get("program"));
+    },
     get NEEDED() {
-      return Math.round((goals().kg * 7700) / 56);
+      return Math.round((goals().kg * 7700) / (weeksOf(g.FitStore && g.FitStore.get("program")) * 7));
     },
   };
 })(typeof window !== "undefined" ? window : globalThis);

@@ -21,6 +21,8 @@ const save = () => {
   }
 };
 const weightKey = (id) => id + "-w" + state.week;
+// r106: número de semanas del programa (Opciones → Duración).
+const W = () => FitStore.weeks();
 // Pesos de fuerza: siempre se guardan en libras. Se pueden registrar en kg o lb.
 const KG_TO_LB = 2.20462;
 const round1 = (n) => Math.round(n * 10) / 10;
@@ -81,13 +83,28 @@ function prevSession(id) {
     const s = setsOf(id, w);
     if (hasData(s)) return { week: w, sets: s };
   }
-  return null;
+  // r106: al empezar un ciclo nuevo, la referencia es la última sesión del ciclo anterior.
+  const last = window.FitCycles && FitCycles.previousSession(FitStore.get("program") || {}, id);
+  return last ? { week: last.week, sets: last.sets, cycle: true } : null;
+}
+// r106: sesiones anteriores con series hechas (más reciente primero), para sugerir la carga.
+function recentSessions(id, n = 2) {
+  const out = [];
+  for (let w = state.week - 1; w >= 1 && out.length < n; w--) {
+    const s = setsOf(id, w);
+    if (s && s.some((z) => z && z.done)) out.push(s);
+  }
+  if (out.length < n) {
+    const last = window.FitCycles && FitCycles.previousSession(FitStore.get("program") || {}, id);
+    if (last && last.sets.some((z) => z && z.done)) out.push(last.sets);
+  }
+  return out;
 }
 const topOf = (sets) => (sets || []).filter((z) => z.done && z.w > 0).reduce((m, z) => Math.max(m, z.w), 0);
 // Mejor peso completado en cualquier semana distinta de la indicada (récord previo).
 function bestOf(id, exceptWeek) {
   let best = 0;
-  for (let w = 1; w <= 8; w++) if (w !== exceptWeek) best = Math.max(best, topOf(setsOf(id, w)));
+  for (let w = 1; w <= W(); w++) if (w !== exceptWeek) best = Math.max(best, topOf(setsOf(id, w)));
   for (const a of archived(id)) best = Math.max(best, topOf(a.sets));
   return best;
 }
@@ -140,7 +157,7 @@ const sparkline = (vals) => {
   const max = Math.max(...pts.map((p) => p[1])),
     min = Math.min(...pts.map((p) => p[1])),
     span = max - min || 1,
-    x = (i) => 6 + (i * 148) / 7,
+    x = (i) => 6 + (i * 148) / Math.max(1, vals.length - 1),
     y = (v) => 34 - ((v - min) / span) * 26;
   return (
     '<svg class="spark" viewBox="0 0 160 40" role="img" aria-label="Evolución del mejor peso por semana"><polyline fill="none" stroke="#bf6b47" stroke-width="2" points="' +
@@ -154,7 +171,7 @@ function historyHtml(x) {
   const unit = state.inputUnit,
     rows = [],
     tops = [];
-  for (let w = 1; w <= 8; w++) {
+  for (let w = 1; w <= W(); w++) {
     const s = setsOf(x.id, w),
       k = x.id + "-w" + w;
     tops.push(topOf(s));
@@ -194,8 +211,13 @@ function setsHtml(x) {
   const previousText = same
     ? fmtW(toShow(previousSets[0].w)) + " " + unit + " × " + previousSets[0].r + " × " + previousSets.length
     : previousSets.map((z) => fmtW(toShow(z.w)) + " " + unit + " × " + z.r).join(" · ");
+  // r106: sugerencia para esta sesión (solo si aún no hay series hechas esta semana).
+  const sug = doneN === 0 && window.FitProgression ? FitProgression.suggest(recentSessions(x.id), t, unit) : null;
+  const sugHtml = sug
+    ? '<div class="suggest is-' + sug.action + '"><span><b>' + sug.label + ": " + fmtW(sug.show) + " " + unit + " × " + sug.r + "</b> <small>" + esc(sug.why) + '</small></span><button type="button" data-use-suggest="' + x.id + '" data-w="' + sug.w + '" data-r="' + sug.r + '">Usar</button></div>'
+    : "";
   const meta = '<div class="setmeta"><span>Anterior' +
-    (prev ? " (S" + prev.week + "): " + (previousText || "sin carga") : ": sin registro") + "</span></div>";
+    (prev ? " (" + (prev.cycle ? "ciclo anterior, " : "") + "S" + prev.week + "): " + (previousText || "sin carga") : ": sin registro") + "</span></div>" + sugHtml;
   const rows = Array.from({ length: n }, (_, i) => {
     const s = (cur && cur[i]) || { w: prefW, r: t.reps, done: false };
     return (
@@ -258,10 +280,10 @@ function freezeRoutines() {
   const t = new Date(),
     iso = new Date(t.getTime() - t.getTimezoneOffset() * 60000).toISOString().slice(0, 10),
     pos = FitCalendar.position(p.start, iso),
-    cur = pos ? pos.week : iso > FitCalendar.date(p.start, 8, 6) ? 9 : 1;
+    cur = pos ? pos.week : iso > FitCalendar.date(p.start, W(), 6) ? W() + 1 : 1;
   state.routineByWeek ??= {};
   let changed = false;
-  for (let w = 1; w < Math.min(cur, 9); w++) {
+  for (let w = 1; w < Math.min(cur, W() + 1); w++) {
     if (state.routineByWeek[w]) continue;
     const ids = new Set(EXERCISES.map((e) => e.id));
     Object.keys(state.completed || {}).forEach((k) => {
@@ -274,6 +296,8 @@ function freezeRoutines() {
   if (changed) save();
 }
 window.fitRoutineIds = routineIds;
+// r106: otros módulos muestran las cargas en la unidad elegida (se guardan siempre en libras).
+window.fitLoad = { unit: () => state.inputUnit || "lb", show: (lb) => toShow(Number(lb)) };
 let rendering = false;
 function render() {
   if (rendering) return;
@@ -285,8 +309,9 @@ function render() {
   }
 }
 function renderNow() {
+  if (state.week > W()) state.week = W();
   $("week").innerHTML = Array.from(
-    { length: 8 },
+    { length: W() },
     (_, i) => '<option value="' + (i + 1) + '">Semana ' + (i + 1) + "</option>",
   ).join("");
   $("week").value = state.week;
@@ -456,8 +481,8 @@ function renderNow() {
     $("exerciseList").innerHTML =
       '<p class="subtle empty-day">Este día no tiene pesas: solo cardio. Registra tu actividad abajo, en Cardio.</p>';
   $("history").innerHTML =
-    '<details class="fold"><summary>Ver historial de pesos <small>lb · 8 semanas</small></summary><div class="history"><table><thead><tr><th>Ejercicio</th>' +
-    Array.from({ length: 8 }, (_, i) => "<th>S" + (i + 1) + "</th>").join("") +
+    '<details class="fold"><summary>Ver historial de pesos <small>' + state.inputUnit + " · " + W() + ' semanas</small></summary><div class="history"><table><thead><tr><th>Ejercicio</th>' +
+    Array.from({ length: W() }, (_, i) => "<th>S" + (i + 1) + "</th>").join("") +
     "</tr></thead><tbody>" +
     ex
       .map(
@@ -466,12 +491,12 @@ function renderNow() {
           esc(x.name) +
           "</td>" +
           Array.from(
-            { length: 8 },
+            { length: W() },
             (_, i) =>
               '<td class="' +
               (state.week === i + 1 ? "current" : "") +
               '">' +
-              esc(state.weights[x.id + "-w" + (i + 1)] == null ? "—" : fmtW(state.weights[x.id + "-w" + (i + 1)])) +
+              esc(state.weights[x.id + "-w" + (i + 1)] == null ? "—" : fmtW(x.unit ? state.weights[x.id + "-w" + (i + 1)] : toShow(state.weights[x.id + "-w" + (i + 1)]))) +
               "</td>",
           ).join("") +
           "</tr>",
@@ -515,6 +540,25 @@ document.addEventListener("click", (e) => {
     if (!dialog) { dialog = document.createElement("dialog"); dialog.id = "exercisePhotoDialog"; document.body.appendChild(dialog); }
     dialog.innerHTML = '<form method="dialog"><button aria-label="Cerrar imagen">Cerrar ×</button></form><h3>' + esc(x.name) + '</h3><img src="' + x.image + '" alt="' + esc(x.name) + '">';
     dialog.showModal(); return;
+  }
+  const useS = e.target.closest("[data-use-suggest]");
+  if (useS) {
+    // Rellena las series pendientes con la carga sugerida (no las marca como hechas).
+    const id = useS.dataset.useSuggest,
+      w = Number(useS.dataset.w),
+      r = Number(useS.dataset.r);
+    if (!(w > 0 && r > 0)) return;
+    const sets = ensureSets(id);
+    sets.forEach((z) => {
+      if (!z.done) {
+        z.w = w;
+        z.r = r;
+      }
+    });
+    syncExercise(id);
+    save();
+    render();
+    return;
   }
   const copy = e.target.closest("[data-copy-series]");
   if (copy) {

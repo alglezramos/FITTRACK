@@ -1,4 +1,4 @@
-const CACHE = "fittrack-r105-accesible";
+const CACHE = "fittrack-r106-ciclos";
 const FILES = [
   "./",
   "./index.html",
@@ -23,6 +23,11 @@ const FILES = [
   "./food-photos.js",
   "./nutrition.js",
   "./program.js",
+  "./progression.js",
+  "./cycles.js",
+  "./weight.js",
+  "./panel.js",
+  "./settings.js",
   "./assets/peso_muerto_kettlebell.jpg",
   "./assets/remo_kettlebell.jpg",
   "./assets/curl_ez_scott.jpg",

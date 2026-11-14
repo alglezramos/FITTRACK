@@ -105,3 +105,15 @@ Se quita la tarjeta «Constancia» (calendario flexible y plan por día) del Pan
 - Foco visible en botones y campos; botones de borrar del historial de 44 px.
 - Fotos de catálogo: se guardan en el dispositivo la primera vez que se ven (funcionan sin conexión) y se piden sin referencia a la app.
 - Se eliminó el código sin uso de la tarjeta Constancia.
+
+## r106 · Ciclos, progresión y guardado entre pestañas
+- **Guardado entre pestañas:** si otra pestaña guardó antes, ya no se pierde tu cambio. Se combinan los dos (por ejemplo, comida en una y fuerza en otra, o dos comidas el mismo día) y la app recarga para mostrar todo. Solo si las dos cambiaron el mismo dato de forma distinta se avisa y no se pisa nada.
+- **Duración configurable:** Opciones → Duración y ciclos: de 4 a 16 semanas (8 por defecto). No deja acortar por debajo de la última semana con registros. Trayectoria, déficit necesario, retos, pasos y gráficos usan la duración elegida.
+- **Ciclos:** «Cerrar este ciclo y empezar otro» archiva pesadas, cardio, retos, compras y fuerza con un resumen (fechas, peso inicial/final, déficit, km, mejores cargas). Comidas, Whoop, alimentos, recetas, bienestar y metas se conservan. Antes se guarda una copia de lo actual en el navegador. Los ciclos anteriores se ven en Opciones y viajan en la copia de seguridad.
+- **Progresión en fuerza:** cada ejercicio sugiere la carga de hoy: sube un escalón si completaste todas las series, repite si no, baja ~10 % tras dos sesiones fallidas. «Usar» rellena las series pendientes. Al empezar un ciclo, la referencia es la última sesión del ciclo anterior.
+- **Meta de proteína (opcional):** Opciones → Metas. Si hay meta, la tarjeta de Calorías de Hoy muestra la proteína del día y avisa si alguna comida no tiene el dato.
+- **Unidad de carga:** el historial de pesos, el Historial y el Panel muestran las cargas en la unidad elegida en Entreno (lb o kg). Se siguen guardando en libras.
+- **Compartir resumen semanal:** botón en la tarjeta «Tu avance» del Panel (hoja de compartir del móvil; si no hay, copia al portapapeles).
+- **Suplemento configurable:** nombre, pauta y mostrar/ocultar en Opciones. Quien ya marcaba tomas conserva su pauta.
+- **Código:** `program.js` pasa de 1.485 a ~950 líneas. Nuevos módulos: `panel.js` (Panel de Progreso y cierre semanal), `weight.js` (pesadas y trayectoria), `settings.js` (Opciones), `cycles.js` y `progression.js` (lógica pura).
+- **Pruebas:** `node --test tests/` (sin dependencias). Cubren combinación entre pestañas, cuarentena, trayectoria y metas, calendario por duración, validación de copias, macros, progresión y ciclos.

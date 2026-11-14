@@ -76,7 +76,7 @@ window.createFitChallenges = function ({ getProgram, persist, week, date, escape
     const st = plan.find((r) => r.name === "Pasos") || { completed: 0, target: 0 },
       stPct = st.target ? Math.min(100, (st.completed / st.target) * 100) : 0;
     const stepsRow = `<div class="rep-row km-row"><span class="km-icon">${icon("steps")}</span><div class="rep-info"><div class="rep-top"><strong>Pasos</strong><span>${fmt(st.completed)} / ${fmt(st.target)}${st.completed >= st.target ? " ✓" : ""}</span></div><progress class="challenge-progress" value="${Math.min(st.completed, st.target)}" max="${st.target}" aria-label="Pasos: ${fmt(st.completed)} de ${fmt(st.target)}"></progress><small>${Math.round(stPct)}% · semana ${week()}: ${fmt(stepsWeek(week()))} pasos · se cargan con el Whoop del día</small></div></div>`;
-    return `<article class="reps-compact km-compact"><div class="challenge-heading"><h3>Retos de kilómetros y pasos</h3><span>Meta final · 8 semanas · <b>Semana ${week()}</b></span></div>${rows}${stepsRow}<p class="tiny subtle km-note">Natación: 1.000 m = 1 km. Incluye lo registrado en Cardio; cada salida cuenta una sola vez.</p>${sessions.length ? `<div class="row-list">${sessions.map((s) => `<div class="food-log"><div><b>${label(s.mode)}</b><p>${fmt(distance(s))} km · ${s.minutes} min · ${escape(s.date)}</p></div><button data-delete-distance="${escape(s.id)}">Eliminar</button></div>`).join("")}</div>` : ""}</article>`;
+    return `<article class="reps-compact km-compact"><div class="challenge-heading"><h3>Retos de kilómetros y pasos</h3><span>Meta final · ${FitStore.weeks()} semanas · <b>Semana ${week()}</b></span></div>${rows}${stepsRow}<p class="tiny subtle km-note">Natación: 1.000 m = 1 km. Incluye lo registrado en Cardio; cada salida cuenta una sola vez.</p>${sessions.length ? `<div class="row-list">${sessions.map((s) => `<div class="food-log"><div><b>${label(s.mode)}</b><p>${fmt(distance(s))} km · ${s.minutes} min · ${escape(s.date)}</p></div><button data-delete-distance="${escape(s.id)}">Eliminar</button></div>`).join("")}</div>` : ""}</article>`;
   }
   root.addEventListener("submit", (e) => {
     const form = e.target;
@@ -161,10 +161,10 @@ root.addEventListener("submit", (e) => {
   });
   function planEligible(when) {
     const start = getProgram().start;
-    return !start || (when >= start && when <= FitCore.datePlus(start, 55));
+    return !start || (when >= start && when <= FitCore.datePlus(start, FitStore.weeks() * 7 - 1));
   }
   function planProgress() {
-    const sessions = getProgram().sessions.filter((s) => s.week >= 1 && s.week <= 8 && planEligible(s.date));
+    const sessions = getProgram().sessions.filter((s) => s.week >= 1 && s.week <= FitStore.weeks() && planEligible(s.date));
     const rows = [
       ["Running", T().run, "km", "Correr"],
       ["Natación", T().swim, "km", "Nadar"],
@@ -183,7 +183,7 @@ root.addEventListener("submit", (e) => {
     rows.push({ name: "Pasos", target: T().steps, unit: "pasos", completed: steps });
     for (const g of defaults()) {
       let completed = 0;
-      for (let w = 1; w <= 8; w++)
+      for (let w = 1; w <= FitStore.weeks(); w++)
         completed += data(w)
           .logs.filter((l) => l.goal === g.id && planEligible(l.date))
           .reduce((n, l) => n + l.reps, 0);
@@ -229,8 +229,8 @@ root.addEventListener("submit", (e) => {
   function projectionOf(r) {
     const p = getProgram();
     if (!p.start) return null;
-    const total = 56,
-      end = FitCore.datePlus(p.start, 55),
+    const total = FitStore.weeks() * 7,
+      end = FitCore.datePlus(p.start, total - 1),
       t = today(),
       elapsed = t < p.start ? 0 : t > end ? total : Math.round((Date.parse(t) - Date.parse(p.start)) / 864e5) + 1,
       left = total - elapsed,
@@ -258,7 +258,7 @@ root.addEventListener("submit", (e) => {
     const unitDay = (r) => (r.unit === "km" ? "km/día" : r.unit === "pasos" ? "pasos/día" : "reps/día"),
       num = (r, v) => fmt(r.unit === "km" ? Math.round(v * 10) / 10 : Math.round(v)),
       p1 = (v) => fmt(Math.round(v * 10) / 10),
-      expPct = Math.min(100, (first.elapsed / 56) * 100),
+      expPct = Math.min(100, (first.elapsed / (FitStore.weeks() * 7)) * 100),
       sel = rows.find((r) => r.name === getProgram().projPick) || rows[0];
     const cols = rows
       .map((r) => {
@@ -283,7 +283,7 @@ root.addEventListener("submit", (e) => {
       const g = defaults().find((x) => x.name === sel.name);
       field = g ? `<form data-challenge-log="${escape(g.id)}" class="adv-form"><label>Sumar repeticiones<input name="reps" type="number" min="1" max="10000" step="1" inputmode="numeric" placeholder="0" required></label><button class="primary">+ Sumar</button></form>` : "";
     } else field = `<p class="tiny subtle adv-note">Los pasos se cargan con el Whoop de cada día · semana ${week()}: ${fmt(stepsWeek(week()))} pasos.</p>`;
-    return `<article class="proj-card adv-card"><div class="challenge-heading"><h3>Avance de retos</h3><span>Día ${first.elapsed} de 56 · quedan ${first.left} días</span></div><div class="adv-legend"><span><i class="adv-dash"></i>Esperado al día ${first.elapsed}: ${p1(expPct)} %</span><span>Altura completa = 100 % de la meta</span></div><div class="adv-chart" style="--exp:${expPct.toFixed(2)}"><b class="adv-exp" aria-hidden="true"></b>${cols}</div><div class="adv-detail" style="--mc:${(MISSION_STYLE[sel.name] || [, "#bf6b47"])[1]}"><p class="adv-line"><strong>${escape(sel.name)}</strong> · ${num(sel, sel.completed)} / ${fmt(sel.target)} ${escape(unit)} · <strong>Faltan ${num(sel, pr.remaining)} ${escape(unit)}</strong> ${badge(sel)}</p><small class="proj-msg">${msg}</small>${field}</div></article>`;
+    return `<article class="proj-card adv-card"><div class="challenge-heading"><h3>Avance de retos</h3><span>Día ${first.elapsed} de ${FitStore.weeks() * 7} · quedan ${first.left} días</span></div><div class="adv-legend"><span><i class="adv-dash"></i>Esperado al día ${first.elapsed}: ${p1(expPct)} %</span><span>Altura completa = 100 % de la meta</span></div><div class="adv-chart" style="--exp:${expPct.toFixed(2)}"><b class="adv-exp" aria-hidden="true"></b>${cols}</div><div class="adv-detail" style="--mc:${(MISSION_STYLE[sel.name] || [, "#bf6b47"])[1]}"><p class="adv-line"><strong>${escape(sel.name)}</strong> · ${num(sel, sel.completed)} / ${fmt(sel.target)} ${escape(unit)} · <strong>Faltan ${num(sel, pr.remaining)} ${escape(unit)}</strong> ${badge(sel)}</p><small class="proj-msg">${msg}</small>${field}</div></article>`;
   }
   function missions() {
     const rows = planProgress(),
@@ -292,7 +292,7 @@ root.addEventListener("submit", (e) => {
       done = rows.filter((r) => r.completed >= r.target).length,
       overall = rows.length ? rows.reduce((n, r) => n + pctOf(r), 0) / rows.length : 0,
       pos = p.start ? FitCalendar.position(p.start, today()) : null,
-      curWeek = pos ? pos.week : p.start && today() > FitCore.datePlus(p.start, 55) ? 8 : week();
+      curWeek = pos ? pos.week : p.start && today() > FitCore.datePlus(p.start, FitStore.weeks() * 7 - 1) ? FitStore.weeks() : week();
     const card = (r) => {
       const [ic, color] = MISSION_STYLE[r.name] || ["target", "#bf6b47"],
         pct = pctOf(r),
@@ -301,12 +301,12 @@ root.addEventListener("submit", (e) => {
     };
     const section = (title, ic, color, tagline, set) =>
       `<section class="msec"><div class="msec-head"><h3><span style="color:${color}">${icon(ic)}</span>${title}</h3><small>${tagline}</small></div><div class="mgrid">${set.map(card).join("")}</div></section>`;
-    return `<article class="mission-board"><div class="mb-head"><div><div class="eyebrow">RETOS 8 SEMANAS</div><h2>Tu camino al 100%</h2><p class="mb-sub">Disciplina hoy, resultados mañana.</p></div><div class="mb-week"><span>Semana</span><strong>${curWeek} / 8</strong><div class="mcard-bar" style="--mc:#bf6b47"><i style="width:${((curWeek / 8) * 100).toFixed(1)}%"></i></div></div></div><div class="mb-stats"><div class="mb-stat"><span class="mb-ic" style="--ic:#bf6b47">${icon("target")}</span><div><strong>${rows.length}</strong><small>Retos totales</small></div></div><div class="mb-stat"><span class="mb-ic solid" style="--ic:#6f845e">${icon("check")}</span><div><strong>${done}</strong><small>Completadas</small></div></div><div class="mb-stat"><span class="mb-ic solid" style="--ic:#8b6f9c">${icon("bars")}</span><div><strong>${rows.length - done}</strong><small>En progreso</small></div></div><div class="mb-stat mb-overall"><small>PROGRESO GENERAL</small><div><strong>${Math.round(overall)}%</strong><div class="mcard-bar" style="--mc:#bf6b47"><i style="width:${overall > 0 ? Math.max(overall, 2).toFixed(1) : 0}%"></i></div></div></div></div></article>${section("Resistencia", "pulse", "#c0603f", "Más kilómetros, más salud, más vida.", rows.filter((r) => r.unit !== "reps"))}${section("Fuerza", "dumbbell", "#c4b5fd", "Un cuerpo más fuerte, una vida más capaz.", rows.filter((r) => r.unit === "reps"))}`;
+    return `<article class="mission-board"><div class="mb-head"><div><div class="eyebrow">RETOS ${FitStore.weeks()} SEMANAS</div><h2>Tu camino al 100%</h2><p class="mb-sub">Disciplina hoy, resultados mañana.</p></div><div class="mb-week"><span>Semana</span><strong>${curWeek} / ${FitStore.weeks()}</strong><div class="mcard-bar" style="--mc:#bf6b47"><i style="width:${((curWeek / 8) * 100).toFixed(1)}%"></i></div></div></div><div class="mb-stats"><div class="mb-stat"><span class="mb-ic" style="--ic:#bf6b47">${icon("target")}</span><div><strong>${rows.length}</strong><small>Retos totales</small></div></div><div class="mb-stat"><span class="mb-ic solid" style="--ic:#6f845e">${icon("check")}</span><div><strong>${done}</strong><small>Completadas</small></div></div><div class="mb-stat"><span class="mb-ic solid" style="--ic:#8b6f9c">${icon("bars")}</span><div><strong>${rows.length - done}</strong><small>En progreso</small></div></div><div class="mb-stat mb-overall"><small>PROGRESO GENERAL</small><div><strong>${Math.round(overall)}%</strong><div class="mcard-bar" style="--mc:#bf6b47"><i style="width:${overall > 0 ? Math.max(overall, 2).toFixed(1) : 0}%"></i></div></div></div></div></article>${section("Resistencia", "pulse", "#c0603f", "Más kilómetros, más salud, más vida.", rows.filter((r) => r.unit !== "reps"))}${section("Fuerza", "dumbbell", "#c4b5fd", "Un cuerpo más fuerte, una vida más capaz.", rows.filter((r) => r.unit === "reps"))}`;
   }
   function history() {
     const p = getProgram(),
       pos = p.start ? FitCalendar.position(p.start, today()) : null,
-      curW = pos ? pos.week : p.start && today() > FitCore.datePlus(p.start, 55) ? 9 : 0;
+      curW = pos ? pos.week : p.start && today() > FitCore.datePlus(p.start, FitStore.weeks() * 7 - 1) ? FitStore.weeks() + 1 : 0;
     const rows = [
       ["Sentadillas", "squats", "reps"],
       ["Push-ups", "pushups", "reps"],
@@ -317,7 +317,7 @@ root.addEventListener("submit", (e) => {
       ["Natación", "Nadar", "km"],
       ["Pasos", "steps", "pasos"],
     ].map(([name, key, unit]) => {
-      const vals = Array.from({ length: 8 }, (_, i) =>
+      const vals = Array.from({ length: FitStore.weeks() }, (_, i) =>
         unit === "reps" ? total(data(i + 1), key) : unit === "pasos" ? stepsWeek(i + 1) : kms(i + 1, key),
       );
       const plan = planProgress().find(
@@ -330,7 +330,7 @@ root.addEventListener("submit", (e) => {
         alpha = v > 0 ? 0.18 + (0.82 * v) / max : 0;
       return `<td class="hm${future ? " is-future" : ""}${w === curW ? " is-now" : ""}" style="${v > 0 ? `background:rgba(191,107,71,${alpha.toFixed(2)});color:${alpha > 0.55 ? "#fffaf4" : "#3a2e25"}` : ""}" title="Semana ${w}: ${fmt(v)}">${v > 0 ? fmt(Math.round(v * 10) / 10) : "·"}</td>`;
     };
-    return `<details class="fold card-fold"><summary>Ver historial de retos <small>8 semanas${curW && curW < 9 ? " · vas en la semana " + curW : ""}</small></summary><div class="scroll"><table class="heatmap"><thead><tr><th></th>${Array.from({ length: 8 }, (_, i) => `<th class="${i + 1 === curW ? "is-now" : ""}">S${i + 1}</th>`).join("")}</tr></thead><tbody>${rows
+    return `<details class="fold card-fold"><summary>Ver historial de retos <small>${FitStore.weeks()} semanas${curW && curW <= FitStore.weeks() ? " · vas en la semana " + curW : ""}</small></summary><div class="scroll"><table class="heatmap"><thead><tr><th></th>${Array.from({ length: FitStore.weeks() }, (_, i) => `<th class="${i + 1 === curW ? "is-now" : ""}">S${i + 1}</th>`).join("")}</tr></thead><tbody>${rows
       .map((r, ri) => {
         const max = Math.max(...r.vals, 1);
         const pct = r.target ? Math.min(100, (r.sum / r.target) * 100) : 0;
