@@ -250,7 +250,6 @@ root.addEventListener("submit", (e) => {
   // escala), línea de lo esperado a hoy y un solo campo de registro que cambia
   // según el reto tocado. Los pasos se cargan con el Whoop del día.
   const SHORT = { Abdominales: "Abdom.", Sentadillas: "Sentad." };
-  const KM_MODE = { Running: ["Correr", 6], Natación: ["Nadar", 30], "Hiking / Rucking": ["Hiking", 15] };
   function projection() {
     const rows = planProgress(),
       first = rows.length ? projectionOf(rows[0]) : null;
@@ -271,17 +270,13 @@ root.addEventListener("submit", (e) => {
     const pr = projectionOf(sel),
       msg = pr.status === "done" ? "¡Meta cumplida!" : pr.status === "ahead" ? "Vas por delante." : pr.status === "ontrack" ? "Justo en ritmo." : `Necesitas ${num(sel, pr.need)} ${unitDay(sel)} para llegar.`,
       unit = sel.unit === "reps" ? "reps" : sel.unit;
+    // r108: el registro vive en Entreno → Registrar actividad; aquí solo queda el gráfico y el detalle.
     let field;
     if (sel.unit === "km") {
-      const [mode] = KM_MODE[sel.name] || ["Correr"];
-      const pick =
-        mode === "Hiking"
-          ? `<label>Actividad<select name="mode"><option value="Hiking">Hiking</option><option value="Rucking">Rucking</option></select></label>`
-          : `<input type="hidden" name="mode" value="${mode}">`;
-      field = `<form id="advKmForm" class="adv-form">${pick}<label>Kilómetros<input name="km" type="number" min="0.01" max="1000" step="0.01" inputmode="decimal" placeholder="0" required></label><label>Minutos (opcional)<input name="minutes" type="number" min="1" max="600" step="1" inputmode="numeric" placeholder="—"></label><button class="primary">+ Sumar</button></form>`;
+      const via = { Running: "Correr", "Natación": "Nadar", "Hiking / Rucking": "Hiking o Rucking" }[sel.name] || "la actividad";
+      field = `<p class="tiny subtle adv-note">Se suma con la distancia al guardar <b>${via}</b> en <button type="button" class="link-btn" data-go-cardio>Registrar actividad</button>.</p>`;
     } else if (sel.unit === "reps") {
-      const g = defaults().find((x) => x.name === sel.name);
-      field = g ? `<form data-challenge-log="${escape(g.id)}" class="adv-form"><label>Sumar repeticiones<input name="reps" type="number" min="1" max="10000" step="1" inputmode="numeric" placeholder="0" required></label><button class="primary">+ Sumar</button></form>` : "";
+      field = `<p class="tiny subtle adv-note">Súmalas en <button type="button" class="link-btn" data-go-cardio="${escape((defaults().find((x) => x.name === sel.name) || {}).id || "")}">Registrar actividad → Retos</button>.</p>`;
     } else field = `<p class="tiny subtle adv-note">Los pasos se cargan con el Whoop de cada día · semana ${week()}: ${fmt(stepsWeek(week()))} pasos.</p>`;
     return `<article class="proj-card adv-card"><div class="challenge-heading"><h3>Avance de retos</h3><span>Día ${first.elapsed} de ${FitStore.weeks() * 7} · quedan ${first.left} días</span></div><div class="adv-legend"><span><i class="adv-dash"></i>Esperado al día ${first.elapsed}: ${p1(expPct)} %</span><span>Altura completa = 100 % de la meta</span></div><div class="adv-chart" style="--exp:${expPct.toFixed(2)}"><b class="adv-exp" aria-hidden="true"></b>${cols}</div><div class="adv-detail" style="--mc:${(MISSION_STYLE[sel.name] || [, "#bf6b47"])[1]}"><p class="adv-line"><strong>${escape(sel.name)}</strong> · ${num(sel, sel.completed)} / ${fmt(sel.target)} ${escape(unit)} · <strong>Faltan ${num(sel, pr.remaining)} ${escape(unit)}</strong> ${badge(sel)}</p><small class="proj-msg">${msg}</small>${field}</div></article>`;
   }
@@ -344,38 +339,6 @@ root.addEventListener("submit", (e) => {
   function render() {
     return `<p id="challengeStatus" role="status" class="status"></p>${projection()}${history()}`;
   }
-  root.addEventListener("submit", (e) => {
-    if (e.target.id !== "advKmForm") return;
-    e.preventDefault();
-    const fd = new FormData(e.target),
-      p = getProgram(),
-      mode = fd.get("mode"),
-      km = Number(fd.get("km")),
-      when = date(),
-      rawMin = fd.get("minutes"),
-      minutes = rawMin === "" || rawMin == null ? null : Number(rawMin);
-    if (!["Correr", "Nadar", "Hiking", "Rucking"].includes(mode) || !Number.isFinite(km) || km <= 0 || km > 1000) return;
-    if (minutes !== null && (!Number.isInteger(minutes) || minutes < 1 || minutes > 600)) {
-      status("La duración debe estar entre 1 y 600 minutos, o déjala vacía.");
-      return;
-    }
-    if (!FitCore.validDate(when) || when > today()) {
-      status("Selecciona una fecha válida de hoy o anterior.");
-      return;
-    }
-    if (p.start) {
-      const from = FitCore.datePlus(p.start, (week() - 1) * 7);
-      if (when < from || when > FitCore.datePlus(from, 6)) {
-        status("La fecha no corresponde a la semana activa.");
-        return;
-      }
-    }
-    // Sin duración ni esfuerzo inventados: si no se escriben, quedan vacíos.
-    p.sessions.push({ id: freshId(), week: week(), mode, date: when, distance: km, unit: "km", minutes, effort: null, load: "", calories: "" });
-    persist();
-    rerender();
-    status(`${fmt(km)} km sumados.`);
-  });
   function status(msg) {
     const el = document.getElementById("challengeStatus");
     if (el) el.textContent = msg;
@@ -383,9 +346,21 @@ root.addEventListener("submit", (e) => {
   root.addEventListener("click", (e) => {
     const b = e.target.closest("button");
     if (!b) return;
+    if (b.dataset.goCardio !== undefined) {
+      if (b.dataset.goCardio) {
+        getProgram().repPick = b.dataset.goCardio;
+        persist();
+        rerender();
+      }
+      const card = document.getElementById("cardioEntry");
+      if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
     if (b.dataset.projPick) {
       const p = getProgram();
       p.projPick = b.dataset.projPick;
+      const g = defaults().find((x) => x.name === b.dataset.projPick);
+      if (g) p.repPick = g.id;
       persist();
       rerender();
       return;
@@ -435,12 +410,35 @@ root.addEventListener("submit", (e) => {
           return;
         }
       }
-      if (!defaults().some((g) => g.id === form.dataset.challengeLog)) return;
-      d.logs.push({ id: freshId(), goal: form.dataset.challengeLog, reps, date: when });
+      const goal = form.dataset.challengeLog === "pick" ? String(fd.get("goal") || "") : form.dataset.challengeLog,
+        g = defaults().find((x) => x.id === goal);
+      if (!g) return;
+      d.logs.push({ id: freshId(), goal, reps, date: when });
+      p.repPick = goal;
+      persist();
+      rerender();
+      status(`${fmt(reps)} ${g.name} sumadas · semana ${week()}.`);
+      const rs = document.getElementById("repStatus");
+      if (rs) rs.textContent = `${fmt(reps)} ${g.name} sumadas.`;
+      return;
     }
     persist();
     rerender();
     status("Guardado en la semana " + week() + ".");
   });
-  return { render, missions, planProgress, projectionOf, badge };
+  // r108: registro de retos de repeticiones dentro de «Registrar actividad».
+  function repForm() {
+    const p = getProgram(),
+      gs = defaults(),
+      pick = gs.some((g) => g.id === p.repPick) ? p.repPick : gs[0].id,
+      day = date(),
+      logs = data(week()).logs.filter((l) => l.date === day),
+      todayTxt = gs
+        .map((g) => [g.name, logs.filter((l) => l.goal === g.id).reduce((n, l) => n + l.reps, 0)])
+        .filter(([, n]) => n > 0)
+        .map(([name, n]) => `${escape(name)} <b>${fmt(n)}</b>`)
+        .join(" · ");
+    return `<div class="cardio-retos" id="cardioRetos"><h4 class="panel-sub">🔥 Retos de repeticiones</h4><form data-challenge-log="pick" class="adv-form"><label>Reto<select name="goal">${gs.map((g) => `<option value="${g.id}"${g.id === pick ? " selected" : ""}>${escape(g.name)}</option>`).join("")}</select></label><label>Repeticiones<input name="reps" type="number" min="1" max="10000" step="1" inputmode="numeric" placeholder="0" required></label><button class="primary">+ Sumar</button></form><p class="tiny subtle">${todayTxt ? "Este día: " + todayTxt + "." : "Sin repeticiones registradas este día."} El avance se ve en Retos → Avance de retos.</p><p id="repStatus" class="status" role="status"></p></div>`;
+  }
+  return { render, missions, planProgress, projectionOf, badge, repForm };
 };

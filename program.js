@@ -544,7 +544,7 @@
     const sessions = program.sessions.filter((s) => s.date === dt);
     const weekSessions = program.sessions.filter((s) => s.week === week());
     const planned = typeof DAY_CARDIO !== "undefined" ? DAY_CARDIO[(state.day || 1) - 1] : "";
-    return `<article id="cardioEntry"><div class="challenge-heading"><h3>Registrar actividad</h3><span>${dt || "pendiente"}</span></div>${planned ? `<p class="tiny subtle">Plan del Día ${state.day}: <strong>${escape(planned)}</strong>. Puedes registrar cualquier otra actividad.</p>` : ""}<div class="cat-chips mode-chips" role="group" aria-label="Actividad">${modes.map((m) => `<button type="button" data-cardio-mode="${m}" aria-pressed="${m === selected}">${modeIcons[m]} ${m}</button>`).join("")}</div><p class="tiny subtle" id="cardioDesc">${modeDescriptions[selected]}</p><form id="cardioForm"><input type="hidden" name="mode" id="cardioModeValue" value="${selected}"><div class="fields"><label>Minutos <input name="minutes" type="number" min="1" max="600" required></label><label>Esfuerzo 1–10 (opcional) <input name="effort" type="number" min="1" max="10"></label><label>Distancia (opcional) <input name="distance" type="number" min="0" max="100000" step="any"></label><label>Unidad <select name="unit"><option value="km" ${selected !== "Nadar" ? "selected" : ""}>km</option><option value="m" ${selected === "Nadar" ? "selected" : ""}>m</option></select></label><label id="cardioLoad" ${["Rucking", "Hiking"].includes(selected) ? "" : "hidden"}>Mochila kg (opcional) <input name="load" type="number" min="0" max="50" step="0.1"></label><label>Kcal de actividad (opcional) <input name="calories" type="number" min="0" max="10000" step="1"></label></div><button class="primary">Guardar actividad</button></form><p class="tiny subtle">Las kcal de actividad son informativas. El balance usa únicamente Whoop total, sin sumar actividades ni pasos de nuevo.</p></article>`;
+    return `<article id="cardioEntry"><div class="challenge-heading"><h3>Registrar actividad</h3><span>${dt || "pendiente"}</span></div>${planned ? `<p class="tiny subtle">Plan del Día ${state.day}: <strong>${escape(planned)}</strong>. Puedes registrar cualquier otra actividad.</p>` : ""}<div class="cat-chips mode-chips" role="group" aria-label="Actividad">${modes.map((m) => `<button type="button" data-cardio-mode="${m}" aria-pressed="${m === selected}">${modeIcons[m]} ${m}</button>`).join("")}</div><p class="tiny subtle" id="cardioDesc">${modeDescriptions[selected]}</p><form id="cardioForm"><input type="hidden" name="mode" id="cardioModeValue" value="${selected}"><div class="fields"><label>Minutos <input name="minutes" type="number" min="1" max="600"></label><label>Esfuerzo 1–10 (opcional) <input name="effort" type="number" min="1" max="10"></label><label>Distancia (opcional) <input name="distance" type="number" min="0" max="100000" step="any"></label><label>Unidad <select name="unit"><option value="km" ${selected !== "Nadar" ? "selected" : ""}>km</option><option value="m" ${selected === "Nadar" ? "selected" : ""}>m</option></select></label><label id="cardioLoad" ${["Rucking", "Hiking"].includes(selected) ? "" : "hidden"}>Mochila kg (opcional) <input name="load" type="number" min="0" max="50" step="0.1"></label><label>Kcal de actividad (opcional) <input name="calories" type="number" min="0" max="10000" step="1"></label></div><button class="primary">Guardar actividad</button></form><p class="tiny subtle">Escribe minutos, distancia o ambos. La distancia de Correr, Nadar (1.000 m = 1 km), Hiking y Rucking suma a los retos de km. Las kcal de actividad son informativas: el balance usa únicamente Whoop total.</p>${challenges.repForm()}</article>`;
   }
   function backup() {
     const last = FitStore.get("backupInfo")?.lastRequested;
@@ -803,13 +803,23 @@
     if (e.target.id !== "cardioForm") return;
     e.preventDefault();
     if (!e.target.checkValidity()) return;
-    const d = new FormData(e.target),
-      s = {
+    const d = new FormData(e.target);
+    // r108: minutos opcionales si hay distancia (así se registran también las salidas de los retos de km).
+    const minIn = e.target.elements.minutes,
+      noMin = d.get("minutes") === "",
+      noDist = !(Number(d.get("distance")) > 0);
+    if (noMin && noDist) {
+      minIn.setCustomValidity("Escribe los minutos o la distancia.");
+      minIn.reportValidity();
+      minIn.addEventListener("input", () => minIn.setCustomValidity(""), { once: true });
+      return;
+    }
+    const s = {
         id: Date.now().toString(36),
         week: week(),
         mode: d.get("mode"),
         date: date(),
-        minutes: Number(d.get("minutes")),
+        minutes: noMin ? null : Number(d.get("minutes")),
         effort: d.get("effort") === "" ? null : Number(d.get("effort")),
         distance: d.get("distance"),
         unit: d.get("unit"),
