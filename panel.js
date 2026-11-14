@@ -316,8 +316,14 @@ window.createFitPanel = function ({ getProgram, week, today, escape, weightOn, b
       prev = cur ? rows.slice(0, cur.week).filter((r) => r.actual != null).at(-1) : null;
     const current = cur ? cur.actual : initial,
       pct = Math.max(0, Math.min(100, ((initial - current) / (initial - target)) * 100));
-    const daily = days.map((d) => weightOn(d));
-    const ma = days.map((d, i) => {
+    // r107: el gráfico se extiende hasta el final de la semana siguiente y la tendencia continúa como proyección.
+    const t0 = today(),
+      offT = Math.round((new Date(t0 + "T12:00") - new Date(program.start + "T12:00")) / 864e5),
+      projEnd = days.at(-1) === t0 && offT >= 0 ? C.datePlus(program.start, (Math.floor(offT / 7) + 2) * 7 - 1) : t0;
+    const cDays = days.slice();
+    while (cDays.at(-1) < projEnd && cDays.length < 420) cDays.push(C.datePlus(cDays.at(-1), 1));
+    const daily = cDays.map((d) => weightOn(d));
+    const ma = cDays.map((d, i) => {
       const v = [];
       for (let k = 0; k < 7; k++) {
         const w = weightOn(C.datePlus(d, -k));
@@ -326,10 +332,32 @@ window.createFitPanel = function ({ getProgram, week, today, escape, weightOn, b
       return v.length >= 2 && d <= today() ? v.reduce((a, b) => a + b, 0) / v.length : null;
     });
     const n = daily.filter((v) => v).length;
+    // Pendiente: recta de mínimos cuadrados de las pesadas de los últimos 14 días (mín. 3 pesadas en ≥ 4 días),
+    // limitada a ±1,5 kg por semana para que pocos datos no den proyecciones absurdas.
+    const proj = cDays.map(() => null);
+    const lastMa = ma.map((v, i) => (v == null ? -1 : i)).filter((i) => i >= 0).at(-1);
+    let projTxt = "";
+    if (lastMa != null && lastMa < cDays.length - 1) {
+      const pts = [];
+      for (let k = 0; k < 14; k++) {
+        const v = weightOn(C.datePlus(t0, -k));
+        if (v) pts.push([-k, v]);
+      }
+      if (pts.length >= 3 && pts[0][0] - pts.at(-1)[0] >= 3) {
+        const mx = pts.reduce((a, q) => a + q[0], 0) / pts.length,
+          my = pts.reduce((a, q) => a + q[1], 0) / pts.length,
+          sxx = pts.reduce((a, q) => a + (q[0] - mx) ** 2, 0),
+          sxy = pts.reduce((a, q) => a + (q[0] - mx) * (q[1] - my), 0),
+          slope = Math.max(-1.5 / 7, Math.min(1.5 / 7, sxx ? sxy / sxx : 0));
+        for (let i = lastMa; i < cDays.length; i++) proj[i] = ma[lastMa] + slope * (i - lastMa);
+        const endV = proj.at(-1);
+        projTxt = ` La línea punteada proyecta la tendencia hasta el ${cDays.at(-1).slice(8)}/${cDays.at(-1).slice(5, 7)} (≈ ${fmt(Math.round(endV * 10) / 10)} kg) con el ritmo de las pesadas de los últimos 14 días (${signed(Math.round(slope * 7 * 100) / 100, " kg")}/semana).`;
+      }
+    }
     const chart =
       n >= 1
-        ? lineChart(days, [{ values: ma, cls: "pc-line" }, { values: daily, cls: "pc-dot", dots: true }], target) +
-          `<p class="panel-legend"><span class="lg-dot"></span>Pesada diaria <span class="lg-line"></span>Tendencia · promedio de 7 días${daily.some((v) => v && v - target < 4) ? ' <span class="lg-ref"></span>Meta' : ""}</p>`
+        ? lineChart(cDays, [{ values: ma, cls: "pc-line" }, { values: proj, cls: "pc-line pc-proj" }, { values: daily, cls: "pc-dot", dots: true }], target) +
+          `<p class="panel-legend"><span class="lg-dot"></span>Pesada diaria <span class="lg-line"></span>Tendencia · promedio de 7 días${projTxt ? " (punteada: proyección)" : ""}${daily.some((v) => v && v - target < 4) ? ' <span class="lg-ref"></span>Meta' : ""}</p>`
         : note(n ? "Solo hay una pesada en este periodo. Con dos o más verás la curva y el promedio móvil." : "No hay pesadas en este periodo. Registra tu peso en Hoy → Registrar peso.");
     const weeks = rows.filter((r) => r.week > 0 && r.actual != null && days.some((d) => weekOf(d) === r.week));
     const weekly = weeks.length ? `<div class="scroll"><table class="weight-week-table"><thead><tr><th>Semana</th><th>Promedio</th><th>Pesajes</th><th>Cambio</th></tr></thead><tbody>${weeks.map((r,i)=>{
@@ -344,7 +372,7 @@ window.createFitPanel = function ({ getProgram, week, today, escape, weightOn, b
         cur && prev ? (prev.week ? "S" + prev.week : "peso inicial") : "",
       )}</div>
       <div class="dash-row"><span>Progreso hacia la meta</span><b>${Math.round(pct)} %</b></div>${bar(pct, 100)}
-      <h4 class="panel-sub">Evolución diaria · kg</h4>${chart}<p class="tiny subtle">${n} pesajes en ${days.length} días. Los huecos indican días sin registro. La tendencia es el promedio de los pesajes de los últimos 7 días (mínimo 2) y suaviza las variaciones de agua y comida.</p>${weekly ? `<h4 class="panel-sub">Promedio semanal</h4>${weekly}<p class="tiny subtle">Cambio respecto a la anterior semana con datos; la primera se compara con el peso inicial. Más pesajes hacen el promedio más representativo.</p>` : ""}</article>`;
+      <h4 class="panel-sub">Evolución diaria · kg</h4>${chart}<p class="tiny subtle">${n} pesajes en ${days.length} días. Los huecos indican días sin registro. La tendencia es el promedio de los pesajes de los últimos 7 días (mínimo 2) y suaviza las variaciones de agua y comida.${projTxt}</p>${weekly ? `<h4 class="panel-sub">Promedio semanal</h4>${weekly}<p class="tiny subtle">Cambio respecto a la anterior semana con datos; la primera se compara con el peso inicial. Más pesajes hacen el promedio más representativo.</p>` : ""}</article>`;
   }
   function panelTraining(days) {
     const set = new Set(days),
