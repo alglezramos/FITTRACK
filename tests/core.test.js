@@ -11,12 +11,13 @@ const app = (program = {}) =>
   });
 const base = (extra = {}) => ({ start: "2026-01-05", initialWeight: 85, weeks: {}, sessions: [], diary: {}, ...extra });
 
-test("trayectoria usa la meta configurada (85 kg, −5 kg → 80 kg)", () => {
+test("r110: la meta es 1 kg por semana aunque haya una meta guardada (85 kg, 8 semanas → 77 kg)", () => {
   const p = base({ goals: { kg: 5 } });
   const { FitCore } = app(p);
   const rows = FitCore.series(p);
   assert.equal(rows.length, 9);
-  assert.equal(rows.at(-1).target, 80);
+  assert.equal(rows.at(-1).target, 77);
+  assert.equal(FitCore.goals().kg, 8);
 });
 
 test("trayectoria con 12 semanas termina en la meta en la semana 12", () => {
@@ -24,13 +25,47 @@ test("trayectoria con 12 semanas termina en la meta en la semana 12", () => {
   const { FitCore } = app(p);
   const rows = FitCore.series(p);
   assert.equal(rows.length, 13);
-  assert.equal(rows[6].target, 82);
-  assert.equal(rows[12].target, 79);
+  assert.equal(rows[6].target, 79);
+  assert.equal(rows[12].target, 73);
 });
 
-test("déficit diario necesario depende de la duración", () => {
-  assert.equal(app(base({ goals: { kg: 10 } })).FitCore.NEEDED, Math.round((10 * 7700) / 56));
-  assert.equal(app(base({ goals: { kg: 10 }, weeksCount: 16 })).FitCore.NEEDED, Math.round((10 * 7700) / 112));
+test("r110: con 1 kg por semana el déficit diario necesario es 1.100 kcal en cualquier duración", () => {
+  assert.equal(app(base({ goals: { kg: 10 } })).FitCore.NEEDED, 1100);
+  assert.equal(app(base({ weeksCount: 12 })).FitCore.NEEDED, 1100);
+});
+
+test("r110: perfil → IMC, gasto en reposo (Mifflin-St Jeor), consumo sugerido y proteína", () => {
+  const p = base({ weeksCount: 8, profile: { sex: "M", birth: "1990-06-01", height: 180, activity: 1.725 } });
+  const { FitCore } = app(p);
+  const r = FitCore.profileCalc(p, { today: "2026-11-17" });
+  assert.equal(r.age, 36);
+  assert.equal(r.goalWeight, 77);
+  assert.equal(r.bmi, 26.2);
+  assert.equal(r.bmr, 10 * 85 + 6.25 * 180 - 5 * 36 + 5);
+  assert.equal(r.tdee, Math.round(r.bmr * 1.725));
+  assert.equal(r.suggestedKcal, Math.round((r.tdee - 1100) / 50) * 50);
+  assert.deepEqual(J(r.protein), [123, 154]);
+  assert.ok(r.warnings.some((w) => /agresivo/.test(w)));
+  // Sin consumo guardado, la meta diaria usa el sugerido; con uno guardado, manda el guardado.
+  assert.equal(FitCore.goals().kcal, r.suggestedKcal);
+  assert.equal(app(base({ ...p, goals: { kcal: 1800 } })).FitCore.goals().kcal, 1800);
+});
+
+test("r110: perfil incompleto → sin cálculos ni cambio de consumo", () => {
+  const p = base({ profile: { sex: "M" } });
+  const { FitCore } = app(p);
+  assert.equal(FitCore.profileCalc(p).bmr, null);
+  assert.equal(FitCore.goals().kcal, 1800);
+});
+
+test("r110: semana tipo por defecto y validación", () => {
+  const { FitCore } = app(base());
+  assert.deepEqual(J(FitCore.weekPlan({}).map((d) => d.r)), [1, 2, 3, 1, 2, 0, 0]);
+  const custom = FitCore.DEFAULT_WEEK.map((d, i) => ({ ...d, r: i === 3 ? 2 : d.r }));
+  assert.equal(FitCore.weekPlan({ weekPlan: custom })[3].r, 2);
+  assert.doesNotThrow(() => FitCore.validate(base({ weekPlan: custom, profile: { sex: "F", height: 165 } })));
+  assert.throws(() => FitCore.validate(base({ weekPlan: [{ r: 9 }] })), /Semana tipo/);
+  assert.throws(() => FitCore.validate(base({ profile: { height: 20 } })), /Estatura/);
 });
 
 test("peso real semanal = promedio de las pesadas", () => {
