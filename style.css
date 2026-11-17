@@ -3019,3 +3019,18 @@ details.fold[open] > summary { margin-bottom: 10px; }
 .cycle-new .primary { margin-top: 8px; }
 .cycle-list { padding-left: 18px; }
 .cycle-list li { margin-bottom: 8px; }
+/* r109: tres rutinas (A, B, C) ocupan el ancho; «Programada» marca la del día. */
+#days {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: visible;
+}
+.day {
+  text-align: center;
+}
+.day small {
+  display: block;
+  font-size: 11px;
+  opacity: 0.8;
+  margin-top: 2px;
+}

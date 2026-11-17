@@ -100,9 +100,9 @@ window.createFitPanel = function ({ getProgram, week, today, escape, weightOn, b
       reco += " Tu energía promedio fue baja: considera comer más antes de recortar más.";
       tone = "warn";
     }
-    const wkIds = window.fitRoutineIds ? window.fitRoutineIds(w) : EXERCISES.map((x) => x.id),
-      strengthDone = wkIds.filter((id) => state.completed[id + "-w" + w]).length,
-      strengthTotal = wkIds.length;
+    const ws = window.fitWeekStrength ? window.fitWeekStrength(w) : { done: 0, total: 0 },
+      strengthDone = ws.done,
+      strengthTotal = ws.total;
     return { w, cur, expected, rate, n, avgDef, defSum, waist: wd.waist, en, reco, tone, strengthDone, strengthTotal };
   }
   // ── Panel de Progreso: análisis con filtros de 7/30/90 días ────────────────
@@ -136,7 +136,7 @@ window.createFitPanel = function ({ getProgram, week, today, escape, weightOn, b
     const byDate = {};
     Object.entries(state.completedDates || {}).forEach(([k, d]) => {
       if (!state.completed?.[k] || !C.validDate(d)) return;
-      const m = /^(.*)-w\d+$/.exec(k);
+      const m = /^(.*)-w\d+(?:-d\d)?$/.exec(k);
       if (m) (byDate[d] ||= new Set()).add(m[1]);
     });
     (state.archive || []).forEach((a) => {
@@ -145,10 +145,11 @@ window.createFitPanel = function ({ getProgram, week, today, escape, weightOn, b
     return days.filter((d) => {
       const ids = byDate[d];
       if (!ids) return false;
-      return [1, 2, 3, 4, 5].some((n) => {
-        const ex = EXERCISES.filter((e) => e.day === n);
-        return ex.length && ex.every((e) => ids.has(e.id));
-      });
+      // r109: rutinas A, B y C (sus 8 ejercicios de fuerza) o, en semanas viejas, los días de la rutina anterior.
+      const now = [1, 2, 3].map((n) => EXERCISES.filter((e) => e.day === n).map((e) => e.id));
+      const legacy = window.EXERCISES_LEGACY_DAY || {};
+      const old = [1, 2, 3, 5].map((n) => Object.keys(legacy).filter((id) => legacy[id] === n));
+      return [...now, ...old].some((list) => list.length && list.every((id) => ids.has(id)));
     });
   }
   // Gráfico de línea SVG (escala propia; null = sin dato).
@@ -391,11 +392,15 @@ window.createFitPanel = function ({ getProgram, week, today, escape, weightOn, b
     // Evolución de cargas: mejor peso por semana (lb) de cada ejercicio con ≥ 2 semanas.
     const byEx = {};
     Object.entries(state.weights || {}).forEach(([k, v]) => {
-      const m = /^(.*)-w(\d+)$/.exec(k),
+      const m = /^(.*)-w(\d+)(?:-d\d)?$/.exec(k),
         n = Number(v);
       if (!m || !(n > 0) || (weeks.length && !weeks.includes(Number(m[2])))) return;
-      if ((EXERCISES.find((e) => e.id === m[1]) || {}).unit) return; // minutos o repeticiones, no carga
-      (byEx[m[1]] ||= []).push([Number(m[2]), n]);
+      if ((EXERCISES.find((e) => e.id === m[1]) || {}).unit) return; // minutos, kcal o repeticiones, no carga
+      // r109: varias sesiones en la semana → mejor peso de la semana.
+      const arr = (byEx[m[1]] ||= []),
+        hit = arr.find((x) => x[0] === Number(m[2]));
+      if (hit) hit[1] = Math.max(hit[1], n);
+      else arr.push([Number(m[2]), n]);
     });
     const loads = Object.entries(byEx)
       .filter(([, a]) => a.length >= 2)

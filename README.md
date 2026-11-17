@@ -117,3 +117,12 @@ Se quita la tarjeta «Constancia» (calendario flexible y plan por día) del Pan
 - **Suplemento configurable:** nombre, pauta y mostrar/ocultar en Opciones. Quien ya marcaba tomas conserva su pauta.
 - **Código:** `program.js` pasa de 1.485 a ~950 líneas. Nuevos módulos: `panel.js` (Panel de Progreso y cierre semanal), `weight.js` (pesadas y trayectoria), `settings.js` (Opciones), `cycles.js` y `progression.js` (lógica pura).
 - **Pruebas:** `node --test tests/` (sin dependencias). Cubren combinación entre pestañas, cuarentena, trayectoria y metas, calendario por duración, validación de copias, macros, progresión y ciclos.
+
+r109 · Rutinas full body A, B y C
+- Tres rutinas full body de 8 ejercicios, cada una con 100 kcal de calentamiento (bicicleta, caminata inclinada o StairClimber) al inicio y 100 kcal de cardio al final.
+- Semana fija: lunes A · martes B · miércoles C · jueves A · viernes B. En Entreno se puede elegir otra rutina para un día concreto (por ejemplo, B el jueves); el cambio solo afecta esa fecha.
+- Fuera de las rutinas: Pallof press, extensión de tríceps con barra y StairClimber (sus registros se conservan).
+- Registros por día: cada ejercicio se guarda por semana y día («id-wN-dD»), así la misma rutina dos veces en la semana no se pisa. «Anterior» y la carga sugerida usan la sesión previa más reciente.
+- Migración automática de los registros anteriores al día de su fecha (o al día de la rutina vieja si no tenían fecha). Antes de migrar se guarda una copia completa en «fittrack.data.v2.antes-r109». Ningún registro se borra.
+- Avance semanal de fuerza: desde la semana del cambio, ejercicios completados sobre 5 sesiones × 10; las semanas anteriores conservan su cálculo.
+- Pruebas: tests/strength-keys.test.js (migración, avance semanal, ciclo anterior).

@@ -1,4 +1,4 @@
-const CACHE = "fittrack-r108-retos";
+const CACHE = "fittrack-r109-fullbody";
 const FILES = [
   "./",
   "./index.html",
@@ -25,6 +25,7 @@ const FILES = [
   "./program.js",
   "./progression.js",
   "./cycles.js",
+  "./strength-keys.js",
   "./weight.js",
   "./panel.js",
   "./settings.js",

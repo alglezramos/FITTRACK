@@ -314,17 +314,23 @@
   // Plan del día según el día de la semana (igual que «Tu semana»).
   function planFor(dt) {
     const i = (new Date(dt + "T12:00:00Z").getUTCDay() + 6) % 7;
-    const names = ["BASE CAMP", "PUSH MODE", "PULL POWER", "ENGINE DAY", "ARM FORCE", "WILD MILES", "RESET & RECHARGE"];
+    // r109: rutinas full body fijas (L A · M B · X C · J A · V B); la elegida en Entreno para esa fecha manda.
     const defaults = [
-      {label:'BASE CAMP · Fuerza + Judo',day:1,judo:true,minutes:0},
-      {label:'PUSH MODE · Fuerza + Cardio',day:2,judo:false,minutes:60},
-      {label:'PULL POWER · Fuerza + Judo',day:3,judo:true,minutes:0},
-      {label:'ENGINE DAY · Cardio',day:0,judo:false,minutes:60},
-      {label:'ARM FORCE · Fuerza + Judo',day:5,judo:true,minutes:0},
+      {label:'RUTINA A · Full body + Judo',day:1,judo:true,minutes:0},
+      {label:'RUTINA B · Full body + Cardio',day:2,judo:false,minutes:60},
+      {label:'RUTINA C · Full body + Judo',day:3,judo:true,minutes:0},
+      {label:'RUTINA A · Full body + Cardio',day:1,judo:false,minutes:60},
+      {label:'RUTINA B · Full body + Judo',day:2,judo:true,minutes:0},
       {label:'WILD MILES · Hiking o fondo',day:0,judo:false,minutes:60},
       {label:'RESET & RECHARGE · Descanso',day:0,judo:false,minutes:0,rest:true}
     ];
-    return {...defaults[i],...(program.dayPlans || {})[dt]};
+    const plan = {...defaults[i],...(program.dayPlans || {})[dt]};
+    const r = window.fitRoutineFor ? window.fitRoutineFor(dt) : plan.day;
+    if (r && r !== plan.day) {
+      plan.day = r;
+      plan.label = "RUTINA " + "ABC"[r - 1] + " · Full body" + (plan.judo ? " + Judo" : plan.minutes ? " + Cardio" : "");
+    }
+    return plan;
   }
   // Pesada de una fecha (lunes a viernes), en kg.
   function weightOn(day) {
@@ -408,14 +414,14 @@
     // r90: «Tu día» — pendientes del día con acceso directo para registrar.
     const meals = d.meals || [],
       mk = ["Desayuno", "Almuerzo", "Cena"].filter((k) => meals.some((m) => m.kind === k)),
-      routineN = plan.day ? (window.fitRoutineIds ? window.fitRoutineIds(week()) : EXERCISES.map((x) => x.id)).filter((id) => (EXERCISES.find((x) => x.id === id) || {}).day === plan.day).length : 0;
+      routineN = plan.day >= 1 && plan.day <= 3 && window.fitRoutineEx ? window.fitRoutineEx(plan.day).length : 0;
     const items = [
       { ok: mk.length === 3 || (d.closed && meals.length > 0), icon: "🍽", name: "Comidas", info: mk.length ? mk.join(" · ") + ` · ${fmt(kcal)} kcal` : "Desayuno, almuerzo y cena", act: "data-quick-food", btn: "+ Comida" },
     ];
     if (wk) items.push({ ok: Number(wv) > 0, icon: "⚖️", name: "Peso", info: Number(wv) > 0 ? fmt(Number(wv)) + " kg" : "Pesada de lunes a viernes", act: 'data-jump="dashWeight" data-focus="weight"', btn: "Pesar" });
-    if (plan.day && plan.day !== 4)
+    if (plan.day >= 1 && plan.day <= 3)
       items.push({ ok: routineN > 0 && todayEx >= routineN, icon: "🏋️", name: "Entreno", info: `${todayEx} de ${routineN || "—"} ejercicios`, act: 'data-home-go="training"', btn: "Entrenar" });
-    items.push({ ok: sessions.length > 0, icon: "🏃", name: plan.day === 4 ? "Cardio · natación" : plan.day ? "Cardio" : "Actividad", info: sessions.length ? sessions.map((s) => escape(s.mode)).join(" · ") : plan.day ? "Judo, natación o la que hagas" : "Fondo, hiking o recuperación", act: 'data-home-go="training" data-jump-after="cardioEntry"', btn: "Registrar" });
+    items.push({ ok: sessions.length > 0, icon: "🏃", name: plan.judo ? "Judo" : plan.day ? "Cardio" : "Actividad", info: sessions.length ? sessions.map((s) => escape(s.mode)).join(" · ") : plan.day ? "Judo, natación o la que hagas" : "Fondo, hiking o recuperación", act: 'data-home-go="training" data-jump-after="cardioEntry"', btn: "Registrar" });
     items.push({ ok: C.has(d.whoop), icon: "⌚", name: "Whoop", info: C.has(d.whoop) ? fmt(d.whoop) + " kcal gastadas" : "Calorías gastadas", act: 'data-jump="sec-quick" data-focus="whoop"', btn: "Anotar" });
     items.push({ ok: C.has(d.steps), icon: "👣", name: "Pasos", info: C.has(d.steps) ? fmt(d.steps) : "Pasos del día", act: 'data-jump="sec-quick" data-focus="steps"', btn: "Anotar" });
     items.push({ ok: !!d.closed, icon: "✅", name: "Cerrar día", info: d.closed ? "Día completo" : "Cuando tengas la comida y el Whoop final", act: 'data-jump="sec-quick" data-focus="closed"', btn: "Cerrar" });
@@ -464,7 +470,7 @@
         const strengthRows = [];
         for (const [k, sets] of Object.entries(state.sets || {})) {
           const done = (sets || []).filter((z) => z && z.done && z.d === day);
-          if (done.length) strengthRows.push(`<li>${escape(exName(k.replace(/-w\d+$/, "")))} · ${done.map((z) => lb(z.w) + "×" + z.r).join(" · ")} ${U}</li>`);
+          if (done.length) strengthRows.push(`<li>${escape(exName(k.replace(/-w\d+(?:-d\d)?$/, "")))} · ${done.map((z) => lb(z.w) + "×" + z.r).join(" · ")} ${U}</li>`);
         }
         for (const a of state.archive || []) {
           const done = a.sets.filter((z) => z && z.done && (z.d || a.date) === day);
@@ -473,8 +479,8 @@
         for (const [k, dd] of Object.entries(state.completedDates || {})) {
           if (dd !== day || (state.sets || {})[k]) continue;
           const v = state.weights[k];
-          const exU = (EXERCISES.find((x) => x.id === k.replace(/-w\d+$/, "")) || {}).unit;
-          strengthRows.push(`<li>${escape(exName(k.replace(/-w\d+$/, "")))}${v ? " · " + (exU ? fmt(v) + " " + escape(exU) : lb(v) + " " + U) : ""} ✓</li>`);
+          const exU = (EXERCISES.find((x) => x.id === k.replace(/-w\d+(?:-d\d)?$/, "")) || {}).unit;
+          strengthRows.push(`<li>${escape(exName(k.replace(/-w\d+(?:-d\d)?$/, "")))}${v ? " · " + (exU ? fmt(v) + " " + escape(exU) : lb(v) + " " + U) : ""} ✓</li>`);
         }
         const parts = [];
         if (show_("body") && (C.has(d.whoop) || C.has(d.steps) || w))
@@ -543,8 +549,8 @@
     const dt = date();
     const sessions = program.sessions.filter((s) => s.date === dt);
     const weekSessions = program.sessions.filter((s) => s.week === week());
-    const planned = typeof DAY_CARDIO !== "undefined" ? DAY_CARDIO[(state.day || 1) - 1] : "";
-    return `<article id="cardioEntry"><div class="challenge-heading"><h3>Registrar actividad</h3><span>${dt || "pendiente"}</span></div>${planned ? `<p class="tiny subtle">Plan del Día ${state.day}: <strong>${escape(planned)}</strong>. Puedes registrar cualquier otra actividad.</p>` : ""}<div class="cat-chips mode-chips" role="group" aria-label="Actividad">${modes.map((m) => `<button type="button" data-cardio-mode="${m}" aria-pressed="${m === selected}">${modeIcons[m]} ${m}</button>`).join("")}</div><p class="tiny subtle" id="cardioDesc">${modeDescriptions[selected]}</p><form id="cardioForm"><input type="hidden" name="mode" id="cardioModeValue" value="${selected}"><div class="fields"><label>Minutos <input name="minutes" type="number" min="1" max="600"></label><label>Esfuerzo 1–10 (opcional) <input name="effort" type="number" min="1" max="10"></label><label>Distancia (opcional) <input name="distance" type="number" min="0" max="100000" step="any"></label><label>Unidad <select name="unit"><option value="km" ${selected !== "Nadar" ? "selected" : ""}>km</option><option value="m" ${selected === "Nadar" ? "selected" : ""}>m</option></select></label><label id="cardioLoad" ${["Rucking", "Hiking"].includes(selected) ? "" : "hidden"}>Mochila kg (opcional) <input name="load" type="number" min="0" max="50" step="0.1"></label><label>Kcal de actividad (opcional) <input name="calories" type="number" min="0" max="10000" step="1"></label></div><button class="primary">Guardar actividad</button></form><p class="tiny subtle">Escribe minutos, distancia o ambos. La distancia de Correr, Nadar (1.000 m = 1 km), Hiking y Rucking suma a los retos de km. Las kcal de actividad son informativas: el balance usa únicamente Whoop total.</p>${challenges.repForm()}</article>`;
+    const planned = window.fitDayCardio ? window.fitDayCardio(dt) : "";
+    return `<article id="cardioEntry"><div class="challenge-heading"><h3>Registrar actividad</h3><span>${dt || "pendiente"}</span></div>${planned ? `<p class="tiny subtle">Plan de este día: <strong>${escape(planned)}</strong>. Puedes registrar cualquier otra actividad.</p>` : ""}<div class="cat-chips mode-chips" role="group" aria-label="Actividad">${modes.map((m) => `<button type="button" data-cardio-mode="${m}" aria-pressed="${m === selected}">${modeIcons[m]} ${m}</button>`).join("")}</div><p class="tiny subtle" id="cardioDesc">${modeDescriptions[selected]}</p><form id="cardioForm"><input type="hidden" name="mode" id="cardioModeValue" value="${selected}"><div class="fields"><label>Minutos <input name="minutes" type="number" min="1" max="600"></label><label>Esfuerzo 1–10 (opcional) <input name="effort" type="number" min="1" max="10"></label><label>Distancia (opcional) <input name="distance" type="number" min="0" max="100000" step="any"></label><label>Unidad <select name="unit"><option value="km" ${selected !== "Nadar" ? "selected" : ""}>km</option><option value="m" ${selected === "Nadar" ? "selected" : ""}>m</option></select></label><label id="cardioLoad" ${["Rucking", "Hiking"].includes(selected) ? "" : "hidden"}>Mochila kg (opcional) <input name="load" type="number" min="0" max="50" step="0.1"></label><label>Kcal de actividad (opcional) <input name="calories" type="number" min="0" max="10000" step="1"></label></div><button class="primary">Guardar actividad</button></form><p class="tiny subtle">Escribe minutos, distancia o ambos. La distancia de Correr, Nadar (1.000 m = 1 km), Hiking y Rucking suma a los retos de km. Las kcal de actividad son informativas: el balance usa únicamente Whoop total.</p>${challenges.repForm()}</article>`;
   }
   function backup() {
     const last = FitStore.get("backupInfo")?.lastRequested;

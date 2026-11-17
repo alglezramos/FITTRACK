@@ -5,7 +5,7 @@
 (function (g) {
   const C = () => g.FitCore;
   const WEEK_PROGRAM = ["weeks", "sessions", "challenges", "shopping", "shoppingHave"];
-  const WEEK_STRENGTH = ["weights", "completed", "completedDates", "sets", "archive", "routineByWeek"];
+  const WEEK_STRENGTH = ["weights", "completed", "completedDates", "sets", "archive", "routineByWeek", "routineByDate"];
   const clone = (v) => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)));
 
   // Última semana con algún registro (para no acortar la duración por debajo de ella).
@@ -21,7 +21,7 @@
     for (const [w, d] of Object.entries(p.challenges || {})) if ((d.logs || []).length) bump(w);
     for (const [w, d] of Object.entries(p.shopping || {})) if (Object.keys(d || {}).length) bump(w);
     for (const k of [...Object.keys((s || {}).weights || {}), ...Object.keys((s || {}).sets || {})]) {
-      const m = /-w(\d+)$/.exec(k);
+      const m = /-w(\d+)(?:-d\d)?$/.exec(k);
       if (m) bump(m[1]);
     }
     ((s || {}).archive || []).forEach((a) => bump(a.week));
@@ -50,7 +50,7 @@
     // Mejor carga (lb) por ejercicio en el ciclo.
     const best = {};
     for (const [k, v] of Object.entries((s || {}).weights || {})) {
-      const id = k.replace(/-w\d+$/, ""),
+      const id = k.replace(/-w\d+(?:-d\d)?$/, ""),
         n = Number(v);
       if (n > 0 && (!best[id] || n > best[id])) best[id] = n;
     }
@@ -106,7 +106,7 @@
       menuDay: 0,
       cycles: [...(p.cycles || []), entry],
     };
-    const strength = { ...clone(s || {}), week: 1, day: 1, weights: {}, completed: {}, completedDates: {}, sets: {}, archive: [], routineByWeek: {} };
+    const strength = { ...clone(s || {}), week: 1, day: 1, weights: {}, completed: {}, completedDates: {}, sets: {}, archive: [], routineByWeek: {}, routineByDate: {}, keysV2: true, fullBodyFrom: 1 };
     return { program, strength, entry };
   }
 
@@ -115,9 +115,11 @@
     const c = (p.cycles || []).at(-1);
     if (!c || !c.strength) return null;
     const sets = c.strength.sets || {};
+    // r109: claves «id-wN» (antiguas) o «id-wN-dD»; la sesión más reciente primero.
     for (let w = c.weeks; w >= 1; w--) {
-      const rows = sets[id + "-w" + w];
-      if (Array.isArray(rows) && rows.some((z) => z && (z.done || z.w > 0))) return { week: w, sets: rows, cycle: c };
+      const keys = [id + "-w" + w, ...[6, 5, 4, 3, 2, 1, 0].map((d) => id + "-w" + w + "-d" + d)];
+      const cand = keys.map((k) => sets[k]).filter((rows) => Array.isArray(rows) && rows.some((z) => z && (z.done || z.w > 0)));
+      if (cand.length) return { week: w, sets: cand.find((rows) => rows !== sets[id + "-w" + w]) || cand[0], cycle: c };
     }
     return null;
   }

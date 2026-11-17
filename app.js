@@ -1,8 +1,15 @@
-const DAYS = ["Piernas y glúteos", "Pecho y tríceps", "Espalda, hombros y bíceps", "Solo cardio", "Brazos"];
-// Nombre de cada día de la rutina (lunes a viernes).
-const DAY_NAMES = ["BASE CAMP", "PUSH MODE", "PULL POWER", "ENGINE DAY", "ARM FORCE"];
-// Cardio de cada día de la rutina general (fuerza + cardio).
-const DAY_CARDIO = ["🥋 Judo", "🏊 Natación", "🥋 Judo", "🏊 Natación", "🥋 Judo"];
+// r109: tres rutinas full body (A, B, C). state.day = rutina elegida (1 = A, 2 = B, 3 = C).
+const DAYS = ["Full body · cuádriceps, pecho y dorsal", "Full body · cadena posterior y espalda", "Full body · potencia, glúteo y brazos"];
+const DAY_NAMES = ["RUTINA A", "RUTINA B", "RUTINA C"];
+// Rutina programada por día de la semana (lunes a domingo; 0 = sin pesas).
+const SCHEDULE = [1, 2, 3, 1, 2, 0, 0];
+// Actividad complementaria por día de la semana (lunes a domingo).
+const DAY_CARDIO = ["🥋 Judo", "🏊 Natación o correr", "🥋 Judo", "🏊 Natación o correr", "🥋 Judo", "🥾 Hiking o fondo", "Descanso"];
+const dowOf = (dt) => (new Date(dt + "T12:00:00Z").getUTCDay() + 6) % 7;
+// Ejercicios de una rutina, con el calentamiento al inicio y el cardio final al cierre.
+const routineEx = (r) => EXERCISES.filter((x) => (r >= 1 && x.day === r) || (r >= 1 && x.every));
+window.fitRoutineEx = routineEx;
+window.fitDayCardio = (dt) => (dt ? DAY_CARDIO[dowOf(dt)] : "");
 let state = { day: 1, week: 1, weights: {}, completed: {} };
 try {
   const s = FitStore.get("strength");
@@ -20,7 +27,15 @@ const save = () => {
     return false;
   }
 };
-const weightKey = (id) => id + "-w" + state.week;
+// r109: cada registro es de un ejercicio en una semana y un día (0 = primer día de la semana del programa).
+// Formato: «id-wN-dD». Así la misma rutina dos veces en la semana no se pisa.
+const KEY_RE = /^(.*)-w(\d+)(?:-d(\d))?$/;
+const keyOf = (id, w, d) => id + "-w" + w + "-d" + d;
+const curDay = () => {
+  const p = FitStore.get("program") || {};
+  return Number.isInteger(p.recordDay) && p.recordDay >= 0 && p.recordDay < 7 ? p.recordDay : 0;
+};
+const weightKey = (id) => keyOf(id, state.week, curDay());
 // r106: número de semanas del programa (Opciones → Duración).
 const W = () => FitStore.weeks();
 // Pesos de fuerza: siempre se guardan en libras. Se pueden registrar en kg o lb.
@@ -37,7 +52,7 @@ function normalizeStrengthUnits(st) {
   st.weights ??= {};
   if (st.weightUnit !== "lb") {
     for (const [k, v] of Object.entries(st.weights)) {
-      if (isLoad(k.replace(/-w\d+$/, "")) && Number.isFinite(Number(v))) st.weights[k] = round1(Number(v) * KG_TO_LB);
+      if (isLoad(k.replace(/-w\d+(?:-d\d)?$/, "")) && Number.isFinite(Number(v))) st.weights[k] = round1(Number(v) * KG_TO_LB);
     }
     for (const sets of Object.values(st.sets || {}))
       for (const z of sets || []) if (z && z.w > 0) z.w = round1(z.w * KG_TO_LB);
@@ -48,6 +63,21 @@ function normalizeStrengthUnits(st) {
 }
 if (state.weightUnit !== "lb" || !state.inputUnit) {
   normalizeStrengthUnits(state);
+  save();
+}
+// r109: pasa los registros «id-wN» a «id-wN-dD» (una sola vez). Antes guarda una copia completa.
+if (!state.keysV2 && window.FitStrengthKeys) {
+  const p = FitStore.get("program") || {};
+  const t = new Date(),
+    iso = new Date(t.getTime() - t.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const n = p.start ? Math.round((Date.parse(iso + "T12:00:00Z") - Date.parse(p.start + "T12:00:00Z")) / 86400000) : -1;
+  const fromWeek = n >= 0 ? Math.min(W(), Math.floor(n / 7) + 1) : 1;
+  try {
+    const raw = localStorage.getItem("fittrack.data.v2");
+    if (raw && !localStorage.getItem("fittrack.data.v2.antes-r109")) localStorage.setItem("fittrack.data.v2.antes-r109", raw);
+  } catch (e) {}
+  const r = FitStrengthKeys.migrate(state, { start: p.start, legacyDay: window.EXERCISES_LEGACY_DAY || {}, fromWeek });
+  state = r.strength;
   save();
 }
 // ── Series ───────────────────────────────────────────────────────────────
@@ -63,9 +93,9 @@ const recordDate = () => {
   const p = FitStore.get("program") || {};
   return window.fitSheetDate ? window.fitSheetDate() : p.start ? FitCalendar.date(p.start, state.week, p.recordDay || 0) : "";
 };
-// Series de un ejercicio en una semana. Si solo hay peso del formato antiguo, se infieren.
-function setsOf(id, w) {
-  const k = id + "-w" + w;
+// Series de un ejercicio en una sesión (semana w, día d). Si solo hay peso del formato antiguo, se infieren.
+function setsOf(id, w, d = curDay()) {
+  const k = keyOf(id, w, d);
   state.sets ??= {};
   if (Array.isArray(state.sets[k])) return state.sets[k];
   if (state.weights[k] != null) {
@@ -75,13 +105,35 @@ function setsOf(id, w) {
   return null;
 }
 const hasData = (sets) => !!sets && sets.some((z) => z.done || z.w > 0);
-// Sesiones archivadas: si un ejercicio se repite otro día de la misma semana, la sesión
-// anterior se guarda aquí con su fecha en lugar de sobrescribirse.
-const archived = (id, w) => (state.archive || []).filter((a) => a.id === id && (w == null || a.week === w));
+// Sesiones archivadas: si un ejercicio se repite otra fecha en la misma clave,
+// la sesión anterior se guarda aquí con su fecha en lugar de sobrescribirse.
+const archived = (id, w, d) => (state.archive || []).filter((a) => a.id === id && (w == null || a.week === w) && (d == null || a.d == null || a.d === d));
+// r109: sesiones (semana, día) con registros de un ejercicio, de la más antigua a la más reciente.
+function sessionsOf(id) {
+  const seen = new Set(),
+    out = [];
+  for (const k of [...Object.keys(state.sets || {}), ...Object.keys(state.weights || {})]) {
+    const m = KEY_RE.exec(k);
+    if (!m || m[1] !== id || m[3] == null || seen.has(k)) continue;
+    seen.add(k);
+    out.push({ w: Number(m[2]), d: Number(m[3]) });
+  }
+  return out.sort((a, b) => a.w - b.w || a.d - b.d);
+}
+// Letra del día de la semana de una sesión (L, M, X, J, V, S, D).
+function sesDay(w, d) {
+  const p = FitStore.get("program") || {},
+    dt = window.FitCalendar && p.start ? FitCalendar.date(p.start, w, d) : "";
+  return dt ? "LMXJVSD"[dowOf(dt)] : "";
+}
+const before = (a, w, d) => a.w < w || (a.w === w && a.d < d);
 function prevSession(id) {
-  for (let w = state.week - 1; w >= 1; w--) {
-    const s = setsOf(id, w);
-    if (hasData(s)) return { week: w, sets: s };
+  const w = state.week,
+    d = curDay(),
+    list = sessionsOf(id).filter((x) => before(x, w, d)).reverse();
+  for (const x of list) {
+    const s = setsOf(id, x.w, x.d);
+    if (hasData(s)) return { week: x.w, day: x.d, sets: s };
   }
   // r106: al empezar un ciclo nuevo, la referencia es la última sesión del ciclo anterior.
   const last = window.FitCycles && FitCycles.previousSession(FitStore.get("program") || {}, id);
@@ -89,9 +141,12 @@ function prevSession(id) {
 }
 // r106: sesiones anteriores con series hechas (más reciente primero), para sugerir la carga.
 function recentSessions(id, n = 2) {
-  const out = [];
-  for (let w = state.week - 1; w >= 1 && out.length < n; w--) {
-    const s = setsOf(id, w);
+  const out = [],
+    w = state.week,
+    d = curDay();
+  for (const x of sessionsOf(id).filter((x) => before(x, w, d)).reverse()) {
+    if (out.length >= n) break;
+    const s = setsOf(id, x.w, x.d);
     if (s && s.some((z) => z && z.done)) out.push(s);
   }
   if (out.length < n) {
@@ -101,25 +156,27 @@ function recentSessions(id, n = 2) {
   return out;
 }
 const topOf = (sets) => (sets || []).filter((z) => z.done && z.w > 0).reduce((m, z) => Math.max(m, z.w), 0);
-// Mejor peso completado en cualquier semana distinta de la indicada (récord previo).
-function bestOf(id, exceptWeek) {
+// Mejor peso completado en cualquier sesión distinta de la actual (récord previo).
+function bestOf(id) {
   let best = 0;
-  for (let w = 1; w <= W(); w++) if (w !== exceptWeek) best = Math.max(best, topOf(setsOf(id, w)));
+  const w = state.week,
+    d = curDay();
+  for (const x of sessionsOf(id)) if (!(x.w === w && x.d === d)) best = Math.max(best, topOf(setsOf(id, x.w, x.d)));
   for (const a of archived(id)) best = Math.max(best, topOf(a.sets));
   return best;
 }
-// Crea las series de la semana actual (si no existen) a partir de lo que muestra la tarjeta.
+// Crea las series de la sesión actual (si no existen) a partir de lo que muestra la tarjeta.
 function ensureSets(id) {
   const k = weightKey(id);
   state.sets ??= {};
   const cur = state.sets[k];
   if (Array.isArray(cur)) {
-    // Nueva sesión del mismo ejercicio en otra fecha de la semana: archiva la anterior.
+    // Otra fecha en la misma clave: archiva la sesión anterior.
     const today = recordDate(),
       doneDates = [...new Set(cur.filter((z) => z.done && z.d).map((z) => z.d))];
     if (today && doneDates.length && !doneDates.includes(today)) {
       state.archive ??= [];
-      state.archive.push({ id, week: state.week, date: doneDates.sort().at(-1), sets: cur.map((z) => ({ ...z })) });
+      state.archive.push({ id, week: state.week, d: curDay(), date: doneDates.sort().at(-1), sets: cur.map((z) => ({ ...z })) });
       return (state.sets[k] = cur.map((z) => ({ w: z.w, r: z.r, done: false })));
     }
     return cur;
@@ -131,7 +188,7 @@ function ensureSets(id) {
     w = prev ? [...prev.sets].reverse().find((z) => z.w > 0)?.w ?? null : null;
   return (state.sets[k] = Array.from({ length: t.n }, () => ({ w, r: t.reps, done: false })));
 }
-// Recalcula peso de la semana (mejor serie), completado y fecha.
+// Recalcula peso de la sesión (mejor serie), completado y fecha.
 function syncExercise(id) {
   const k = weightKey(id),
     sets = state.sets[k] || [];
@@ -142,14 +199,25 @@ function syncExercise(id) {
   else delete state.weights[k];
   const all = sets.length > 0 && sets.every((z) => z.done);
   state.completedDates ??= {};
-  // Una sesión archivada completa de esta semana mantiene el ejercicio como hecho.
-  const prevDone = archived(id, state.week).find((a) => a.sets.length && a.sets.every((z) => z.done));
+  // Una sesión archivada completa de esta misma clave mantiene el ejercicio como hecho.
+  const prevDone = archived(id, state.week, curDay()).find((a) => a.d === curDay() && a.sets.length && a.sets.every((z) => z.done));
   if (all && !state.completed[k]) state.completedDates[k] = recordDate();
   if (!all) {
     if (prevDone) state.completedDates[k] = prevDone.date;
     else delete state.completedDates[k];
   }
   state.completed[k] = all || !!prevDone;
+}
+// Mejor peso de un ejercicio en una semana (todas las sesiones).
+function weekTop(id, w) {
+  let best = 0,
+    any = null;
+  for (const x of sessionsOf(id).filter((x) => x.w === w)) {
+    const v = Number(state.weights[keyOf(id, x.w, x.d)]);
+    if (Number.isFinite(v) && v > 0) best = Math.max(best, v);
+    else if (state.weights[keyOf(id, x.w, x.d)] != null) any = 0;
+  }
+  return best > 0 ? best : any;
 }
 const sparkline = (vals) => {
   const pts = vals.map((v, i) => [i, v]).filter(([, v]) => v > 0);
@@ -170,28 +238,24 @@ const sparkline = (vals) => {
 function historyHtml(x) {
   const unit = state.inputUnit,
     rows = [],
-    tops = [];
-  for (let w = 1; w <= W(); w++) {
-    const s = setsOf(x.id, w),
-      k = x.id + "-w" + w;
-    tops.push(topOf(s));
+    tops = Array.from({ length: W() }, () => 0);
+  const line = (label, date, sets) =>
+    "<li><b>" + label + "</b>" + (date ? " · " + esc(date.slice(8) + "/" + date.slice(5, 7)) : "") + " · " +
+    sets.filter((z) => z.w > 0).map((z) => fmtW(toShow(z.w)) + "×" + z.r + (z.done ? "" : "?")).join(" · ") + "</li>";
+  const items = [];
+  for (const ses of sessionsOf(x.id)) {
+    const s = setsOf(x.id, ses.w, ses.d),
+      k = keyOf(x.id, ses.w, ses.d);
+    if (ses.w >= 1 && ses.w <= W()) tops[ses.w - 1] = Math.max(tops[ses.w - 1], topOf(s));
     if (!hasData(s)) continue;
-    for (const a of archived(x.id, w))
-      rows.push(
-        "<li><b>S" + w + "</b> · " + esc(a.date.slice(8) + "/" + a.date.slice(5, 7)) + " · " +
-          a.sets.filter((z) => z.w > 0).map((z) => fmtW(toShow(z.w)) + "×" + z.r + (z.done ? "" : "?")).join(" · ") + "</li>",
-      );
     const date = s.find((z) => z.d)?.d || (state.completedDates || {})[k] || "";
-    rows.push(
-      "<li><b>S" +
-        w +
-        "</b>" +
-        (date ? " · " + esc(date.slice(8) + "/" + date.slice(5, 7)) : "") +
-        " · " +
-        s.filter((z) => z.w > 0).map((z) => fmtW(toShow(z.w)) + "×" + z.r + (z.done ? "" : "?")).join(" · ") +
-        "</li>",
-    );
+    items.push({ sort: date || "S" + String(ses.w).padStart(2, "0") + ses.d, html: line("S" + ses.w, date, s) });
   }
+  for (const a of archived(x.id)) {
+    if (a.week >= 1 && a.week <= W()) tops[a.week - 1] = Math.max(tops[a.week - 1], topOf(a.sets));
+    items.push({ sort: a.date || "", html: line("S" + a.week, a.date, a.sets) });
+  }
+  items.sort((p, q) => (p.sort < q.sort ? -1 : p.sort > q.sort ? 1 : 0)).forEach((i) => rows.push(i.html));
   if (!rows.length) return '<div class="exhist"><strong>Historial</strong><p class="subtle">Aún no hay sesiones.</p></div>';
   return '<div class="exhist"><strong>Historial · ' + unit + "</strong>" + sparkline(tops) + "<ul>" + rows.reverse().join("") + "</ul></div>";
 }
@@ -201,7 +265,7 @@ function setsHtml(x) {
     unit = state.inputUnit,
     cur = setsOf(x.id, state.week),
     prev = prevSession(x.id),
-    best = bestOf(x.id, state.week),
+    best = bestOf(x.id),
     prefW = prev ? [...prev.sets].reverse().find((z) => z.w > 0)?.w ?? null : null,
     n = Math.max(t.n, cur ? cur.length : 0),
     doneN = cur ? cur.filter((z) => z.done).length : 0,
@@ -217,7 +281,7 @@ function setsHtml(x) {
     ? '<div class="suggest is-' + sug.action + '"><span><b>' + sug.label + ": " + fmtW(sug.show) + " " + unit + " × " + sug.r + "</b> <small>" + esc(sug.why) + '</small></span><button type="button" data-use-suggest="' + x.id + '" data-w="' + sug.w + '" data-r="' + sug.r + '">Usar</button></div>'
     : "";
   const meta = '<div class="setmeta"><span>Anterior' +
-    (prev ? " (" + (prev.cycle ? "ciclo anterior, " : "") + "S" + prev.week + "): " + (previousText || "sin carga") : ": sin registro") + "</span></div>" + sugHtml;
+    (prev ? " (" + (prev.cycle ? "ciclo anterior, " : "") + "S" + prev.week + (prev.day != null ? " " + sesDay(prev.week, prev.day) : "") + "): " + (previousText || "sin carga") : ": sin registro") + "</span></div>" + sugHtml;
   const rows = Array.from({ length: n }, (_, i) => {
     const s = (cur && cur[i]) || { w: prefW, r: t.reps, done: false };
     return (
@@ -272,8 +336,11 @@ const esc = (s) =>
 // así agregar o quitar ejercicios no cambia su porcentaje de cumplimiento.
 function routineIds(w) {
   const snap = state.routineByWeek && state.routineByWeek[w];
-  return Array.isArray(snap) && snap.length ? snap : EXERCISES.map((e) => e.id);
+  if (Array.isArray(snap) && snap.length) return snap;
+  // r109: semanas con la rutina vieja sin lista guardada usan los 27 ejercicios de entonces.
+  return w < (Number(state.fullBodyFrom) || 1) && window.EXERCISES_LEGACY_DAY ? Object.keys(EXERCISES_LEGACY_DAY) : EXERCISES.map((e) => e.id);
 }
+// Guarda la lista de ejercicios de las semanas ya pasadas que usaban la rutina vieja.
 function freezeRoutines() {
   const p = FitStore.get("program") || {};
   if (!p.start || !window.FitCalendar) return;
@@ -283,11 +350,12 @@ function freezeRoutines() {
     cur = pos ? pos.week : iso > FitCalendar.date(p.start, W(), 6) ? W() + 1 : 1;
   state.routineByWeek ??= {};
   let changed = false;
-  for (let w = 1; w < Math.min(cur, W() + 1); w++) {
+  const last = Math.min(cur, W() + 1, Number(state.fullBodyFrom) || 1);
+  for (let w = 1; w < last; w++) {
     if (state.routineByWeek[w]) continue;
-    const ids = new Set(EXERCISES.map((e) => e.id));
+    const ids = new Set(routineIds(w));
     Object.keys(state.completed || {}).forEach((k) => {
-      const m = /^(.*)-w(\d+)$/.exec(k);
+      const m = KEY_RE.exec(k);
       if (m && Number(m[2]) === w && state.completed[k]) ids.add(m[1]);
     });
     state.routineByWeek[w] = [...ids];
@@ -295,6 +363,11 @@ function freezeRoutines() {
   }
   if (changed) save();
 }
+// r109: avance de fuerza de una semana { done, total } (lo usan Entreno y el Panel).
+function weekStrength(w) {
+  return FitStrengthKeys.weekStats(state, w, { perSession: routineEx(1).length, sessions: SCHEDULE.filter(Boolean).length, legacyIds: routineIds(w) });
+}
+window.fitWeekStrength = weekStrength;
 window.fitRoutineIds = routineIds;
 // r106: otros módulos muestran las cargas en la unidad elegida (se guardan siempre en libras).
 window.fitLoad = { unit: () => state.inputUnit || "lb", show: (lb) => toShow(Number(lb)) };
@@ -308,6 +381,23 @@ function render() {
     rendering = false;
   }
 }
+// Fecha activa de la hoja (la da program.js; si aún no cargó, se usa la guardada).
+function sheetDate() {
+  const p = FitStore.get("program") || {};
+  return window.fitSheetDate ? window.fitSheetDate() : window.FitCalendar && p.start ? FitCalendar.date(p.start, state.week, p.recordDay || 0) : "";
+}
+// Rutina de una fecha: la elegida para ese día o la programada (L A · M B · X C · J A · V B).
+function routineFor(dt) {
+  const pick = (state.routineByDate || {})[dt];
+  if ([1, 2, 3].includes(pick)) return pick;
+  const planned = dt ? SCHEDULE[dowOf(dt)] : 0;
+  return planned || ([1, 2, 3].includes(state.day) ? state.day : 1);
+}
+// Para «Hoy»: rutina de la fecha (0 = sin pesas programadas ni elegidas).
+window.fitRoutineFor = (dt) => {
+  const pick = (state.routineByDate || {})[dt];
+  return [1, 2, 3].includes(pick) ? pick : dt ? SCHEDULE[dowOf(dt)] : 0;
+};
 function renderNow() {
   if (state.week > W()) state.week = W();
   $("week").innerHTML = Array.from(
@@ -315,45 +405,52 @@ function renderNow() {
     (_, i) => '<option value="' + (i + 1) + '">Semana ' + (i + 1) + "</option>",
   ).join("");
   $("week").value = state.week;
+  const dt = sheetDate(),
+    routine = routineFor(dt),
+    planned = dt ? SCHEDULE[dowOf(dt)] : 0;
+  state.day = routine;
   $("days").innerHTML = DAYS.map(
     (d, i) =>
       '<button class="day ' +
-      (state.day === i + 1 ? "active" : "") +
+      (routine === i + 1 ? "active" : "") +
       '" data-day="' +
       (i + 1) +
+      '" aria-pressed="' +
+      (routine === i + 1) +
       '" title="' +
-      esc(d + " + " + DAY_CARDIO[i]) +
+      esc(d) +
       '"><b>' +
       DAY_NAMES[i] +
-      "</b></button>",
+      "</b>" +
+      (planned === i + 1 ? "<small>Programada</small>" : "") +
+      "</button>",
   ).join("");
-  // Encabezado de la hoja del día: fecha del registro y día de rutina elegido.
+  // Encabezado de la hoja del día: fecha del registro y rutina de ese día.
   const head = $("sheetHead");
   if (head) {
-    // La fecha activa la da program.js (window.fitSheetDate); si aún no cargó, se usa la guardada.
-    const p = FitStore.get("program") || {};
-    const dt = window.fitSheetDate
-      ? window.fitSheetDate()
-      : window.FitCalendar && p.start
-        ? FitCalendar.date(p.start, state.week, p.recordDay || 0)
-        : "";
     const nice = dt
       ? new Date(dt + "T12:00:00Z").toLocaleDateString("es-CR", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" })
       : "Elige el inicio del programa en ⚙ Opciones";
+    const note = !planned
+      ? "Día sin pesas programadas: si entrenas, elige la rutina abajo."
+      : routine === planned
+        ? "Toca otra rutina abajo si hoy haces una distinta."
+        : "Cambiada para este día (programada: " + DAY_NAMES[planned - 1] + ").";
     head.innerHTML =
       '<div class="eyebrow">HOJA DEL DÍA · SEMANA ' +
       state.week +
       "</div><h2>" +
       esc(nice.charAt(0).toUpperCase() + nice.slice(1)) +
       "</h2><p>Rutina: <strong>" +
-      DAY_NAMES[state.day - 1] +
+      DAY_NAMES[routine - 1] +
       " · " +
-      DAYS[state.day - 1] +
-      " + " +
-      DAY_CARDIO[state.day - 1] +
-      "</strong>. Toca otro día abajo si hiciste una rutina distinta.</p>";
+      DAYS[routine - 1] +
+      (dt ? " + " + DAY_CARDIO[dowOf(dt)] : "") +
+      "</strong>. " +
+      esc(note) +
+      "</p>";
   }
-  const ex = EXERCISES.filter((x) => x.day === state.day);
+  const ex = routineEx(routine);
   const done = ex.filter((x) => state.completed[weightKey(x.id)]).length;
   // Avance de series del día (solo ejercicios con carga) y estado de la sesión.
   let setsDone = 0,
@@ -366,8 +463,9 @@ function renderNow() {
   const sessionTag =
     setsDone === 0 ? "" : setsDone >= setsTotal ? '<span class="sess done">✓ Sesión completa</span>' : '<span class="sess">⏸ En curso · continúa cuando quieras</span>';
   freezeRoutines();
-  const weekIds = routineIds(state.week),
-    total = weekIds.filter((id) => state.completed[id + "-w" + state.week]).length;
+  const ws = weekStrength(state.week),
+    total = ws.done,
+    weekIds = { length: ws.total };
   const pct = (n, of) => (of ? (n / of) * 100 : 0);
   const pctText = (n, of) => pct(n, of).toFixed(1).replace(".", ",") + "%";
   const weekPct = pct(total, weekIds.length);
@@ -476,7 +574,7 @@ function renderNow() {
       })
       .join("") +
     "</div>";
-  // Día sin pesas (Día 4): solo cardio.
+  // Sin ejercicios (no debería pasar con las rutinas A, B y C).
   if (!ex.length)
     $("exerciseList").innerHTML =
       '<p class="subtle empty-day">Este día no tiene pesas: solo cardio. Registra tu actividad abajo, en Cardio.</p>';
@@ -496,7 +594,7 @@ function renderNow() {
               '<td class="' +
               (state.week === i + 1 ? "current" : "") +
               '">' +
-              esc(state.weights[x.id + "-w" + (i + 1)] == null ? "—" : fmtW(x.unit ? state.weights[x.id + "-w" + (i + 1)] : toShow(state.weights[x.id + "-w" + (i + 1)]))) +
+              esc(weekTop(x.id, i + 1) == null ? "—" : fmtW(x.unit ? weekTop(x.id, i + 1) : toShow(weekTop(x.id, i + 1)))) +
               "</td>",
           ).join("") +
           "</tr>",
@@ -515,7 +613,15 @@ document.addEventListener("click", (e) => {
 document.addEventListener("click", (e) => {
   const d = e.target.closest("[data-day]");
   if (d) {
-    state.day = Number(d.dataset.day);
+    // r109: elegir otra rutina cambia solo la fecha activa; la programada no se guarda como cambio.
+    const n = Number(d.dataset.day),
+      dt = sheetDate();
+    if ([1, 2, 3].includes(n)) {
+      state.day = n;
+      state.routineByDate ??= {};
+      if (dt && SCHEDULE[dowOf(dt)] === n) delete state.routineByDate[dt];
+      else if (dt) state.routineByDate[dt] = n;
+    }
     save();
     render();
     return;
