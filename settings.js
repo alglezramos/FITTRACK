@@ -1,12 +1,14 @@
 // r106: Opciones — metas, duración del programa, ciclos y suplemento.
+// r110: pestaña Perfil — datos de la persona, programa (4–12 semanas, meta fija de 1 kg/semana) y semana tipo.
 // Separado de program.js: aquí solo hay formularios de configuración; los cálculos viven en core.js y cycles.js.
 window.createFitSettings = function ({ getProgram, getStrength, persist, save, rerender, escape, today }) {
   const C = window.FitCore;
   const $ = (id) => document.getElementById(id);
   const fmt = (n) => Number(n).toLocaleString("es-CR", { maximumFractionDigits: 1 });
   const GOAL_FIELDS = [
-    ["kg", "Bajar en el ciclo (kg)", 1, 40, 0.5],
     ["kcal", "Consumo máximo diario (kcal)", 1000, 5000, 50],
+    ["cardioMin", "Cardio por semana (min)", 30, 1500, 10],
+    ["judoDays", "Judo por semana (días)", 1, 7, 1],
     ["protein", "Proteína diaria (g) · opcional", 1, 400, 1],
     ["run", "Running (km)", 1, 2000, 1],
     ["swim", "Natación (km)", 1, 2000, 1],
@@ -22,18 +24,14 @@ window.createFitSettings = function ({ getProgram, getStrength, persist, save, r
     const box = $("goalFields");
     if (!box) return;
     const p = getProgram(),
-      g = C.goals(),
-      saved = p.goals || {},
-      kg = Number(p.initialWeight) || 0;
-    const proteinHint = kg
-      ? ` Proteína: una referencia habitual en déficit es 1,6–2,2 g por kg de peso (≈ ${fmt(Math.round(kg * 1.6))}–${fmt(Math.round(kg * 2.2))} g con ${fmt(kg)} kg); confírmalo con tu nutricionista.`
-      : "";
+      saved = p.goals || {};
     box.innerHTML =
       GOAL_FIELDS.map(([k, label, min, max, step]) => {
-        const def = C.DEFAULT_GOALS[k];
+        const sug = k === "kcal" ? C.profileCalc(p).suggestedKcal : null,
+          def = sug || C.DEFAULT_GOALS[k];
         return `<label>${label}<input data-goal="${k}" type="number" inputmode="decimal" min="${min}" max="${max}" step="${step}" value="${escape(saved[k] ?? "")}" placeholder="${def ? def : "sin meta"}">${saved[k] != null && Number(saved[k]) !== def ? `<small class="subtle">Original: ${def ? def.toLocaleString("es-CR") : "sin meta"}</small>` : ""}</label>`;
       }).join("") +
-      `<p class="tiny subtle goal-note">Equivalencia matemática diaria de la meta de −${g.kg} kg en ${C.WEEKS} semanas: <b>${C.NEEDED.toLocaleString("es-CR")} kcal</b>. Es una estimación, no una recomendación de déficit diario.${proteinHint} Deja un campo vacío para volver al valor original.</p>`;
+      `<p class="tiny subtle goal-note">Consumo máximo vacío = ${C.profileCalc(p).suggestedKcal ? "el sugerido por tu perfil" : "1.800 kcal (completa tu perfil para una sugerencia propia)"}. Deja cualquier campo vacío para volver al valor original.</p>`;
   }
 
   function cycleHtml() {
@@ -42,7 +40,7 @@ window.createFitSettings = function ({ getProgram, getStrength, persist, save, r
       W = C.WEEKS,
       minW = Math.max(4, window.FitCycles.lastWeekWithData(p, s));
     const opts = (sel, min) =>
-      Array.from({ length: 13 }, (_, i) => i + 4)
+      Array.from({ length: 9 }, (_, i) => i + 4)
         .map((n) => `<option value="${n}" ${n === sel ? "selected" : ""} ${n < min ? "disabled" : ""}>${n} semanas</option>`)
         .join("");
     const end = C.validDate(p.start) ? C.datePlus(p.start, W * 7 - 1) : "";
@@ -77,7 +75,56 @@ window.createFitSettings = function ({ getProgram, getStrength, persist, save, r
       <label class="check"><input id="suppShow" type="checkbox" ${s.show ? "checked" : ""}> Mostrar la tarjeta en Progreso → Bienestar</label>`;
   }
 
+  const DOW = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+  function profileHtml() {
+    const pr = getProgram().profile || {};
+    const opt = (v, label, cur) => `<option value="${v}" ${String(cur ?? "") === String(v) ? "selected" : ""}>${label}</option>`;
+    return `<label>Nombre<input data-profile="name" maxlength="80" value="${escape(pr.name || "")}" placeholder="Tu nombre"></label>
+      <label>Sexo<select data-profile="sex">${opt("", "—", pr.sex)}${opt("M", "Hombre", pr.sex)}${opt("F", "Mujer", pr.sex)}</select></label>
+      <label>Fecha de nacimiento<input data-profile="birth" type="date" value="${escape(pr.birth || "")}"></label>
+      <label>Estatura (cm)<input data-profile="height" type="number" inputmode="decimal" min="100" max="250" step="1" value="${escape(pr.height ?? "")}"></label>
+      <label>Nivel de actividad<select data-profile="activity">${opt("", "—", pr.activity)}${Object.entries(C.ACTIVITY).map(([v, l]) => opt(v, l, pr.activity)).join("")}</select></label>`;
+  }
+  function summaryHtml() {
+    const p = getProgram(),
+      rows = C.series(p),
+      last = rows.filter((r) => r.week > 0 && r.actual != null).at(-1),
+      r = C.profileCalc(p, { currentKg: last ? last.actual : null, today: today() }),
+      item = (label, value, note) => `<div><span>${label}</span><strong>${value}</strong>${note ? `<small class="subtle">${note}</small>` : ""}</div>`;
+    const kcalNow = C.goals().kcal,
+      custom = Number((p.goals || {}).kcal) > 0;
+    return `<div class="daily-numbers profile-numbers">
+        ${item("Meta", r.goalWeight != null ? fmt(r.goalWeight) + " kg" : "—", `−${r.kgGoal} kg · 1 kg por semana`)}
+        ${item("Fin del programa", r.end ? escape(r.end) : "—", `${C.WEEKS} semanas`)}
+        ${item("Déficit necesario", fmt(r.dailyDeficit) + " kcal/día", "7.700 kcal ≈ 1 kg")}
+        ${item("IMC", r.bmi != null ? fmt(r.bmi) : "—", r.bmiGoal != null ? "Meta: " + fmt(r.bmiGoal) : "falta la estatura")}
+        ${item("Gasto en reposo", r.bmr ? fmt(r.bmr) + " kcal" : "—", r.bmr ? "Mifflin-St Jeor" : "faltan datos")}
+        ${item("Gasto estimado", r.tdee ? fmt(r.tdee) + " kcal" : "—", r.tdee ? "con tu nivel de actividad" : "falta el nivel de actividad")}
+        ${item("Consumo máximo", fmt(kcalNow) + " kcal", custom ? "propio (en Metas)" : r.suggestedKcal ? "sugerido por tu perfil" : "valor por defecto")}
+        ${item("Proteína sugerida", r.protein ? `${fmt(r.protein[0])}–${fmt(r.protein[1])} g` : "—", "1,6–2 g por kg de la meta")}
+      </div>
+      ${r.warnings.length ? `<ul class="profile-warn">${r.warnings.map((w) => `<li>⚠️ ${escape(w)}</li>`).join("")}</ul>` : ""}
+      <p class="tiny subtle">Estimaciones de referencia; el balance real usa el gasto del Whoop. No sustituyen la indicación de un profesional de salud.</p>`;
+  }
+  function weekPlanHtml() {
+    const wp = C.weekPlan(getProgram());
+    return `<div class="wp-plan">${wp
+      .map(
+        (d, i) => `<div class="wp-plan-row"><b>${DOW[i]}</b>
+        <label>Pesas<select data-wp="r" data-i="${i}">${["—", "Rutina A", "Rutina B", "Rutina C"].map((l, v) => `<option value="${v}" ${d.r === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+        <label class="check"><input type="checkbox" data-wp="judo" data-i="${i}" ${d.judo ? "checked" : ""}> Judo</label>
+        <label>Cardio (min)<input type="number" min="0" max="600" step="5" inputmode="numeric" data-wp="minutes" data-i="${i}" value="${d.minutes || ""}" placeholder="0"></label></div>`,
+      )
+      .join("")}</div><p class="tiny subtle">En Entreno cada día muestra su rutina programada; puedes elegir otra solo para esa fecha.</p>`;
+  }
+
   function render() {
+    const pf = $("profileFields"),
+      sm = $("profileSummary"),
+      wpf = $("weekPlanFields");
+    if (pf) pf.innerHTML = profileHtml();
+    if (sm) sm.innerHTML = summaryHtml();
+    if (wpf) wpf.innerHTML = weekPlanHtml();
     renderGoals();
     const cyc = $("cycleFields"),
       sup = $("supplementFields");
@@ -106,10 +153,39 @@ window.createFitSettings = function ({ getProgram, getStrength, persist, save, r
 
   $("settings")?.addEventListener("change", (e) => {
     const p = getProgram();
+    const pk = e.target.dataset && e.target.dataset.profile;
+    if (pk) {
+      if (e.target.type === "number" && e.target.value !== "" && !e.target.checkValidity()) {
+        e.target.reportValidity?.();
+        return;
+      }
+      p.profile ??= {};
+      const v = e.target.value;
+      if (v === "") delete p.profile[pk];
+      else p.profile[pk] = pk === "height" || pk === "activity" ? Number(v) : pk === "name" ? v.trim().slice(0, 80) : v;
+      persist();
+      render();
+      rerender();
+      return;
+    }
+    const wk = e.target.dataset && e.target.dataset.wp;
+    if (wk) {
+      const i = Number(e.target.dataset.i),
+        plan = C.weekPlan(p);
+      if (!(i >= 0 && i < 7)) return;
+      if (wk === "r") plan[i].r = Math.max(0, Math.min(3, Number(e.target.value) || 0));
+      if (wk === "judo") plan[i].judo = e.target.checked;
+      if (wk === "minutes") plan[i].minutes = Math.max(0, Math.min(600, Math.round(Number(e.target.value) || 0)));
+      p.weekPlan = plan;
+      persist();
+      render();
+      rerender({ strength: true });
+      return;
+    }
     if (e.target.id === "weeksCount") {
       const n = Number(e.target.value),
         min = window.FitCycles.lastWeekWithData(p, getStrength());
-      if (!(n >= 4 && n <= 16) || n < min) return render();
+      if (!(n >= 4 && n <= 12) || n < min) return render();
       p.weeksCount = n;
       persist();
       render();

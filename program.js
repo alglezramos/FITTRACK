@@ -56,7 +56,7 @@
           : program.progressTab || "weight";
     program.view = "progress";
   }
-  if (!["home", "food", "training", "progress", "history"].includes(program.view)) program.view = "home";
+  if (!["home", "food", "training", "progress", "history", "profile"].includes(program.view)) program.view = "home";
   if (!program.panelIntro) {
     program.panelIntro = true;
     program.progressTab = "panel";
@@ -314,16 +314,23 @@
   // Plan del día según el día de la semana (igual que «Tu semana»).
   function planFor(dt) {
     const i = (new Date(dt + "T12:00:00Z").getUTCDay() + 6) % 7;
-    // r109: rutinas full body fijas (L A · M B · X C · J A · V B); la elegida en Entreno para esa fecha manda.
-    const defaults = [
-      {label:'RUTINA A · Full body + Judo',day:1,judo:true,minutes:0},
-      {label:'RUTINA B · Full body + Cardio',day:2,judo:false,minutes:60},
-      {label:'RUTINA C · Full body + Judo',day:3,judo:true,minutes:0},
-      {label:'RUTINA A · Full body + Cardio',day:1,judo:false,minutes:60},
-      {label:'RUTINA B · Full body + Judo',day:2,judo:true,minutes:0},
-      {label:'WILD MILES · Hiking o fondo',day:0,judo:false,minutes:60},
-      {label:'RESET & RECHARGE · Descanso',day:0,judo:false,minutes:0,rest:true}
-    ];
+    // r110: semana tipo de Perfil (por defecto L A · M B · X C · J A · V B); la rutina elegida en Entreno para esa fecha manda.
+    const wp = C.weekPlan(program)[i],
+      L = "ABC"[wp.r - 1];
+    const defaults = Array.from({ length: 7 });
+    defaults[i] = {
+      label: wp.r
+        ? "RUTINA " + L + " · Full body" + (wp.judo ? " + Judo" : wp.minutes ? " + Cardio" : "")
+        : wp.judo
+          ? "Judo"
+          : wp.minutes
+            ? i >= 5 ? "WILD MILES · Hiking o fondo" : "Cardio"
+            : "RESET & RECHARGE · Descanso",
+      day: wp.r,
+      judo: wp.judo,
+      minutes: wp.minutes,
+      rest: !wp.r && !wp.judo && !wp.minutes,
+    };
     const plan = {...defaults[i],...(program.dayPlans || {})[dt]};
     const r = window.fitRoutineFor ? window.fitRoutineFor(dt) : plan.day;
     if (r && r !== plan.day) {
@@ -584,8 +591,12 @@
     if (view === "training") content = training();
     if (view === "progress") content = progress();
     if (view === "history") content = historyView();
-    root.hidden = false;
-    root.innerHTML = '<div class="program">' + content + "</div>";
+    // r110: Perfil = la sección de configuración (antes «Opciones», escondida al pie).
+    const settingsEl = document.getElementById("settings");
+    if (settingsEl) settingsEl.hidden = view !== "profile";
+    if (view === "profile" && window.__fitSettingsRender) window.__fitSettingsRender();
+    root.hidden = view === "profile";
+    root.innerHTML = view === "profile" ? "" : '<div class="program">' + content + "</div>";
     // Entreno = hoja única: fuerza arriba (strengthView), cardio y retos debajo.
     strength.hidden = view !== "training";
     document.body.classList.toggle("sheet-mode", view === "training");
@@ -845,13 +856,13 @@
     settings.hidden = true; program.view = "progress"; program.progressTab = "weight";
     pendingJump = "sec-backup"; persist(); show();
   });
+  // r110: la configuración se muestra como pestaña «Perfil», debajo de las pestañas.
+  root.after(settings);
   document.getElementById("backupBtn").onclick = () => {
-    settings.hidden = !settings.hidden;
-    if (!settings.hidden) {
-      syncCalendar();
-      settingsUI.render();
-      settings.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    program.view = "profile";
+    persist();
+    show();
+    document.getElementById("appTabs").scrollIntoView({ behavior: "smooth", block: "start" });
   };
   // r106: Opciones (metas, duración, ciclos y suplemento) viven en settings.js.
   const settingsUI = window.createFitSettings({
@@ -867,6 +878,10 @@
     },
   });
   settingsUI.render();
+  window.__fitSettingsRender = () => {
+    syncCalendar();
+    settingsUI.render();
+  };
   // Opciones: inicio y peso inicial, sin mezclar configuración con registros.
   document.getElementById("setupInitialWeight").addEventListener("change", (e) => {
     if (!e.target.checkValidity()) return;

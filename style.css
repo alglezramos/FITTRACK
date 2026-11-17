@@ -3034,3 +3034,62 @@ details.fold[open] > summary { margin-bottom: 10px; }
   opacity: 0.8;
   margin-top: 2px;
 }
+/* r110: Perfil — resumen del programa, avisos y semana tipo. */
+#appTabs {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+.profile-numbers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+.profile-numbers > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.profile-numbers small {
+  font-size: 12px;
+}
+.profile-warn {
+  list-style: none;
+  padding: 10px 12px;
+  margin: 8px 0;
+  border-radius: 12px;
+  background: var(--warn-bg, #f6e3d6);
+  font-size: 14px;
+}
+.profile-warn li + li {
+  margin-top: 6px;
+}
+.wp-plan {
+  display: grid;
+  gap: 8px;
+}
+.wp-plan-row {
+  display: grid;
+  grid-template-columns: 90px 1fr auto 110px;
+  gap: 8px;
+  align-items: end;
+}
+.wp-plan-row label.check {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 10px;
+}
+@media (max-width: 520px) {
+  .wp-plan-row {
+    grid-template-columns: 1.4fr auto 1fr;
+    gap: 6px;
+  }
+  .wp-plan-row b {
+    grid-column: 1 / -1;
+  }
+  #appTabs button {
+    font-size: 12px;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+}

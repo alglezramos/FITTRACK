@@ -15,7 +15,9 @@
   // Balance confirmado: solo días cerrados con Whoop (un día abierto o sin comidas no cuenta como consumo cero).
   const confirmed = (d) =>
     d && d.closed && has(d.whoop) && ((d.meals || []).length || Number(d.extras) > 0) ? balance(d) : null;
-  const goalKg = (p) => (Number(p && p.goals && p.goals.kg) > 0 ? Number(p.goals.kg) : 10);
+  // r110: la meta es fija: 1 kg por semana del programa (8 semanas → −8 kg).
+  const KG_PER_WEEK = 1;
+  const goalKg = (p) => weeksOf(p) * KG_PER_WEEK;
   // r103: los IDs se usan dentro del HTML; solo letras, números, guion y guion bajo.
   const weekKey = (w) => /^([1-9]|1[0-6])$/.test(String(w));
   const safeId = (v) => typeof v === "string" && /^[\w-]{1,80}$/.test(v);
@@ -237,6 +239,20 @@
           throw Error("Actividad propuesta inválida");
       }
     }
+    if (p.profile !== undefined) {
+      if (!object(p.profile)) throw Error("Perfil inválido");
+      const pr = p.profile;
+      if (pr.name != null && (typeof pr.name !== "string" || pr.name.length > 80)) throw Error("Nombre inválido");
+      if (pr.sex != null && !["M", "F", ""].includes(pr.sex)) throw Error("Sexo inválido");
+      if (pr.birth != null && pr.birth !== "" && !validDate(pr.birth)) throw Error("Fecha de nacimiento inválida");
+      if (pr.height != null && pr.height !== "" && !number(Number(pr.height), 100, 250)) throw Error("Estatura inválida");
+      if (pr.activity != null && pr.activity !== "" && !number(Number(pr.activity), 1, 2.5)) throw Error("Actividad inválida");
+    }
+    if (p.weekPlan !== undefined) {
+      if (!Array.isArray(p.weekPlan) || p.weekPlan.length !== 7) throw Error("Semana tipo inválida");
+      for (const d of p.weekPlan)
+        if (!object(d) || ![0, 1, 2, 3].includes(d.r) || typeof d.judo !== "boolean" || !number(Number(d.minutes) || 0, 0, 600)) throw Error("Día de la semana tipo inválido");
+    }
     if (p.goals !== undefined) {
       if (!object(p.goals)) throw Error("Metas inválidas");
       for (const v of Object.values(p.goals)) if (!number(Number(v), 0.1, 10000000)) throw Error("Meta inválida");
@@ -307,7 +323,10 @@
   }
   // Metas del programa: valores por defecto que el usuario puede cambiar en Opciones.
   const DEFAULT_GOALS = {
-    kg: 10,
+    kg: 8,
+    // r110: metas semanales del Panel.
+    cardioMin: 180,
+    judoDays: 3,
     kcal: 1800,
     // r106: proteína diaria en gramos; 0 = sin meta (opcional).
     protein: 0,
@@ -325,7 +344,68 @@
       saved = (p && p.goals) || {},
       out = { ...DEFAULT_GOALS };
     for (const k of Object.keys(DEFAULT_GOALS)) if (Number(saved[k]) > 0) out[k] = Number(saved[k]);
+    // r110: meta fija (1 kg/semana) y consumo sugerido por el perfil si no hay uno propio.
+    out.kg = goalKg(p);
+    if (!(Number(saved.kcal) > 0)) {
+      const pr = profileCalc(p);
+      if (pr.suggestedKcal) out.kcal = pr.suggestedKcal;
+    }
     return out;
+  }
+  // r110: semana tipo (lunes a domingo): rutina (0 = sin pesas, 1 A, 2 B, 3 C), judo y minutos de cardio.
+  const DEFAULT_WEEK = [
+    { r: 1, judo: true, minutes: 0 },
+    { r: 2, judo: false, minutes: 60 },
+    { r: 3, judo: true, minutes: 0 },
+    { r: 1, judo: false, minutes: 60 },
+    { r: 2, judo: true, minutes: 0 },
+    { r: 0, judo: false, minutes: 60 },
+    { r: 0, judo: false, minutes: 0 },
+  ];
+  function weekPlan(p) {
+    const w = p && p.weekPlan;
+    const ok = Array.isArray(w) && w.length === 7 && w.every((d) => d && [0, 1, 2, 3].includes(d.r));
+    return (ok ? w : DEFAULT_WEEK).map((d) => ({ r: d.r, judo: !!d.judo, minutes: Number(d.minutes) || 0 }));
+  }
+  // r110: Perfil. Cálculos de referencia (no son indicación médica).
+  const ACTIVITY = { 1.2: "Sedentario", 1.375: "Ligero (1–3 días)", 1.55: "Moderado (3–5 días)", 1.725: "Alto (6–7 días)", 1.9: "Muy alto (doble sesión)" };
+  function ageOn(birth, on) {
+    if (!validDate(birth) || !validDate(on)) return null;
+    let a = Number(on.slice(0, 4)) - Number(birth.slice(0, 4));
+    if (on.slice(5) < birth.slice(5)) a--;
+    return a >= 10 && a <= 110 ? a : null;
+  }
+  function profileCalc(p, opts = {}) {
+    const pr = (p && p.profile) || {},
+      W = weeksOf(p),
+      initial = has(p && p.initialWeight) ? Number(p.initialWeight) : null,
+      current = opts.currentKg != null ? Number(opts.currentKg) : initial,
+      todayIso = opts.today || new Date().toISOString().slice(0, 10),
+      age = ageOn(pr.birth, todayIso),
+      h = Number(pr.height) > 0 ? Number(pr.height) : null,
+      sex = pr.sex === "F" || pr.sex === "M" ? pr.sex : null,
+      act = Number(pr.activity) in ACTIVITY ? Number(pr.activity) : null,
+      kgGoal = goalKg(p),
+      goalWeight = initial != null ? Math.round((initial - kgGoal) * 10) / 10 : null,
+      end = validDate(p && p.start) ? datePlus(p.start, W * 7 - 1) : "",
+      dailyDeficit = Math.round((kgGoal * 7700) / (W * 7));
+    const bmiOf = (kg) => (h && kg ? Math.round((kg / ((h / 100) * (h / 100))) * 10) / 10 : null);
+    const bmr = current && h && age != null && sex ? Math.round(10 * current + 6.25 * h - 5 * age + (sex === "M" ? 5 : -161)) : null;
+    const tdee = bmr && act ? Math.round(bmr * act) : null;
+    const floor = sex === "F" ? 1200 : 1500;
+    const suggestedKcal = tdee ? Math.max(floor, Math.round((tdee - dailyDeficit) / 50) * 50) : null;
+    const warnings = [];
+    if (initial && (KG_PER_WEEK / initial) * 100 > 1) warnings.push(`1 kg por semana es ${String(Math.round((KG_PER_WEEK / initial) * 1000) / 10).replace(".", ",")} % de tu peso inicial: un ritmo agresivo. Prioriza proteína y fuerza para no perder músculo.`);
+    const bmiGoal = bmiOf(goalWeight);
+    if (bmiGoal != null && bmiGoal < 20) warnings.push(`La meta deja tu IMC en ${String(bmiGoal).replace(".", ",")}: por debajo de 20. Considera menos semanas.`);
+    if (tdee && bmr && tdee - dailyDeficit < bmr) warnings.push(`Para bajar 1 kg/semana tendrías que comer menos que tu gasto en reposo (${bmr} kcal). El consumo sugerido no baja de ${Math.max(floor, Math.round(bmr / 50) * 50)} kcal; el resto del déficit tendría que salir del ejercicio.`);
+    if (tdee && suggestedKcal === floor && tdee - dailyDeficit < floor) warnings.push(`El consumo sugerido se limita a ${floor} kcal, el mínimo habitual de referencia.`);
+    return {
+      age, height: h, sex, activity: act, initial, current, goalWeight, kgGoal, end, dailyDeficit,
+      bmi: bmiOf(current), bmiGoal, bmr, tdee, suggestedKcal,
+      protein: goalWeight ? [Math.round(goalWeight * 1.6), Math.round(goalWeight * 2)] : null,
+      warnings, complete: !!(bmr && tdee),
+    };
   }
   g.FitCore = {
     validDate,
@@ -340,6 +420,11 @@
     safeId,
     goals,
     DEFAULT_GOALS,
+    profileCalc,
+    weekPlan,
+    DEFAULT_WEEK,
+    ACTIVITY,
+    KG_PER_WEEK,
     get GOAL_KG() {
       return goals().kg;
     },

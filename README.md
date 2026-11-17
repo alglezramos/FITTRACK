@@ -126,3 +126,11 @@ r109 · Rutinas full body A, B y C
 - Migración automática de los registros anteriores al día de su fecha (o al día de la rutina vieja si no tenían fecha). Antes de migrar se guarda una copia completa en «fittrack.data.v2.antes-r109». Ningún registro se borra.
 - Avance semanal de fuerza: desde la semana del cambio, ejercicios completados sobre 5 sesiones × 10; las semanas anteriores conservan su cálculo.
 - Pruebas: tests/strength-keys.test.js (migración, avance semanal, ciclo anterior).
+
+r110 · Perfil
+- Nueva pestaña «Perfil» (también desde «⚙ Perfil y opciones» al pie): datos de la persona (nombre, sexo, fecha de nacimiento, estatura y nivel de actividad), programa, semana tipo, metas, suplemento, ciclos y copias.
+- Duración del programa: de 4 a 12 semanas. Meta fija de 1 kg por semana (8 semanas → −8 kg); el déficit diario necesario queda en 1.100 kcal.
+- Resumen: meta, fin del programa, IMC actual y de la meta, gasto en reposo (Mifflin-St Jeor), gasto estimado, consumo máximo sugerido (gasto estimado − déficit, mínimo 1.500 kcal hombres / 1.200 mujeres) y proteína sugerida (1,6–2 g por kg de la meta). Avisos si el ritmo es agresivo, si la meta deja el IMC bajo 20 o si el déficit exige comer menos que el gasto en reposo.
+- Consumo máximo: si no hay uno propio en Metas, se usa el sugerido por el perfil (sin perfil completo: 1.800 kcal).
+- Semana tipo editable (lunes a domingo): rutina A/B/C o sin pesas, judo y minutos de cardio. Entreno, Hoy y el Panel la usan. Metas semanales de cardio (min) y judo (días) configurables.
+- Pruebas: perfil, consumo sugerido, semana tipo y meta fija (tests/core.test.js).

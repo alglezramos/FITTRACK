@@ -259,6 +259,9 @@ window.createFitPanel = function ({ getProgram, week, today, escape, weightOn, b
       return h ? `${h} h${m ? ` ${m} min` : ""}` : `${m} min`;
     };
     const weekDays = Array.from({ length: 7 }, (_, i) => program.diary[C.datePlus(start, i)]);
+    // r110: metas semanales de cardio y judo configurables en Perfil.
+    const cardioGoal = Math.max(1, C.goals().cardioMin || 180),
+      judoGoal = Math.max(1, C.goals().judoDays || 3);
     const stepsGoal = Math.round((C.goals().steps || 800000) / W()),
       steps = weekDays.reduce((n, d) => n + (d && C.has(d.steps) ? Number(d.steps) || 0 : 0), 0);
     const completeDays = weekDays.filter((d) => d && C.confirmed(d) !== null).length;
@@ -267,8 +270,8 @@ window.createFitPanel = function ({ getProgram, week, today, escape, weightOn, b
     const parts = [
       { key: "deficit", name: "Déficit", pct: goal ? cap((r.defSum / goal) * 100) : 0, done: `${fmt(Math.round(r.defSum))} / ${fmt(goal)} kcal` },
       { key: "strength", name: "Fuerza", pct: r.strengthTotal ? cap((r.strengthDone / r.strengthTotal) * 100) : 0, done: `${r.strengthDone} / ${r.strengthTotal} ejercicios` },
-      { key: "cardio", name: "Cardio", pct: cap((cardioMinutes / 180) * 100), done: `${hoursText(cardioMinutes)} / 3 h` },
-      { key: "judo", name: "Judo", pct: cap((judoDays / 3) * 100), done: `${judoDays} / 3 días` },
+      { key: "cardio", name: "Cardio", pct: cap((cardioMinutes / cardioGoal) * 100), done: `${hoursText(cardioMinutes)} / ${hoursText(cardioGoal)}` },
+      { key: "judo", name: "Judo", pct: cap((judoDays / judoGoal) * 100), done: `${judoDays} / ${judoGoal} días` },
       { key: "steps", name: "Pasos", pct: stepsGoal ? cap((steps / stepsGoal) * 100) : 0, done: `${fmt(steps)} / ${fmt(stepsGoal)} pasos` },
     ];
     const total = parts.reduce((a, x) => a + x.pct, 0) / parts.length;
@@ -301,7 +304,7 @@ window.createFitPanel = function ({ getProgram, week, today, escape, weightOn, b
         return `<li class="wp-card${ok ? " is-done" : ""}${x.key === "steps" ? " wp-wide" : ""}" aria-label="${x.name}: ${Math.round(x.pct)} %, ${escape(x.done)}${ok ? ", completado" : ""}"><div class="wp-card-head">${wpIcon(x.key)}<span>${x.name}</span></div><div class="wp-pct"><b>${Math.round(x.pct)}</b><small>%</small></div><p class="wp-done">${escape(x.done)}</p>${ok ? `<p class="wp-ok">${wpIcon("check", "wp-ico wp-check")}Completado</p>` : ""}${wpBar(x.key, x.pct, x.name + ": progreso semanal", "wp-thin")}</li>`;
       })
       .join("");
-    const rules = `<details class="wp-how"><summary>Cómo se calcula</summary><ul class="tiny subtle"><li>Cada pilar aporta 20 % al avance semanal; su aporte se limita a 100 %, aunque se muestra la cantidad real.</li><li>Déficit: balance neto (Whoop − comidas) de los días cerrados con todas las comidas y el Whoop final; los superávits restan. Meta: ${fmt(goal)} kcal por semana.</li><li>Fuerza: ejercicios completados de la rutina de la semana.</li><li>Cardio: minutos de actividades registradas sin judo; varias sesiones del mismo día se suman. Meta: 3 h.</li><li>Judo: días distintos con judo. Meta: 3 días.</li><li>Pasos: suma de los pasos diarios. Meta: el reto total de pasos repartido en ${W()} semanas.</li></ul></details>`;
+    const rules = `<details class="wp-how"><summary>Cómo se calcula</summary><ul class="tiny subtle"><li>Cada pilar aporta 20 % al avance semanal; su aporte se limita a 100 %, aunque se muestra la cantidad real.</li><li>Déficit: balance neto (Whoop − comidas) de los días cerrados con todas las comidas y el Whoop final; los superávits restan. Meta: ${fmt(goal)} kcal por semana.</li><li>Fuerza: ejercicios completados de la rutina de la semana.</li><li>Cardio: minutos de actividades registradas sin judo; varias sesiones del mismo día se suman. Meta: ${hoursText(cardioGoal)}.</li><li>Judo: días distintos con judo. Meta: ${judoGoal} días.</li><li>Pasos: suma de los pasos diarios. Meta: el reto total de pasos repartido en ${W()} semanas.</li></ul></details>`;
     return `<article class="wp" aria-labelledby="wpTitle"><header class="wp-top"><span class="wp-brand">EVÓ</span><div class="wp-goal"><span>Meta de peso</span><b>${Math.round(weightPct)} %</b>${wpBar("weight", weightPct, "Progreso hacia la meta de peso", "wp-mini")}</div></header>
       <div class="wp-body"><div class="wp-title"><div><p class="wp-eyebrow">TU AVANCE</p><h3 id="wpTitle">Semana ${pad(w)} <small>/ ${pad(W())}</small></h3></div><p class="wp-total" aria-label="Avance semanal ${Math.round(total)} %"><b>${Math.round(total)}</b><small>%</small></p></div>
       ${wpBar("total", total, `Avance de la semana ${w}`, "wp-main")}

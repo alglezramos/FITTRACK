@@ -1,15 +1,21 @@
 // r109: tres rutinas full body (A, B, C). state.day = rutina elegida (1 = A, 2 = B, 3 = C).
 const DAYS = ["Full body · cuádriceps, pecho y dorsal", "Full body · cadena posterior y espalda", "Full body · potencia, glúteo y brazos"];
 const DAY_NAMES = ["RUTINA A", "RUTINA B", "RUTINA C"];
-// Rutina programada por día de la semana (lunes a domingo; 0 = sin pesas).
-const SCHEDULE = [1, 2, 3, 1, 2, 0, 0];
-// Actividad complementaria por día de la semana (lunes a domingo).
-const DAY_CARDIO = ["🥋 Judo", "🏊 Natación o correr", "🥋 Judo", "🏊 Natación o correr", "🥋 Judo", "🥾 Hiking o fondo", "Descanso"];
+// r110: semana tipo configurable en Perfil (lunes a domingo). Sin configurar: L A · M B · X C · J A · V B.
+const FALLBACK_WEEK = [1, 2, 3, 1, 2, 0, 0].map((r, i) => ({ r, judo: [0, 2, 4].includes(i), minutes: [1, 3, 5].includes(i) ? 60 : 0 }));
+const weekPlanNow = () => (window.FitCore ? FitCore.weekPlan(FitStore.get("program") || {}) : FALLBACK_WEEK);
+// Rutina programada por día de la semana (0 = lunes; 0 = sin pesas).
+const schedAt = (i) => (weekPlanNow()[i] || {}).r || 0;
+// Actividad complementaria del día de la semana.
+const cardioAt = (i) => {
+  const d = weekPlanNow()[i] || {};
+  return d.judo ? "🥋 Judo" + (d.minutes ? " + cardio" : "") : d.minutes ? (i >= 5 ? "🥾 Hiking o fondo" : "🏊 Natación o correr") : d.r ? "Solo pesas" : "Descanso";
+};
 const dowOf = (dt) => (new Date(dt + "T12:00:00Z").getUTCDay() + 6) % 7;
 // Ejercicios de una rutina, con el calentamiento al inicio y el cardio final al cierre.
 const routineEx = (r) => EXERCISES.filter((x) => (r >= 1 && x.day === r) || (r >= 1 && x.every));
 window.fitRoutineEx = routineEx;
-window.fitDayCardio = (dt) => (dt ? DAY_CARDIO[dowOf(dt)] : "");
+window.fitDayCardio = (dt) => (dt ? cardioAt(dowOf(dt)) : "");
 let state = { day: 1, week: 1, weights: {}, completed: {} };
 try {
   const s = FitStore.get("strength");
@@ -365,7 +371,7 @@ function freezeRoutines() {
 }
 // r109: avance de fuerza de una semana { done, total } (lo usan Entreno y el Panel).
 function weekStrength(w) {
-  return FitStrengthKeys.weekStats(state, w, { perSession: routineEx(1).length, sessions: SCHEDULE.filter(Boolean).length, legacyIds: routineIds(w) });
+  return FitStrengthKeys.weekStats(state, w, { perSession: routineEx(1).length, sessions: weekPlanNow().filter((d) => d.r).length, legacyIds: routineIds(w) });
 }
 window.fitWeekStrength = weekStrength;
 window.fitRoutineIds = routineIds;
@@ -390,13 +396,13 @@ function sheetDate() {
 function routineFor(dt) {
   const pick = (state.routineByDate || {})[dt];
   if ([1, 2, 3].includes(pick)) return pick;
-  const planned = dt ? SCHEDULE[dowOf(dt)] : 0;
+  const planned = dt ? schedAt(dowOf(dt)) : 0;
   return planned || ([1, 2, 3].includes(state.day) ? state.day : 1);
 }
 // Para «Hoy»: rutina de la fecha (0 = sin pesas programadas ni elegidas).
 window.fitRoutineFor = (dt) => {
   const pick = (state.routineByDate || {})[dt];
-  return [1, 2, 3].includes(pick) ? pick : dt ? SCHEDULE[dowOf(dt)] : 0;
+  return [1, 2, 3].includes(pick) ? pick : dt ? schedAt(dowOf(dt)) : 0;
 };
 function renderNow() {
   if (state.week > W()) state.week = W();
@@ -407,7 +413,7 @@ function renderNow() {
   $("week").value = state.week;
   const dt = sheetDate(),
     routine = routineFor(dt),
-    planned = dt ? SCHEDULE[dowOf(dt)] : 0;
+    planned = dt ? schedAt(dowOf(dt)) : 0;
   state.day = routine;
   $("days").innerHTML = DAYS.map(
     (d, i) =>
@@ -445,7 +451,7 @@ function renderNow() {
       DAY_NAMES[routine - 1] +
       " · " +
       DAYS[routine - 1] +
-      (dt ? " + " + DAY_CARDIO[dowOf(dt)] : "") +
+      (dt ? " + " + cardioAt(dowOf(dt)) : "") +
       "</strong>. " +
       esc(note) +
       "</p>";
@@ -619,7 +625,7 @@ document.addEventListener("click", (e) => {
     if ([1, 2, 3].includes(n)) {
       state.day = n;
       state.routineByDate ??= {};
-      if (dt && SCHEDULE[dowOf(dt)] === n) delete state.routineByDate[dt];
+      if (dt && schedAt(dowOf(dt)) === n) delete state.routineByDate[dt];
       else if (dt) state.routineByDate[dt] = n;
     }
     save();

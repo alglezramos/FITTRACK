@@ -1,4 +1,4 @@
-const CACHE = "fittrack-r109-fullbody";
+const CACHE = "fittrack-r110-perfil";
 const FILES = [
   "./",
   "./index.html",
