@@ -3381,3 +3381,7 @@ details.fold[open] > summary { margin-bottom: 10px; }
 .pf-seg {
   justify-self: start;
 }
+/* r112: el rediseño (display: grid) no debe mostrar el Perfil cuando está oculto. */
+#settings[hidden] {
+  display: none;
+}

@@ -140,3 +140,6 @@ r111 · Perfil rediseñado
 - Tarjetas numeradas: Sobre ti, Tu plan (con resumen en tarjetas y avisos destacados), Tu semana, Metas y Suplemento.
 - Semana tipo con botones: rutina (— / A / B / C), judo como interruptor y minutos de cardio; los días de descanso se marcan aparte y se muestra el total semanal.
 - Metas: diarias y semanales a la vista; retos del ciclo (km, pasos y repeticiones) plegados.
+
+r112 · Corrección
+- El Perfil ya no aparece dentro de las otras pestañas (Entreno, Hoy, etc.): el diseño de r111 anulaba el atributo «hidden».
