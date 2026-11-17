@@ -134,3 +134,9 @@ r110 · Perfil
 - Consumo máximo: si no hay uno propio en Metas, se usa el sugerido por el perfil (sin perfil completo: 1.800 kcal).
 - Semana tipo editable (lunes a domingo): rutina A/B/C o sin pesas, judo y minutos de cardio. Entreno, Hoy y el Panel la usan. Metas semanales de cardio (min) y judo (días) configurables.
 - Pruebas: perfil, consumo sugerido, semana tipo y meta fija (tests/core.test.js).
+
+r111 · Perfil rediseñado
+- Cabecera con iniciales, nombre, semana actual, meta (peso inicial → meta) con barra de avance y datos rápidos (edad, estatura, IMC, actividad).
+- Tarjetas numeradas: Sobre ti, Tu plan (con resumen en tarjetas y avisos destacados), Tu semana, Metas y Suplemento.
+- Semana tipo con botones: rutina (— / A / B / C), judo como interruptor y minutos de cardio; los días de descanso se marcan aparte y se muestra el total semanal.
+- Metas: diarias y semanales a la vista; retos del ciclo (km, pasos y repeticiones) plegados.
