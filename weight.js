@@ -4,6 +4,20 @@ window.createFitWeight = function ({ getProgram, week, today, escape }) {
   const W = () => FitStore.weeks();
   const fmt = (n) => Number(n).toLocaleString("es-CR", { maximumFractionDigits: 1 });
   let program = getProgram();
+  // r114: la pérdida esperada por déficit llega solo hasta la semana en curso (las semanas futuras aún no tienen déficit).
+  // Desde el último peso real se proyecta hasta el final al ritmo del déficit promedio de los días cerrados.
+  function withForecast(rows) {
+    if (!rows.length) return rows;
+    const days = Math.round((Date.parse(today() + "T12:00:00Z") - Date.parse(program.start + "T12:00:00Z")) / 86400000),
+      cur = Math.max(0, Math.min(W(), Math.floor(days / 7) + 1));
+    const out = rows.map((r) => ({ ...r, projected: r.week > cur ? null : r.projected, forecast: null }));
+    const now = out[Math.min(cur, out.length - 1)] || {},
+      rate = now.count ? now.deficit / now.count : null,
+      anchor = out.filter((r) => r.week > 0 && r.week <= cur && r.actual !== null).at(-1);
+    if (rate !== null && anchor && anchor.week < W())
+      for (const r of out) if (r.week >= anchor.week) r.forecast = anchor.actual - (rate * 7 * (r.week - anchor.week)) / 7700;
+    return out;
+  }
   const sync = (f) => (...a) => {
     program = getProgram();
     return f(...a);
@@ -11,7 +25,7 @@ window.createFitWeight = function ({ getProgram, week, today, escape }) {
   function weight() {
     const w = week(),
       d = program.weeks[w] || {},
-      rows = C.series(program),
+      rows = withForecast(C.series(program)),
       ok = rows.length > 0;
     const dayOf = (wd) => {
       for (let i = 0; i < 7; i++) {
@@ -58,12 +72,12 @@ window.createFitWeight = function ({ getProgram, week, today, escape }) {
         gap = cur.actual !== null ? cur.actual - cur.target : null;
       stats = `<div class="weigh-stats"><div><span>Media semana ${w}</span><strong>${cur.actual === null ? "—" : fmt(cur.actual) + " kg"}</strong></div><div><span>vs ${prevLabel}</span><strong class="${diff === null ? "" : diff <= 0 ? "good" : "bad"}">${diff === null ? "—" : (diff > 0 ? "+" : "") + fmt(diff) + " kg"}</strong></div><div><span>Ruta semana ${w}</span><strong>${fmt(cur.target)} kg</strong><small>${gap === null ? "pésate para comparar" : Math.abs(gap) < 0.05 ? "en ruta" : gap > 0 ? fmt(gap) + " kg por encima" : fmt(-gap) + " kg por debajo"}</small></div></div>`;
     }
-    return `<article class="weigh-card"><div class="challenge-heading"><h2>Pesadas · semana ${w}</h2><span>Lun a Vie</span></div>${ok ? "" : '<p class="subtle">Configura inicio y peso inicial en ⚙ Opciones para ver fechas y comparaciones.</p>'}<div class="weigh-grid">${tiles}${waist}</div>${stats}<p class="tiny subtle">Pésate en ayunas, después de ir al baño. La media de las pesadas de la semana es tu peso semanal; las semanas sin datos quedan vacías.</p></article>${ok ? `<article><h3>Trayectoria de ${W()} semanas</h3><div id="weightChart"></div><details><summary>Ver tabla por semana</summary><div class="scroll"><table><thead><tr><th>Sem.</th><th>Ruta</th><th>Real</th><th>Proyección</th><th>Días Whoop</th></tr></thead><tbody>${rows.map((r) => `<tr${r.week === w ? ' class="current-row"' : ""}><td>${r.week}</td><td>${fmt(r.target)}</td><td>${r.actual === null ? "—" : fmt(r.actual)}</td><td>${r.projected === null ? "—" : fmt(r.projected)}</td><td>${r.count}</td></tr>`).join("")}</tbody></table></div></details></article>` : ""}<article><details><summary>Inicio y peso inicial</summary><div class="fields"><p>Inicio del programa: <strong>${escape(program.start || "pendiente")}</strong></p><label class="weight-day">Peso inicial <input id="initialWeight" type="number" min="20" max="400" step="0.1" inputmode="decimal" value="${escape(program.initialWeight)}"><span>kg</span></label></div><p class="tiny subtle">La fecha de inicio se cambia en ⚙ Opciones.</p></details></article>`;
+    return `<article class="weigh-card"><div class="challenge-heading"><h2>Pesadas · semana ${w}</h2><span>Lun a Vie</span></div>${ok ? "" : '<p class="subtle">Configura inicio y peso inicial en ⚙ Opciones para ver fechas y comparaciones.</p>'}<div class="weigh-grid">${tiles}${waist}</div>${stats}<p class="tiny subtle">Pésate en ayunas, después de ir al baño. La media de las pesadas de la semana es tu peso semanal; las semanas sin datos quedan vacías.</p></article>${ok ? `<article><h3>Trayectoria de ${W()} semanas</h3><div id="weightChart"></div><details><summary>Ver tabla por semana</summary><div class="scroll"><table><thead><tr><th>Sem.</th><th>Ruta</th><th>Real</th><th>Esperado por déficit</th><th>A tu ritmo</th><th>Días Whoop</th></tr></thead><tbody>${rows.map((r) => `<tr${r.week === w ? ' class="current-row"' : ""}><td>${r.week}</td><td>${fmt(r.target)}</td><td>${r.actual === null ? "—" : fmt(r.actual)}</td><td>${r.projected === null ? "—" : fmt(r.projected)}</td><td>${r.forecast === null ? "—" : fmt(r.forecast)}</td><td>${r.count}</td></tr>`).join("")}</tbody></table></div></details></article>` : ""}<article><details><summary>Inicio y peso inicial</summary><div class="fields"><p>Inicio del programa: <strong>${escape(program.start || "pendiente")}</strong></p><label class="weight-day">Peso inicial <input id="initialWeight" type="number" min="20" max="400" step="0.1" inputmode="decimal" value="${escape(program.initialWeight)}"><span>kg</span></label></div><p class="tiny subtle">La fecha de inicio se cambia en ⚙ Opciones.</p></details></article>`;
   }
   function chart() {
     const box = document.getElementById("weightChart");
     if (!box) return;
-    const rows = C.series(program);
+    const rows = withForecast(C.series(program));
     if (!rows.length) {
       box.innerHTML = '<p class="subtle">Configura el inicio y el peso inicial para ver la gráfica.</p>';
       return;
@@ -74,7 +88,7 @@ window.createFitWeight = function ({ getProgram, week, today, escape }) {
       padR = 18,
       padT = 22,
       padB = 34;
-    const values = rows.flatMap((r) => [r.target, r.actual, r.projected]).filter((v) => v !== null),
+    const values = rows.flatMap((r) => [r.target, r.actual, r.projected, r.forecast]).filter((v) => v !== null),
       lo = Math.floor(Math.min(...values) - 0.5),
       hi = Math.ceil(Math.max(...values) + 0.5),
       step = hi - lo > 8 ? 2 : 1,
@@ -98,7 +112,8 @@ window.createFitWeight = function ({ getProgram, week, today, escape }) {
       .join("");
     const series = [
       ["target", "#a3917f", "6 4", "Trayectoria objetivo"],
-      ["projected", "#6f845e", "3 4", `Estimación por balance (${(rows.at(-1) || {}).count || 0} días cerrados)`],
+      ["projected", "#6f845e", "3 4", `Pérdida esperada por tu déficit (${(rows.filter((r) => r.projected !== null).at(-1) || {}).count || 0} días cerrados)`],
+      ["forecast", "#d39a7c", "2 5", "Proyección a tu ritmo"],
       ["actual", "#bf6b47", "", "Peso real"],
     ];
     const lines = series
@@ -125,12 +140,12 @@ window.createFitWeight = function ({ getProgram, week, today, escape }) {
     const last = rows[rows.length - 1],
       ends = [
         ["target", "#a3917f"],
-        ["projected", "#6f845e"],
+        ["forecast", "#bf6b47"],
       ]
         .filter(([k]) => last[k] !== null)
         .map(
           ([k, color]) =>
-            `<text x="${x(W()) - 6}" y="${y(last[k]) + (k === "target" ? 16 : -8)}" fill="${color}" font-size="11" font-weight="700" text-anchor="end">${fmt(last[k])} kg</text>`,
+            `<text x="${x(W()) - 6}" y="${y(last[k]) + (k === "target" ? 16 : -8)}" fill="${color}" font-size="11" font-weight="700" text-anchor="end">${k === "forecast" ? "≈ " : ""}${fmt(last[k])} kg${k === "forecast" ? " a tu ritmo" : ""}</text>`,
         )
         .join("");
     const start = `<text x="${x(0) + 4}" y="${y(rows[0].actual) + 18}" fill="#bf6b47" font-size="11" font-weight="700">${fmt(rows[0].actual)}</text>`;
@@ -141,7 +156,7 @@ window.createFitWeight = function ({ getProgram, week, today, escape }) {
       )
       .join(
         "",
-      )}</div><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Peso objetivo, peso registrado y proyección por déficit"><title>Comparación de peso en ${W()} semanas</title>${grid}${xs}<text x="4" y="12" fill="#7b6a5b" font-size="11">kg</text>${lines}${start}${labels}${ends}</svg><p class="tiny subtle">Eje vertical: peso en kg · Eje horizontal: semanas del programa (S0 = inicio). Peso real = promedio de las pesadas de la semana.</p>`;
+      )}</div><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Peso objetivo, peso registrado y proyección por déficit"><title>Comparación de peso en ${W()} semanas</title>${grid}${xs}<text x="4" y="12" fill="#7b6a5b" font-size="11">kg</text>${lines}${start}${labels}${ends}</svg><p class="tiny subtle">Eje vertical: peso en kg · Eje horizontal: semanas del programa (S0 = inicio). Peso real = promedio de las pesadas de la semana. Pérdida esperada = peso inicial − déficit acumulado de los días cerrados ÷ 7.700 kcal. Proyección = desde tu último peso real, al déficit diario promedio de tus días cerrados.</p>`;
   }
   return { weight: sync(weight), chart: sync(chart) };
 };
