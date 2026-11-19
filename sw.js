@@ -1,4 +1,4 @@
-const CACHE = "fittrack-r113-pecho-rutina-c";
+const CACHE = "fittrack-r114-proyeccion-peso";
 const FILES = [
   "./",
   "./index.html",
